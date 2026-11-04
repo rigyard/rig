@@ -1347,6 +1347,8 @@ One registry table in `lib/gate.mjs`. `plan` output and this table derive from i
 
 The OSV refresh runs only inside `rig pack add` and `rig pin check`. `plan` and `apply` read `cache/osv/` offline. Network therefore lives in two commands.
 
+`cache/osv/<ecosystem>.json` holds `{"schema": 1, "results": {"sha256:<hex of the manifest bytes>": {"advisories": [{"id": "...", "severity": "critical|high|moderate|low"}]}}}`. The ecosystem comes from the manifest name: `npm`, `PyPI`, `Go`, `crates.io`, `RubyGems`. A manifest whose digest has no result blocks. A severity that is not one of the four blocks too. `loadWorld` reads the files into `world.osv`.
+
 ## 11. Scope and project delivery
 
 `pack.json` lists the scopes a pack supports: `machine-hidden`, `project`, `hybrid` (decision 0017). `rig.json` picks one per pack. No `scope` key means `machine-hidden`. rig determines nothing on its own.

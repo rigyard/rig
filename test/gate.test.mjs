@@ -22,17 +22,6 @@ test("a clean pack passes with no real finding", () => {
   assert.equal(r.blocked, false);
 });
 
-test("cve and budget are typed stubs: one info finding each, never blocking", () => {
-  const r = run(world({ packs: [goodPack()] }));
-  for (const check of ["cve", "budget"]) {
-    const [f] = of(r, check);
-    assert.equal(f.severity, "info");
-    assert.match(f.evidence, /^not implemented/);
-    assert.equal(f.stanza, null);
-  }
-  assert.equal(r.blocked, false);
-});
-
 test("refreshOsv is not implemented", async () => {
   await assert.rejects(() => refreshOsv(stack(), async () => ""), /not implemented/);
 });

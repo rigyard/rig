@@ -24,7 +24,7 @@ export function pack(name, files = {}, opts = {}) {
 export const goodPack = (name = "good", extra = {}, opts = {}) =>
   pack(name, { "skills/hello/SKILL.md": "# Hello\n\nSay hello.\n", ...extra }, opts);
 
-export function world({ packs = [], acks = [], vars = {}, private_terms = [], pins = [], locks, facts, targets, providers } = {}) {
+export function world({ packs = [], acks = [], vars = {}, private_terms = [], pins = [], locks, facts, targets, providers, osv } = {}) {
   return {
     env: { home: HOME, state: `${HOME}/.local/state/rig`, data: `${HOME}/.local/share/rig`, test: true },
     config: { schema: 1, pins, private_terms },
@@ -34,6 +34,7 @@ export function world({ packs = [], acks = [], vars = {}, private_terms = [], pi
     locks: locks ?? { repo: { schema: 1, core: { tree: "", candidate: null }, packs: {}, pins: {} }, overlay: null },
     acks,
     facts: new Map(Object.entries(facts ?? {})),
+    osv: new Map(Object.entries(osv ?? {})),
     vars,
   };
 }
