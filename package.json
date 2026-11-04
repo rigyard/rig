@@ -1,0 +1,16 @@
+{
+  "name": "rig",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Version-pinned agent-skill stack and seeder for coding-agent harnesses",
+  "type": "module",
+  "bin": {
+    "rig": "bin/rig.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}
