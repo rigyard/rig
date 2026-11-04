@@ -1,0 +1,231 @@
+[
+  {
+    "probe": "a-enabledplugins-precedence",
+    "verdict": "PASS",
+    "sets": "claude effective-state rule behind `doctor --project` (project value beats user value)",
+    "evidence": {
+      "userSetting": false,
+      "projectCommittedSetting": true,
+      "jsonSupported": true,
+      "effectiveInProject": true,
+      "effectiveInNeutralDirectory": false,
+      "entriesInProject": [
+        {
+          "scope": "user",
+          "enabled": true,
+          "projectEnabled": true,
+          "notes": [
+            "Disabled in ~/.claude/settings.json but still loads — project settings enable it, which overrides your user setting"
+          ],
+          "noteTypes": [
+            "ineffective-disable"
+          ],
+          "count": 1
+        },
+        {
+          "scope": "project",
+          "enabled": true,
+          "projectEnabled": true,
+          "notes": [
+            "Disabled in ~/.claude/settings.json but still loads — project settings enable it, which overrides your user setting"
+          ],
+          "noteTypes": [
+            "ineffective-disable"
+          ],
+          "count": 10
+        }
+      ],
+      "entriesInNeutralDirectory": [
+        {
+          "scope": "user",
+          "enabled": false,
+          "projectEnabled": false,
+          "notes": [],
+          "noteTypes": [],
+          "count": 1
+        },
+        {
+          "scope": "project",
+          "enabled": false,
+          "projectEnabled": false,
+          "notes": [],
+          "noteTypes": [],
+          "count": 10
+        }
+      ],
+      "textListingBlock": [
+        "❯ <plugin>",
+        "Scope: user",
+        "Status: ✔ enabled",
+        "Note: Disabled in ~/.claude/settings.json but still loads — project settings enable it, which overrides your user setting"
+      ],
+      "neutralDirectory": "empty scratch directory outside any project"
+    }
+  },
+  {
+    "probe": "h-sessionend-payload",
+    "verdict": "PASS",
+    "sets": "claude hooks.session_end",
+    "evidence": {
+      "claudeExit": 0,
+      "timedOut": false,
+      "elapsedMs": 5949,
+      "replyContainedOk": true,
+      "hookFiredInPrintMode": true,
+      "payloadKeys": [
+        "cwd",
+        "hook_event_name",
+        "prompt_id",
+        "reason",
+        "session_id",
+        "transcript_path"
+      ],
+      "transcriptPathExists": true,
+      "payloadValueTypes": {
+        "cwd": "string",
+        "hook_event_name": "string",
+        "prompt_id": "string",
+        "reason": "string",
+        "session_id": "string",
+        "transcript_path": "string"
+      },
+      "enumValues": {
+        "hook_event_name": "SessionEnd",
+        "reason": "other"
+      },
+      "parseError": null,
+      "note": "values other than the two enum fields are not recorded"
+    }
+  },
+  {
+    "probe": "k-local-plugin-project",
+    "verdict": "INCONCLUSIVE",
+    "sets": "claude project_scope (partial: session-only local plugin; local marketplace variant needs operator)",
+    "evidence": {
+      "reason": "needs operator: the full variant (rig-owned marketplace, user false, project-local true) needs `claude plugin marketplace add` and a user settings write",
+      "pluginDirFlagListedInHelp": true,
+      "localVariant": {
+        "verdict": "PASS",
+        "invocationFormsThatWorked": [
+          "bare",
+          "namespaced"
+        ],
+        "attempts": {
+          "bare": {
+            "exit": 0,
+            "timedOut": false,
+            "sawMarker": true
+          },
+          "namespaced": {
+            "exit": 0,
+            "timedOut": false,
+            "sawMarker": true
+          }
+        },
+        "controlWithoutFlagExit": 0,
+        "controlWithoutFlagSawMarker": false,
+        "scope": "the plugin loads for that one invocation only, and not without the flag"
+      }
+    }
+  },
+  {
+    "probe": "i-claude-headless-flags",
+    "verdict": "PASS",
+    "sets": "argv template of the claude-cli headless provider record",
+    "evidence": {
+      "exists": {
+        "-p": true,
+        "--output-format": true,
+        "--model": true,
+        "--plugin-dir": true,
+        "--setting-sources": true,
+        "--append-system-prompt": true,
+        "--max-turns": true
+      },
+      "listedInHelp": {
+        "-p": true,
+        "--output-format": true,
+        "--model": true,
+        "--plugin-dir": true,
+        "--setting-sources": true,
+        "--append-system-prompt": true,
+        "--max-turns": false
+      },
+      "outputFormatChoicesInHelp": [
+        "text",
+        "json",
+        "stream-json"
+      ],
+      "jsonResultKeys": [
+        "api_error_status",
+        "credential_expires_at",
+        "duration_api_ms",
+        "duration_ms",
+        "fast_mode_disabled_reason",
+        "fast_mode_state",
+        "first_content_frame_ms",
+        "is_error",
+        "modelUsage",
+        "num_turns",
+        "permission_denials",
+        "queued_turn_count",
+        "result",
+        "result_index",
+        "safety_stops",
+        "session_id",
+        "stop_reason",
+        "subagent_stats",
+        "subtype",
+        "terminal_reason",
+        "time_to_request_ms",
+        "total_cost_usd",
+        "ttft_ms",
+        "ttft_stream_ms",
+        "type",
+        "usage",
+        "uuid"
+      ],
+      "streamJsonEventTypes": [
+        "assistant",
+        "rate_limit_event",
+        "result",
+        "system"
+      ],
+      "streamJsonWithoutVerbose": {
+        "exit": 1,
+        "errorMentionsVerbose": true
+      },
+      "behaviourChecks": {
+        "--output-format json": true,
+        "--output-format stream-json (with --verbose)": true,
+        "--setting-sources": true,
+        "--append-system-prompt": true,
+        "--model": true,
+        "--max-turns": true
+      },
+      "controls": {
+        "cliRejectsUnknownFlags": true
+      },
+      "note": "--max-turns is absent from --help in this version but the CLI accepts it; plugin-dir behaviour is covered by probe k"
+    }
+  },
+  {
+    "probe": "craft-claude-project-units",
+    "verdict": "PASS",
+    "sets": "claude /craft entry path (project command and skill units)",
+    "evidence": {
+      "command": {
+        "invocation": "/rigprobe-cmd",
+        "exit": 0,
+        "timedOut": false,
+        "sawMarker": true
+      },
+      "skillWithDisableModelInvocation": {
+        "invocation": "/rigprobe-skill",
+        "exit": 0,
+        "timedOut": false,
+        "sawMarker": true
+      }
+    }
+  }
+]
