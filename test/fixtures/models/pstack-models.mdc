@@ -1,0 +1,15 @@
+---
+description: pstack model roles
+alwaysApply: true
+---
+# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
+# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit Task `model`).
+# budget: medium (high)
+feature, refactoring: slug-f-high-high
+bug-fix: slug-f-high-high
+hardest tasks: slug-s-high
+deep dives: slug-r-high
+how explorer: auto
+reflect judgment, divergent, synthesizer: slug-s-high
+arena runners: slug-s-high, slug-f-high-high
+arena cross-judge pool: slug-s-high, slug-f-high-low

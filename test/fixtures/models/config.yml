@@ -1,0 +1,19 @@
+# omp settings
+modelRoles:
+  # roles rig renders
+  task: prov/model-f-high:auto
+  advisor: prov/model-a:medium
+  judge: other/model-j:medium
+  plan: prov/model-r:high
+  default: prov/model-c:medium
+queue:
+  task: 5
+  default: 'fifo'
+theme: dark
+enabledTools:
+- read
+- edit
+telemetry:
+  enabled: false
+  endpoint: "https://t.example/x"
+extensions: [pm, ctx]

@@ -1,0 +1,14 @@
+theme: light
+queue:
+  default: fifo
+  task: 7
+modelRoles:
+  default: "prov/model-c:medium"
+  plan: prov/model-r:high
+  judge: 'other/model-j:medium'
+  advisor: prov/model-a:medium
+  task: prov/model-f-high:auto
+extensions:
+  - pm
+  - ctx
+newKey: 1

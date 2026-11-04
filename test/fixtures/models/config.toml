@@ -1,0 +1,18 @@
+# codex config
+model = "codex-model-s"
+model_reasoning_effort = "medium"
+
+approval_policy = "on-request"
+
+[profiles.fast]
+model = "codex-model-f"   # fast profile
+model_reasoning_effort = "low"
+
+[mcp_servers.demo]
+command = "demo"
+args = [
+  "--stdio",
+]
+
+[projects."/work/demo"]
+trust_level = "trusted"
