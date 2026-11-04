@@ -15,6 +15,7 @@ rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesse
 | File | Status | Content |
 |---|---|---|
 | [plan/v0-slices.md](plan/v0-slices.md) | Plan, not started | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
+| [plan/v0-prs.md](plan/v0-prs.md) | Program plan | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
 
 ## Research
 
