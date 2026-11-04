@@ -1,0 +1,620 @@
+{
+  "harness": "omp",
+  "omp_version": "18.16.0",
+  "generated": "2026-11-05",
+  "results": [
+    {
+      "probe": "c-omp-config-rewrite",
+      "verdict": "PASS",
+      "evidence": {
+        "setup": "config.yml mode 0600 with a comment line, a marker line, an unknown key, a custom key order and five placeholder modelRoles values",
+        "read_only_and_plain_run": {
+          "config list": {
+            "exit": 0,
+            "rewritten": false,
+            "lock_file_after": false
+          },
+          "config get modelRoles": {
+            "exit": 0,
+            "rewritten": false,
+            "lock_file_after": false
+          },
+          "-p run": {
+            "exit": 0,
+            "model_answered": true,
+            "model_override_used": true,
+            "rewritten": false,
+            "lock_file_after": false
+          }
+        },
+        "settings_change_unrelated_key": {
+          "command": "omp config set symbolPreset ascii",
+          "exit": 0,
+          "rewritten": true,
+          "comment_kept": false,
+          "marker_kept": false,
+          "unknown_key_kept": true,
+          "key_order_kept": true,
+          "top_level_keys_after": [
+            "zeta",
+            "modelRoles",
+            "rigProbeUnknown",
+            "defaultThinkingLevel",
+            "alpha",
+            "symbolPreset"
+          ],
+          "mode_before": "600",
+          "mode_after": "600",
+          "mode_kept": true,
+          "lock_file_before": false,
+          "lock_file_after": true,
+          "trailing_newline_kept": false,
+          "model_roles_block_style": true,
+          "model_roles_cells_found": 5,
+          "model_roles_values_as_expected": true
+        },
+        "settings_change_model_roles": {
+          "command": "omp config set modelRoles <json map>",
+          "exit": 0,
+          "dotted_key_command_exit": 1,
+          "dotted_key_command_message": "Unknown setting: modelRoles.default",
+          "rewritten": true,
+          "comment_kept": false,
+          "marker_kept": false,
+          "unknown_key_kept": true,
+          "key_order_kept": true,
+          "top_level_keys_after": [
+            "zeta",
+            "modelRoles",
+            "rigProbeUnknown",
+            "defaultThinkingLevel",
+            "alpha",
+            "symbolPreset"
+          ],
+          "mode_before": "600",
+          "mode_after": "600",
+          "mode_kept": true,
+          "lock_file_before": true,
+          "lock_file_after": true,
+          "trailing_newline_kept": true,
+          "model_roles_block_style": true,
+          "model_roles_cells_found": 5,
+          "model_roles_values_as_expected": true
+        },
+        "how_a_write_was_triggered": "`omp config set <key> <value>` (subcommand `config`, actions list, get, set, reset, path, init-xdg). No flag or slash command was needed.",
+        "real_omp_config_mtime_ms": {
+          "before": 1793773337346,
+          "after": 1793773337346,
+          "unchanged": true
+        }
+      },
+      "sets": {
+        "omp_target": {
+          "config_yml": {
+            "harness_rewrites": true,
+            "locator": "yaml-map-value (line level, block style, two-space indent)",
+            "comments_survive_rewrite": false,
+            "markers_allowed_in_file": false,
+            "unknown_keys_survive": true,
+            "key_order_survives": true,
+            "lock_file": "config.yml.lock (created by omp on first write)",
+            "mode_survives": true
+          }
+        },
+        "resolves": [
+          "A26"
+        ]
+      }
+    },
+    {
+      "probe": "e-omp-skill-dirs-dedupe",
+      "verdict": "PASS",
+      "evidence": {
+        "channels": "Channel 1 is `omp read skill://<unknown>`, which lists effective skill names with no model call. Channel 2 asks the model for its skills list three times with no tool calls.",
+        "read_channel_available": true,
+        "read_channel_names": [
+          "codex/rigprobe-diff",
+          "rigprobe-diff",
+          "rigprobe-same",
+          "rigprobe-side",
+          "rigprobe-u-agentdir",
+          "rigprobe-u-home-agents",
+          "rigprobe-u-proj-agents",
+          "rigprobe-u-proj-claude",
+          "rigprobe-u-proj-codex",
+          "rigprobe-u-proj-omp",
+          "rigprobe-xsame"
+        ],
+        "model_runs": [
+          {
+            "names": [
+              "codex/rigprobe-diff",
+              "rigprobe-diff",
+              "rigprobe-same",
+              "rigprobe-side",
+              "rigprobe-u-agentdir",
+              "rigprobe-u-home-agents",
+              "rigprobe-u-proj-agents",
+              "rigprobe-u-proj-claude",
+              "rigprobe-u-proj-codex",
+              "rigprobe-u-proj-omp",
+              "rigprobe-xsame"
+            ],
+            "tool_calls": 0
+          },
+          {
+            "names": [
+              "codex/rigprobe-diff",
+              "rigprobe-diff",
+              "rigprobe-same",
+              "rigprobe-side",
+              "rigprobe-u-agentdir",
+              "rigprobe-u-home-agents",
+              "rigprobe-u-proj-agents",
+              "rigprobe-u-proj-claude",
+              "rigprobe-u-proj-codex",
+              "rigprobe-u-proj-omp",
+              "rigprobe-xsame"
+            ],
+            "tool_calls": 0
+          },
+          {
+            "names": [
+              "codex/rigprobe-diff",
+              "rigprobe-diff",
+              "rigprobe-same",
+              "rigprobe-side",
+              "rigprobe-u-agentdir",
+              "rigprobe-u-home-agents",
+              "rigprobe-u-proj-agents",
+              "rigprobe-u-proj-claude",
+              "rigprobe-u-proj-codex",
+              "rigprobe-u-proj-omp",
+              "rigprobe-xsame"
+            ],
+            "tool_calls": 0
+          }
+        ],
+        "model_runs_agree": true,
+        "model_agrees_with_read_channel": true,
+        "location_results": [
+          {
+            "location": "user: <agent dir>/skills",
+            "name": "rigprobe-u-agentdir",
+            "read": true
+          },
+          {
+            "location": "user: ~/.agents/skills",
+            "name": "rigprobe-u-home-agents",
+            "read": true
+          },
+          {
+            "location": "user: ~/.claude/skills",
+            "name": "rigprobe-u-home-claude",
+            "read": false
+          },
+          {
+            "location": "user: ~/.codex/skills",
+            "name": "rigprobe-u-home-codex",
+            "read": false
+          },
+          {
+            "location": "project: .claude/skills",
+            "name": "rigprobe-u-proj-claude",
+            "read": true
+          },
+          {
+            "location": "project: .codex/skills",
+            "name": "rigprobe-u-proj-codex",
+            "read": true
+          },
+          {
+            "location": "project: .agents/skills",
+            "name": "rigprobe-u-proj-agents",
+            "read": true
+          },
+          {
+            "location": "project: .omp/skills",
+            "name": "rigprobe-u-proj-omp",
+            "read": true
+          }
+        ],
+        "pair_counts": {
+          "rigprobe-same (3 dirs, identical bytes)": 1,
+          "rigprobe-side (identical SKILL.md, sidecar agents/openai.yaml in the .codex copy)": 1,
+          "rigprobe-diff (different description)": 2,
+          "rigprobe-xsame (agent dir plus project .claude)": 1
+        },
+        "winner_paths": {
+          "rigprobe-diff": "proj/.claude/skills/rigprobe-diff/SKILL.md",
+          "codex/rigprobe-diff": "proj/.codex/skills/rigprobe-diff/SKILL.md",
+          "rigprobe-same": "proj/.claude/skills/rigprobe-same/SKILL.md",
+          "rigprobe-xsame": "agent/skills/rigprobe-xsame/SKILL.md"
+        },
+        "command_results": [
+          {
+            "location": "user: <agent dir>/commands",
+            "command": "/rigprobe-cmd",
+            "exit": 0,
+            "expanded": true
+          },
+          {
+            "location": "project: .claude/commands",
+            "command": "/rigprobe-cmd-pc",
+            "exit": 0,
+            "expanded": true
+          },
+          {
+            "location": "user: ~/.claude/commands",
+            "command": "/rigprobe-cmd-hc",
+            "exit": 0,
+            "expanded": false
+          },
+          {
+            "location": "user: ~/.agents/commands",
+            "command": "/rigprobe-cmd-ha",
+            "exit": 0,
+            "expanded": true
+          }
+        ],
+        "doc_corroboration": "`omp read omp://skills.md` (omp v18.16.0) states: a later same-named skill is dropped when its body is identical and its frontmatter deeply equal; differing copies get `<namespace>/<name>`; foreign user-level providers (claude, codex) are opt-in through `enabledProviders`; `.agents` has its own toggles. Observed behavior matches.",
+        "model_override_used": true,
+        "real_omp_config_mtime_ms": {
+          "before": 1793773337346,
+          "after": 1793773337346,
+          "unchanged": true
+        }
+      },
+      "sets": {
+        "omp_target": {
+          "reads_skills": [
+            {
+              "location": "user: <agent dir>/skills",
+              "read": true
+            },
+            {
+              "location": "user: ~/.agents/skills",
+              "read": true
+            },
+            {
+              "location": "user: ~/.claude/skills",
+              "read": false
+            },
+            {
+              "location": "user: ~/.codex/skills",
+              "read": false
+            },
+            {
+              "location": "project: .claude/skills",
+              "read": true
+            },
+            {
+              "location": "project: .codex/skills",
+              "read": true
+            },
+            {
+              "location": "project: .agents/skills",
+              "read": true
+            },
+            {
+              "location": "project: .omp/skills",
+              "read": true
+            }
+          ],
+          "skills_dedupe": "skill-md-bytes",
+          "skills_dedupe_enum": [
+            "none",
+            "whole-dir",
+            "skill-md-bytes",
+            "name-only"
+          ],
+          "user_command_dir": "<agent dir>/commands/*.md",
+          "commands_read": [
+            {
+              "location": "user: <agent dir>/commands",
+              "read": true
+            },
+            {
+              "location": "project: .claude/commands",
+              "read": true
+            },
+            {
+              "location": "user: ~/.claude/commands",
+              "read": false
+            },
+            {
+              "location": "user: ~/.agents/commands",
+              "read": true
+            }
+          ],
+          "bare_command_works_in_print_mode": true
+        },
+        "resolves": [
+          "A13",
+          "A36 (omp part)"
+        ]
+      }
+    },
+    {
+      "probe": "g-omp-agents-md-path",
+      "verdict": "PASS",
+      "evidence": {
+        "setup": "Sentinels are random per run. Runs use --no-tools, so the model can answer only from its instructions. Three runs per scenario.",
+        "scenario_a": {
+          "description": "<agent dir>/AGENTS.md holds a user line and a rig:begin/rig:end block; ~/.codex/AGENTS.md holds a second sentinel.",
+          "runs": [
+            {
+              "g1_user_line_seen": true,
+              "g1_block_line_seen": true,
+              "g2_codex_seen": false,
+              "marker_lines_visible": true,
+              "tool_calls": 0
+            },
+            {
+              "g1_user_line_seen": true,
+              "g1_block_line_seen": true,
+              "g2_codex_seen": false,
+              "marker_lines_visible": true,
+              "tool_calls": 0
+            },
+            {
+              "g1_user_line_seen": true,
+              "g1_block_line_seen": true,
+              "g2_codex_seen": false,
+              "marker_lines_visible": true,
+              "tool_calls": 0
+            }
+          ],
+          "runs_agree": true
+        },
+        "scenario_b": {
+          "description": "No AGENTS.md in the agent dir. Six rival paths each hold a sentinel. omp keeps one user-level file, so a path that stays unseen may sit behind the winner.",
+          "runs": [
+            {
+              "tool_calls": 0,
+              "paths_seen": [
+                "~/.agents/AGENTS.md"
+              ]
+            },
+            {
+              "tool_calls": 0,
+              "paths_seen": [
+                "~/.agents/AGENTS.md"
+              ]
+            },
+            {
+              "tool_calls": 0,
+              "paths_seen": [
+                "~/.agents/AGENTS.md"
+              ]
+            }
+          ],
+          "runs_agree": true,
+          "paths_seen_in_every_run": [
+            "~/.agents/AGENTS.md"
+          ],
+          "paths_never_seen": [
+            "~/.codex/AGENTS.md",
+            "~/.claude/CLAUDE.md",
+            "<agent dir>/../AGENTS.md",
+            "~/.omp/AGENTS.md",
+            "~/.omp/agent/AGENTS.md (the default agent dir, now relocated by PI_CODING_AGENT_DIR)"
+          ]
+        },
+        "doc_corroboration": "`omp read omp://context-files.md` (omp v18.16.0) lists `<agent dir>/AGENTS.md` as the native user file, says PI_CODING_AGENT_DIR relocates it, and says foreign user files (~/.claude, ~/.codex) are opt-in through `enabledProviders`.",
+        "model_override_used": true,
+        "real_omp_config_mtime_ms": {
+          "before": 1793773337346,
+          "after": 1793773337346,
+          "unchanged": true
+        }
+      },
+      "sets": {
+        "omp_target": {
+          "instructions": {
+            "path": "<agent dir>/AGENTS.md (default ~/.omp/agent/AGENTS.md)",
+            "mode": "whole-file",
+            "managed_block_compatible": true,
+            "note": "omp passes the file to the model verbatim: user lines, block lines and marker lines all arrive.",
+            "fallback_when_agent_dir_file_absent": [
+              "~/.agents/AGENTS.md"
+            ],
+            "codex_user_file_read_by_default": false
+          }
+        },
+        "resolves": [
+          "A2"
+        ]
+      }
+    },
+    {
+      "probe": "i-omp-headless-flags",
+      "verdict": "PASS",
+      "evidence": {
+        "omp_version": "omp/18.16.0",
+        "help": {
+          "exit": 0,
+          "flag_count": 58,
+          "short_flags": {
+            "-p": "--print",
+            "-c": "--continue",
+            "-r": "--resume",
+            "-e": "--extension"
+          },
+          "required_flags": [
+            "--print",
+            "--mode",
+            "--model",
+            "--profile",
+            "--cwd",
+            "--session-dir",
+            "--no-session",
+            "--no-tools",
+            "--thinking",
+            "--config",
+            "--add-dir",
+            "--skills",
+            "--no-skills",
+            "--no-context-files",
+            "--system-prompt",
+            "--append-system-prompt",
+            "--max-time",
+            "--approval-mode",
+            "--auto-approve",
+            "--smol",
+            "--slow",
+            "--plan"
+          ],
+          "missing_required_flags": [],
+          "mode_values_line": "Output mode: text (default), json, rpc, or rpc-ui",
+          "env_lines": [
+            "OMP_PROFILE - Named profile for isolated agent state (same as --profile)",
+            "PI_CODING_AGENT_DIR - Session storage directory (default: ~/.omp/agent)"
+          ],
+          "config_actions": "list|get|set|reset|path|init-xdg"
+        },
+        "all_flags": [
+          "--model",
+          "--smol",
+          "--slow",
+          "--plan",
+          "--goal",
+          "--prewalk",
+          "--no-prewalk",
+          "--prewalk-into",
+          "--plan-yolo",
+          "--plan-yolo-into",
+          "--provider",
+          "--api-key",
+          "--system-prompt",
+          "--system-prompt-template",
+          "--append-system-prompt",
+          "--allow-home",
+          "--profile",
+          "--alias",
+          "--cwd",
+          "--mode",
+          "--config",
+          "--add-dir",
+          "--print",
+          "--continue",
+          "--resume",
+          "--restore",
+          "--from-claude",
+          "--from-codex",
+          "--session-dir",
+          "--no-session",
+          "--models",
+          "--no-tools",
+          "--no-lsp",
+          "--no-pty",
+          "--tools",
+          "--thinking",
+          "--service-tier",
+          "--hide-thinking",
+          "--advisor",
+          "--wait-async",
+          "--external-thinking",
+          "--hook",
+          "--extension",
+          "--no-extensions",
+          "--no-skills",
+          "--skills",
+          "--no-rules",
+          "--no-context-files",
+          "--export",
+          "--no-title",
+          "--no-ui",
+          "--print-thoughts",
+          "--max-time",
+          "--warn-cost",
+          "--max-cost",
+          "--auto-approve",
+          "--approval-mode",
+          "--plugin-dir"
+        ],
+        "json_run": {
+          "exit": 0,
+          "every_stdout_line_parses_as_json": true,
+          "event_types": [
+            "session",
+            "agent_start",
+            "turn_start",
+            "message_start",
+            "message_end",
+            "message_update",
+            "turn_end",
+            "agent_end"
+          ],
+          "ends_with_agent_end": true,
+          "answered": true,
+          "assistant_usage_fields": [
+            "input",
+            "output",
+            "cacheRead",
+            "cacheWrite",
+            "totalTokens",
+            "reasoningTokens",
+            "cost"
+          ],
+          "usage_has_cost_total": true,
+          "first_event_is_session_with_cwd": true,
+          "model_override_used": true
+        },
+        "stdin_open_pipe_run": {
+          "hung_after_15s": true,
+          "stdout_bytes": 0
+        },
+        "directory_overrides": {
+          "PI_CODING_AGENT_DIR_only": {
+            "config_path": "<scratch>/i/agent",
+            "equals_agent_dir": true
+          },
+          "with_profile_flag": {
+            "config_path": "<scratch>/i/home/.omp/profiles/probe-profile/agent",
+            "profile_beats_agent_dir_env": true
+          },
+          "with_OMP_PROFILE_env": {
+            "config_path": "<scratch>/i/home/.omp/profiles/probe-profile/agent",
+            "profile_beats_agent_dir_env": true
+          }
+        },
+        "real_omp_config_mtime_ms": {
+          "before": 1793773337346,
+          "after": 1793773337346,
+          "unchanged": true
+        }
+      },
+      "sets": {
+        "omp_target": {
+          "headless_argv": [
+            "omp",
+            "-p",
+            "--mode",
+            "json",
+            "--no-session",
+            "[--model",
+            "<id>]",
+            "[--thinking",
+            "<level>]",
+            "[--cwd",
+            "<dir>]",
+            "<prompt>"
+          ],
+          "stdin": "must be closed or ignored; an open stdin pipe hangs `omp -p` with no output",
+          "output": "JSON lines; first event `session` with cwd, last event `agent_end`; assistant `message_end` carries `usage` with `cost.total`",
+          "isolation_env": {
+            "PI_CODING_AGENT_DIR": "<dir>",
+            "HOME": "<dir>",
+            "profile_precedence": "a profile (--profile or OMP_PROFILE) overrides PI_CODING_AGENT_DIR"
+          },
+          "config_overlay_flag": "--config <file> (config.yml-style overlay for one run)",
+          "model_flag": "--model (fuzzy match; exact form provider/id)"
+        },
+        "resolves": [
+          "A14 (omp part)"
+        ]
+      }
+    }
+  ]
+}
