@@ -1,15 +1,24 @@
 {
   "schema": 1,
   "name": "cursor",
+  "root": "~/.cursor",
   "reads": {
     "skills": [
-      {"path": "~/.cursor/skills", "writable": false, "dedupe": "none"},
-      {"path": "~/.agents/skills", "writable": false, "dedupe": "none"},
-      {"path": "~/.claude/skills", "writable": false, "dedupe": "none"},
-      {"path": "~/.codex/skills", "writable": false, "dedupe": "none"},
-      {"path": "~/.cursor/plugins/local/rig/skills", "writable": true, "plugin": true, "dedupe": "none"}
+      {"path": "~/.cursor/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.agents/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.claude/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.codex/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.cursor/plugins/local/rig/skills", "writable": true, "plugin": true, "dedupe": "by-name"}
     ],
     "never_write": ["~/.cursor/skills-cursor/**", "~/.cursor/hooks.json", "~/.cursor/chats/**"]
   },
-  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true}
+  "units": {
+    "command": {"dir": "~/.cursor/plugins/local/rig/skills", "format": "skill-hidden"},
+    "agent": {"dir": "~/.cursor/agents", "format": "cursor-md"},
+    "rule": {"dir": "~/.cursor/rules", "format": "mdc"}
+  },
+  "plugin_manifest": {"path": "~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json",
+                      "value": {"name": "rig", "skills": "./skills/"}},
+  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
+  "instructions": {"path": "~/.cursor/rules/rig-frame.mdc", "mode": "whole-file"}
 }

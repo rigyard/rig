@@ -1,6 +1,7 @@
 {
   "schema": 1,
   "name": "claude",
+  "root": "~/.claude",
   "reads": {
     "skills": [
       {"path": "~/.claude/skills", "writable": true, "dedupe": "none"},
@@ -9,5 +10,12 @@
     "never_write": ["~/.claude/plugins/**"]
   },
   "channels": {"plugin": {"marketplace": "rig-local", "dir": "$XDG_DATA_HOME/rig/marketplace"}},
-  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true}
+  "units": {
+    "skill": {"frontmatter": "keep", "sidecar": null},
+    "command": {"dir": "~/.claude/commands", "format": "md-frontmatter"},
+    "agent": {"dir": "~/.claude/agents", "format": "claude-md"},
+    "rule": {"dir": "~/.claude/rules", "format": "md"}
+  },
+  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
+  "instructions": {"path": "~/.claude/rules/rig-frame.md", "mode": "whole-file"}
 }

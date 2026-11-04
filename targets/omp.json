@@ -1,13 +1,19 @@
 {
   "schema": 1,
   "name": "omp",
+  "root": "~/.omp/agent",
   "reads": {
     "skills": [
       {"path": "~/.omp/agent/skills", "writable": true, "dedupe": "identical-bytes"},
-      {"path": "~/.claude/skills", "writable": false, "dedupe": "identical-bytes"},
-      {"path": "~/.codex/skills", "writable": false, "dedupe": "identical-bytes"}
+      {"path": "~/.agents/skills", "writable": false, "dedupe": "identical-bytes"}
     ],
     "never_write": ["~/.omp/agent/extensions/**", "~/.omp/agent/config.yml.lock"]
   },
-  "hide": {"method": "frontmatter-key", "key": "hide", "value": true}
+  "units": {
+    "skill": {"frontmatter": "keep", "sidecar": null},
+    "command": {"dir": "~/.omp/agent/commands", "format": "md-frontmatter"},
+    "agent": null
+  },
+  "hide": {"method": "frontmatter-key", "key": "hide", "value": true},
+  "instructions": {"path": "~/.omp/agent/AGENTS.md", "mode": "whole-file"}
 }

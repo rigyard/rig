@@ -1,6 +1,7 @@
 {
   "schema": 1,
   "name": "codex",
+  "root": "~/.codex",
   "reads": {
     "skills": [
       {"path": "~/.codex/skills", "writable": true, "dedupe": "none"},
@@ -8,5 +9,12 @@
     ],
     "never_write": []
   },
-  "hide": {"method": "sidecar", "file": "agents/openai.yaml", "key": "policy.allow_implicit_invocation", "value": false}
+  "units": {
+    "skill": {"frontmatter": "keep", "sidecar": "openai-yaml"},
+    "command": {"dir": "~/.codex/prompts", "format": "md-body"},
+    "agent": {"dir": "~/.codex/agents", "format": "codex-toml"}
+  },
+  "hide": {"method": "sidecar", "file": "agents/openai.yaml", "key": "policy.allow_implicit_invocation", "value": false},
+  "instructions": {"path": "~/.codex/AGENTS.md", "mode": "managed-block"},
+  "budget": {"description_max": 1024, "instructions_max_bytes": 32768}
 }

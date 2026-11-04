@@ -55,27 +55,28 @@ test("all four harnesses: each dedupe value of Cursor and omp", () => {
         assert.match(r.error.message, /~\/\.claude\/skills/);
       } else {
         assertRule(r, u);
-        assert.deepEqual(paths(r), omp === "none" ? [CL, AG] : [CL, CX], `cursor=${cursor} omp=${omp}`);
+        // omp reads ~/.agents/skills, not ~/.codex/skills (probe e), so ~/.agents/skills is the only dir that serves Codex and omp at once
+        assert.deepEqual(paths(r), [CL, AG], `cursor=${cursor} omp=${omp}`);
         assert.deepEqual(r.namespace, []);
       }
       // with the plugin channel the answer is the same for every value, and it reports the namespace cost
       const c = run(unit(HARNESSES, { channel: { claude: "plugin" } }), { cursor, omp });
       assertRule(c, u);
-      assert.deepEqual(paths(c), [CX, CHANNEL]);
+      assert.deepEqual(paths(c), [AG, CHANNEL]);
       assert.equal(c.dirs[1].channel, "plugin");
       assert.deepEqual(c.namespace, [{ harness: "claude", dir: CHANNEL, certainty: "documented" }]);
     }
   }
 });
 
-test("Claude plus Cursor: ~/.claude/skills under every dedupe value, omp is a leak", () => {
+test("Claude plus Cursor: ~/.claude/skills under every dedupe value, no leak (omp does not read it)", () => {
   const u = unit(["claude", "cursor"]);
   for (const cursor of CURSOR) {
     for (const omp of OMP) {
       const r = run(u, { cursor, omp });
       assertRule(r, u);
       assert.deepEqual(paths(r), [CL]);
-      assert.deepEqual(r.leaks, ["omp"]);
+      assert.deepEqual(r.leaks, []);
     }
   }
 });
@@ -85,7 +86,7 @@ test("Codex only: one dir, the leak is reported", () => {
   for (const cursor of CURSOR) {
     const r = run(u, { cursor });
     assertRule(r, u);
-    assert.deepEqual(paths(r), [AG]);
+    assert.deepEqual(paths(r), [CX]);
     assert.deepEqual(r.leaks, ["cursor"]);
     assert.equal(r.copies.omp, 0);
   }
@@ -103,7 +104,7 @@ test("Cursor only goes through its own plugin dir and reports the unverified nam
 test("Claude only: the plugin channel replaces the skill dir and removes the leaks", () => {
   const plain = run(unit(["claude"]));
   assert.deepEqual(paths(plain), [CL]);
-  assert.deepEqual(plain.leaks, ["omp", "cursor"]);
+  assert.deepEqual(plain.leaks, ["cursor"]);
   const u = unit(["claude"], { channel: { claude: "plugin" } });
   const chan = run(u);
   assertRule(chan, u);
@@ -126,7 +127,7 @@ test("hidden unit for all four: the Codex sidecar makes digests differ, so only 
       const hc = unit(HARNESSES, { hidden: true, channel: { claude: "plugin" } });
       const c = run(hc, { cursor, omp });
       assertRule(c, u);
-      assert.deepEqual(paths(c), [CX, CHANNEL]);
+      assert.deepEqual(paths(c), [AG, CHANNEL]);
       assert.deepEqual(c.unhidden, []);
     }
   }
@@ -188,8 +189,8 @@ test("E_READSET names the harness, the colliding dirs and both exits", () => {
 
 test("equal-cost solutions are a tie broken by declared order, not by chance", () => {
   const recs = recordsWith();
-  // omp reads ~/.agents/skills too, so ~/.codex/skills and ~/.agents/skills leak to the same harnesses
-  recs.get("omp").reads.skills.push({ path: AG, writable: false, dedupe: "identical-bytes" });
+  // omp also reads ~/.codex/skills here, so ~/.codex/skills and ~/.agents/skills leak to the same harnesses
+  recs.get("omp").reads.skills.push({ path: CX, writable: false, dedupe: "identical-bytes" });
   const first = place(unit(["codex"]), HARNESSES, recs);
   assert.deepEqual(paths(first), [CX]);
   assert.deepEqual(first.leaks, ["omp", "cursor"]);
@@ -197,6 +198,22 @@ test("equal-cost solutions are a tie broken by declared order, not by chance", (
   swapped.get("codex").reads.skills.reverse();
   assert.deepEqual(paths(place(unit(["codex"]), HARNESSES, swapped)), [AG]);
   assert.deepEqual(place(unit(["codex"]), HARNESSES, recs), first);
+});
+
+test("all four on the real records (probe-driven omp and Cursor read-sets): ~/.claude/skills plus ~/.agents/skills", () => {
+  const recs = loadRecords();
+  const omp = recs.get("omp").reads.skills.map((e) => e.path);
+  assert.deepEqual(omp, ["~/.omp/agent/skills", AG]);
+  assert.ok(recs.get("cursor").reads.skills.every((e) => e.dedupe === "by-name"));
+  for (const hidden of [false, true]) {
+    const u = unit(HARNESSES, { hidden });
+    const r = place(u, HARNESSES, recs);
+    assertRule(r, u);
+    assert.deepEqual(paths(r), [CL, AG]);
+    // omp sees only the ~/.agents/skills copy; Cursor sees both and collapses them by name
+    assert.deepEqual(r.copies, { claude: 1, codex: 1, omp: 1, cursor: 1 });
+    assert.deepEqual(r.unhidden, []);
+  }
 });
 
 test("place rejects a harness it has no record for", () => {
@@ -222,6 +239,7 @@ function plantedHome() {
   link(at(".codex/skills/alpha"), at(".agents/skills/alpha"));
   skill(at(".codex/skills"), "beta", body("beta"));
   skill(at(".agents/skills"), "beta", body("beta"));
+  skill(at(".omp/agent/skills"), "beta", body("beta"));
   skill(at(".codex/skills"), "gamma", body("one"));
   skill(at(".agents/skills"), "gamma", body("two"));
   skill(at(".claude/skills"), "delta", body("delta"));
@@ -265,7 +283,7 @@ test("readSet reports a planted duplicate exactly: link plus target, identical c
     }
     // claude reads only ~/.claude/skills and the plugin cache: no duplicate
     assert.deepEqual(dups.get("claude"), []);
-    // omp collapses identical copies in ~/.codex/skills and ~/.claude/skills: delta is one entry, not a duplicate
+    // omp collapses identical copies in ~/.omp/agent/skills and ~/.agents/skills: beta is not a duplicate
     assert.deepEqual(dups.get("omp"), []);
   } finally {
     rmSync(home, { recursive: true, force: true });
@@ -280,9 +298,11 @@ test("readSet applies each harness's dedupe rule", () => {
     assert.deepEqual(names({ cursor: "none" }, "cursor"), ["alpha", "beta", "delta", "gamma"]);
     assert.deepEqual(names({ cursor: "identical-bytes" }, "cursor"), ["gamma"]);
     assert.deepEqual(names({ cursor: "by-name" }, "cursor"), []);
-    assert.deepEqual(names({ omp: "none" }, "omp"), ["delta"]);
+    assert.deepEqual(names({ omp: "none" }, "omp"), ["beta"]);
     const omp = readSet(worldFor(home)).get("omp");
-    assert.equal(omp.filter((e) => e.name === "delta").length, 1);
+    assert.equal(omp.filter((e) => e.name === "beta").length, 1);
+    // omp does not read ~/.claude/skills or ~/.codex/skills (probe e)
+    assert.equal(omp.filter((e) => e.name === "delta").length, 0);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

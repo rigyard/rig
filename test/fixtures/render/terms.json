@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "terms": {
+    "ask-user": {"claude": "ask-user-c", "codex": "ask-user-x", "omp": "ask-user-o", "cursor": "ask-user-u"},
+    "invoke": {"claude": "/", "codex": "/prompts:", "omp": "/", "cursor": "/"},
+    "models-source": {"claude": "models-c", "codex": "models-x", "omp": "models-o", "cursor": "models-u"}
+  }
+}

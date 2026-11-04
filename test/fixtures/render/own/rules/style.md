@@ -1,0 +1,2 @@
+# Style
+Use short sentences.
