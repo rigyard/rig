@@ -11,9 +11,9 @@ import { describe, test } from "node:test";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** Modules that may import node:child_process. lib/lock.mjs spawns git; gate() is pure (doc section 4). */
-const SPAWN_ALLOW = ["lib/lock.mjs"];
+const SPAWN_ALLOW = ["lib/lock.mjs", "lib/lock/git.mjs"];
 /** Modules that may import a network module or reference fetch. */
-const NETWORK_ALLOW = ["lib/lock.mjs"];
+const NETWORK_ALLOW = ["lib/lock.mjs", "lib/lock/git.mjs"];
 const NETWORK_MODULES = ["node:net", "node:http", "node:https", "node:http2", "node:tls", "node:dgram"];
 
 /**
@@ -31,6 +31,8 @@ const FS_EXPORTS = {
 /** Write functions of node:fs and node:fs/promises. Only lib/fs.mjs may import them. */
 const RAW_FS_WRITE = /^(writeFile|rename|unlink|rm|rmdir|appendFile|chmod|createWriteStream|copyFile|cp)(Sync)?$/;
 const FS_MODULES = ["node:fs", "node:fs/promises"];
+/** Modules that may import raw fs writes. lib/lock/git.mjs deletes its own scratch clone dir, which lies outside every config root. */
+const RAW_FS_ALLOW = ["lib/fs.mjs", "lib/lock/git.mjs"];
 
 /** Modules that may read RIG_TEST or RIG_TEST_ABORT_AFTER. */
 const TEST_HOOK_ALLOW = ["state"];
@@ -122,7 +124,7 @@ function violations(files) {
       if (target === "node:child_process" && !SPAWN_ALLOW.includes(rel)) fail(index, "network and spawn", `imports ${target}`);
       if (NETWORK_MODULES.includes(target) && !NETWORK_ALLOW.includes(rel)) fail(index, "network and spawn", `imports ${target}`);
 
-      if (FS_MODULES.includes(target) && rel !== "lib/fs.mjs") {
+      if (FS_MODULES.includes(target) && !RAW_FS_ALLOW.includes(rel)) {
         if (names.includes("*") || names.includes("default")) fail(index, "raw fs writes", `namespace or default import of ${target}`);
         for (const n of names.filter((n) => RAW_FS_WRITE.test(n))) fail(index, "raw fs writes", `imports ${n} from ${target}`);
       }
