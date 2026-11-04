@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "harnesses": [
+    "claude",
+    "codex",
+    "omp",
+    "cursor"
+  ],
+  "packs": {},
+  "pins": [],
+  "providers": [
+    "pstack",
+    "openspec"
+  ],
+  "default_provider": "pstack",
+  "aliases": {
+    "pm": "craft"
+  },
+  "slots": {
+    "doc-review": null,
+    "second-opinion": null
+  },
+  "disable": [],
+  "metrics": {
+    "session_hook": false
+  }
+}

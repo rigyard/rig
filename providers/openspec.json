@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "name": "openspec",
+  "kind": "workflow",
+  "pin": {
+    "cli": "openspec",
+    "version": "1.5.0"
+  },
+  "entry": {
+    "claude": {
+      "command": "/opsx:propose"
+    },
+    "codex": {
+      "command": "/prompts:openspec-propose"
+    },
+    "cursor": null,
+    "omp": null
+  },
+  "phases": [
+    "explore",
+    "propose",
+    "apply",
+    "sync",
+    "archive"
+  ],
+  "model_surfaces": [],
+  "footprint": {
+    "any": "dir:openspec/"
+  },
+  "telemetry": {
+    "default_on": true,
+    "optout_env": [
+      "OPENSPEC_TELEMETRY=0",
+      "DO_NOT_TRACK=1"
+    ]
+  }
+}

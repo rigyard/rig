@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "consumers": {
+    "codex": {
+      "default": [
+        "strong",
+        "medium"
+      ]
+    },
+    "fleet": {
+      "deep-reasoner": [
+        "reason",
+        "high"
+      ],
+      "reviewer": [
+        "strong",
+        "high"
+      ],
+      "senior-worker": [
+        "strong",
+        "high"
+      ],
+      "fast-worker": [
+        "fast",
+        "low"
+      ],
+      "quick-worker": [
+        "cheap",
+        "low"
+      ],
+      "web-researcher": [
+        "fast",
+        "medium"
+      ]
+    },
+    "omp": {
+      "task": [
+        "fast",
+        "auto"
+      ],
+      "advisor": [
+        "strong",
+        "medium"
+      ],
+      "plan": [
+        "reason",
+        "high"
+      ],
+      "default": [
+        "cheap",
+        "medium"
+      ]
+    },
+    "pstack": {
+      "budget": {
+        "literal": "medium (high)"
+      },
+      "feature, refactoring": [
+        "fast",
+        "high"
+      ],
+      "bug-fix": [
+        "fast",
+        "high"
+      ],
+      "perf-issue": [
+        "fast",
+        "high"
+      ],
+      "hillclimb": [
+        "fast",
+        "high"
+      ],
+      "judgment and prose": [
+        "strong",
+        "high"
+      ],
+      "hardest tasks": [
+        "strong",
+        "xhigh"
+      ],
+      "how explorer": [
+        "fast",
+        "high"
+      ],
+      "how explainer": [
+        "strong",
+        "high"
+      ],
+      "why investigators": [
+        "fast",
+        "high"
+      ],
+      "why synthesizer": [
+        "strong",
+        "high"
+      ],
+      "reflect tooling": [
+        "fast",
+        "high"
+      ],
+      "reflect judgment, divergent, synthesizer": [
+        "strong",
+        "high"
+      ],
+      "arena runners": [
+        [
+          "strong",
+          "high"
+        ],
+        [
+          "fast",
+          "high"
+        ]
+      ],
+      "arena cross-judge pool": [
+        [
+          "strong",
+          "high"
+        ],
+        [
+          "fast",
+          "high"
+        ]
+      ],
+      "swarm workers": [
+        "fast",
+        "high"
+      ],
+      "architect runners": [
+        [
+          "strong",
+          "high"
+        ],
+        [
+          "fast",
+          "high"
+        ]
+      ],
+      "interrogate reviewers": [
+        [
+          "strong",
+          "high"
+        ],
+        [
+          "fast",
+          "high"
+        ]
+      ]
+    }
+  }
+}

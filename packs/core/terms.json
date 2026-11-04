@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "terms": {
+    "ask-user": {
+      "claude": "use AskUserQuestion",
+      "codex": "ask in one short numbered list",
+      "cursor": "use AskQuestion",
+      "omp": "use the ask tool"
+    },
+    "subagent": {
+      "claude": "the Agent tool",
+      "codex": "a spawned agent",
+      "cursor": "a subagent",
+      "omp": "the task tool"
+    }
+  }
+}

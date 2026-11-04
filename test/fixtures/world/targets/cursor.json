@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "name": "cursor",
+  "reads": {
+    "skills": [
+      {"path": "~/.cursor/skills", "writable": false, "dedupe": "none"},
+      {"path": "~/.agents/skills", "writable": false, "dedupe": "none"},
+      {"path": "~/.claude/skills", "writable": false, "dedupe": "none"},
+      {"path": "~/.codex/skills", "writable": false, "dedupe": "none"},
+      {"path": "~/.cursor/plugins/local/rig/skills", "writable": true, "plugin": true, "dedupe": "none"}
+    ],
+    "never_write": ["~/.cursor/skills-cursor/**", "~/.cursor/hooks.json", "~/.cursor/chats/**"]
+  },
+  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true}
+}

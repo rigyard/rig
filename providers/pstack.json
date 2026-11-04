@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "name": "pstack",
+  "kind": "workflow",
+  "pin": {
+    "plugin": "pstack@cursor-plugins"
+  },
+  "entry": {
+    "claude": {
+      "read": "plugin-cache:skills/poteto-mode/SKILL.md"
+    },
+    "codex": null,
+    "cursor": {
+      "read": "plugin-local:skills/poteto-mode/SKILL.md"
+    },
+    "omp": null
+  },
+  "phases": [
+    "plan",
+    "build",
+    "verify",
+    "review"
+  ],
+  "model_surfaces": [
+    {
+      "path": "~/.claude/rules/pstack-models.md",
+      "harness": "claude",
+      "consumer": "pstack",
+      "kind": "whole",
+      "keep_header": true,
+      "grammar": "{model} {effort}"
+    },
+    {
+      "path": "~/.cursor/rules/pstack-models.mdc",
+      "harness": "cursor",
+      "consumer": "pstack",
+      "kind": "whole",
+      "keep_header": true,
+      "grammar": "{model_effort}",
+      "effort_syntax": "dash-fused"
+    }
+  ],
+  "footprint": {
+    "claude": "enabledPlugins:pstack@cursor-plugins"
+  },
+  "telemetry": null
+}

@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "ladders": {
+    "claude": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "codex": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "cursor": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "omp": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "passthrough": {
+    "cursor": [
+      "auto"
+    ],
+    "omp": [
+      "auto"
+    ]
+  },
+  "tiers": {
+    "reason": {
+      "claude": "fable"
+    },
+    "strong": {
+      "claude": "opus"
+    },
+    "fast": {
+      "claude": "sonnet"
+    },
+    "cheap": {
+      "claude": "haiku"
+    }
+  }
+}
