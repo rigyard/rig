@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"s2a","isSidechain":true,"timestamp":"2026-11-04T18:05:00.000Z","message":{"id":"msg-sub-2","model":"model-alpha","role":"assistant","content":[{"type":"text","text":"Canary sentence zq7x must never reach the store."}],"usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}

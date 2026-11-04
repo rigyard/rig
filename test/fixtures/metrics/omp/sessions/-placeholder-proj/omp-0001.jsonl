@@ -1,0 +1,9 @@
+{"type":"session","id":"omp-0001","timestamp":"2026-11-04T12:00:00.000Z","title":"Canary sentence zq7x must never reach the store."}
+{"type":"message","id":"a1","timestamp":"2026-11-04T12:00:01.000Z","message":{"role":"assistant","model":"model-delta","content":[{"type":"text","text":"Canary sentence zq7x must never reach the store."}],"usage":{"input":100,"output":20,"cacheRead":300,"cacheWrite":10,"cost":{"total":0.25}}}}
+{"type":"message","id":"a1","timestamp":"2026-11-04T12:00:01.500Z","message":{"role":"assistant","model":"model-delta","content":[{"type":"text","text":"Canary sentence zq7x must never reach the store."}],"usage":{"input":100,"output":20,"cacheRead":300,"cacheWrite":10,"cost":{"total":0.25}}}}
+{"type":"message","id":"r1","timestamp":"2026-11-04T12:00:02.000Z","message":{"role":"toolResult","toolName":"read","isError":false,"content":[{"type":"text","text":"Canary sentence zq7x must never reach the store."}],"details":{"wallTimeMs":12}}}
+{"type":"message","id":"r2","timestamp":"2026-11-04T12:00:03.000Z","message":{"role":"toolResult","toolName":"bash","isError":true,"content":[{"type":"text","text":"Canary sentence zq7x must never reach the store."}]}}
+{"type":"message","id":"a2","timestamp":"2026-11-04T12:00:04.000Z","message":{"role":"assistant","model":"model-delta","usage":{"input":50,"output":10,"cacheRead":0,"cacheWrite":0,"cost":{"total":0.1}}}}
+{"type":"model_usage","id":"mu1","timestamp":"2026-11-04T12:00:05.000Z","model":"model-eps","purpose":"title","usage":{"input":30,"output":5,"cost":{"total":0.02}}}
+{"type":"custom_message","id":"cm1","timestamp":"2026-11-04T12:00:06.000Z","customType":"skill-prompt","details":{"name":"explain"},"content":"Canary sentence zq7x must never reach the store."}
+{"type":"compaction","id":"cp1","timestamp":"2026-11-04T12:00:07.000Z","tokensBefore":100,"tokensAfter":10,"summary":"Canary sentence zq7x must never reach the store."}
