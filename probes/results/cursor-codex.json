@@ -1,0 +1,693 @@
+{
+  "schema": "rig-probe-results/1",
+  "slice": 0,
+  "harnesses": [
+    "cursor",
+    "codex"
+  ],
+  "probes": [
+    {
+      "probe": "b-cursor-dedupe",
+      "claim": "A23: Cursor does not collapse a skill that it finds in several directories (PASS = no collapse, FAIL = some collapse)",
+      "verdict": "FAIL",
+      "evidence": {
+        "strength": "model-reported: counts come from the model reading its own injected skill list, so they are weaker than a tool-level listing",
+        "listingCommandWithoutModelCall": "none found in help output of cursor-agent and its subcommands",
+        "helpScan": [
+          {
+            "command": "cursor-agent --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent plugin --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent agent --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent about --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent models --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent rule --help",
+            "exit": 0,
+            "skillMentions": []
+          },
+          {
+            "command": "cursor-agent mcp --help",
+            "exit": 0,
+            "skillMentions": []
+          }
+        ],
+        "cursorAgentVersion": "2026.10.22-27dcf5f",
+        "runsPerCase": 2,
+        "controlReadsAllFourDirs": true,
+        "controlDirsSeenPerRun": [
+          [
+            ".cursor",
+            ".agents",
+            ".claude",
+            ".codex"
+          ],
+          [
+            ".cursor",
+            ".agents",
+            ".claude",
+            ".codex"
+          ]
+        ],
+        "precedenceEntriesPerRun": [
+          [
+            "ZQXPRECCLAUDE",
+            "ZQXPRECCLAUDE"
+          ],
+          [
+            "ZQXPRECCLAUDE"
+          ]
+        ],
+        "cases": [
+          {
+            "kind": "ctl",
+            "run": 1,
+            "ok": true,
+            "timedOut": false,
+            "ms": 28037,
+            "n": 4,
+            "rawEntryLines": 10,
+            "tokens": [
+              "ZQXONLYCURSOR",
+              "ZQXONLYCLAUDE",
+              "ZQXPRECCLAUDE",
+              "ZQXONLYCODEX",
+              "ZQXONLYAGENTS"
+            ],
+            "dirs": [
+              ".cursor",
+              ".agents",
+              ".claude",
+              ".codex"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-onlycursor | $5/.cursor/skills/rigprobe-onlycursor/SKILL.md | ZQXONLYCURSOR",
+              "ENTRY | rigprobe-onlyclaude | $5/.claude/skills/rigprobe-onlyclaude/SKILL.md | ZQXONLYCLAUDE",
+              "ENTRY | rigprobe-prec | $5/.claude/skills/rigprobe-prec/SKILL.md | ZQXPRECCLAUDE",
+              "ENTRY | rigprobe-onlycodex | $5/.codex/skills/rigprobe-onlycodex/SKILL.md | ZQXONLYCODEX",
+              "ENTRY | rigprobe-onlyagents | $5/.agents/skills/rigprobe-onlyagents/SKILL.md | ZQXONLYAGENTS",
+              "ENTRY | rigprobe-onlycursor | $5/.cursor/skills/rigprobe-onlycursor/SKILL.md | ZQXONLYCURSOR",
+              "ENTRY | rigprobe-onlyclaude | $5/.claude/skills/rigprobe-onlyclaude/SKILL.md | ZQXONLYCLAUDE",
+              "ENTRY | rigprobe-prec | $5/.claude/skills/rigprobe-prec/SKILL.md | ZQXPRECCLAUDE",
+              "ENTRY | rigprobe-onlycodex | $5/.codex/skills/rigprobe-onlycodex/SKILL.md | ZQXONLYCODEX",
+              "ENTRY | rigprobe-onlyagents | $5/.agents/skills/rigprobe-onlyagents/SKILL.md | ZQXONLYAGENTS"
+            ],
+            "answer": "## Skills whose names start with `rigprobe`\n| rigprobe-onlyagents | 1 |\n| rigprobe-onlyclaude | 1 |\n| rigprobe-onlycodex | 1 |\n| rigprobe-onlycursor | 1 |\n| rigprobe-prec | 1 |\nENTRY | rigprobe-onlycursor | $5/.cursor/skills/rigprobe-onlycursor/SKILL.md | ZQXONLYCURSOR\nENTRY | rigprobe-onlyclaude | $5/.claude/skills/rigprobe-onlyclaude/SKILL.md | ZQXONLYCLAUDE\nENTRY | rigprobe-prec | $5/.claude/skills/rigprobe-prec/SKILL.md | ZQXPRECCLAUDE\nENTRY | rigprobe-onlycodex | $5/.codex/skills/rigprobe-onlycodex/SKILL.md | ZQXONLYCODEX\nENTRY | rigprobe-onlyagents | $5/.agents/skills/rigprobe-onlyagents/SKILL.md | ZQXONLYAGENTS\nAlso for description token - user said \"<description token>\" - for rigprobe it's the unique token like ZQXONLYCURSOR. For others, first word of description is reasonable.\nAct"
+          },
+          {
+            "kind": "ctl",
+            "run": 2,
+            "ok": true,
+            "timedOut": false,
+            "ms": 9053,
+            "n": 4,
+            "rawEntryLines": 5,
+            "tokens": [
+              "ZQXONLYCURSOR",
+              "ZQXONLYCLAUDE",
+              "ZQXPRECCLAUDE",
+              "ZQXONLYCODEX",
+              "ZQXONLYAGENTS"
+            ],
+            "dirs": [
+              ".cursor",
+              ".agents",
+              ".claude",
+              ".codex"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-onlycursor | $5/.cursor/skills/rigprobe-onlycursor/SKILL.md | ZQXONLYCURSOR",
+              "ENTRY | rigprobe-onlyclaude | $5/.claude/skills/rigprobe-onlyclaude/SKILL.md | ZQXONLYCLAUDE",
+              "ENTRY | rigprobe-prec | $5/.claude/skills/rigprobe-prec/SKILL.md | ZQXPRECCLAUDE",
+              "ENTRY | rigprobe-onlycodex | $5/.codex/skills/rigprobe-onlycodex/SKILL.md | ZQXONLYCODEX",
+              "ENTRY | rigprobe-onlyagents | $5/.agents/skills/rigprobe-onlyagents/SKILL.md | ZQXONLYAGENTS"
+            ],
+            "answer": "## rigprobe skills (counts)\n- rigprobe-onlycursor — 1\n- rigprobe-onlyclaude — 1\n- rigprobe-prec — 1\n- rigprobe-onlycodex — 1\n- rigprobe-onlyagents — 1\nENTRY | rigprobe-onlycursor | $5/.cursor/skills/rigprobe-onlycursor/SKILL.md | ZQXONLYCURSOR\nENTRY | rigprobe-onlyclaude | $5/.claude/skills/rigprobe-onlyclaude/SKILL.md | ZQXONLYCLAUDE\nENTRY | rigprobe-prec | $5/.claude/skills/rigprobe-prec/SKILL.md | ZQXPRECCLAUDE\nENTRY | rigprobe-onlycodex | $5/.codex/skills/rigprobe-onlycodex/SKILL.md | ZQXONLYCODEX\nENTRY | rigprobe-onlyagents | $5/.agents/skills/rigprobe-onlyagents/SKILL.md | ZQXONLYAGENTS"
+          },
+          {
+            "kind": "diff",
+            "run": 1,
+            "ok": true,
+            "timedOut": false,
+            "ms": 21409,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXDIFFCURSOR"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-diff | <scratch>/ws-diff/.cursor/skills/rigprobe-diff/SKILL.md | ZQXDIFFCURSOR"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n| rigprobe-diff | 1 |\nOnly one skill in the injected list matches: `rigprobe-diff` (folder name under `.cursor/skills/rigprobe-diff/`).\nENTRY | rigprobe-diff | <scratch>/ws-diff/.cursor/skills/rigprobe-diff/SKILL.md | ZQXDIFFCURSOR\nNote: `setup-pstack` appears twice in the list (different paths); both ENTRY lines are included as requested. The description token is the first word of each skill’s description text in the list (for `rigprobe-diff`, the probe token `ZQXDIFFCURSOR`)."
+          },
+          {
+            "kind": "diff",
+            "run": 2,
+            "ok": true,
+            "timedOut": false,
+            "ms": 35102,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXDIFFCURSOR"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-diff | <scratch>/ws-diff/.cursor/skills/rigprobe-diff/SKILL.md | ZQXDIFFCURSOR"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n| rigprobe-diff | 1 |\nOnly one skill in the injected list matches: folder name `rigprobe-diff` under `.cursor/skills/rigprobe-diff/SKILL.md`.\nENTRY | rigprobe-diff | <scratch>/ws-diff/.cursor/skills/rigprobe-diff/SKILL.md | ZQXDIFFCURSOR\n**Note:** `<name>` is the skill directory name from each `fullPath`. `<description token>` is the first token of each entry’s description text in the list (for `rigprobe-diff`, the probe token `ZQXDIFFCURSOR`). Truncated descriptions in the list (`...`) still yield the same first token as the visible prefix."
+          },
+          {
+            "kind": "dup",
+            "run": 1,
+            "ok": true,
+            "timedOut": false,
+            "ms": 20763,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXDUP"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-dup | <scratch>/ws-dup/.cursor/skills/rigprobe-dup/SKILL.md | ZQXDUP"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n| rigprobe-dup | 1 |\nOnly **rigprobe-dup** appears; no other skill names in the list start with `rigprobe`.\nENTRY | rigprobe-dup | <scratch>/ws-dup/.cursor/skills/rigprobe-dup/SKILL.md | ZQXDUP\n**Note:** `<description token>` is the first word of each skill’s description text in the list (for **rigprobe-dup**, that word is **ZQXDUP** as given in the list). Paths match `fullPath` exactly, including `$0`–`$7` aliases where shown."
+          },
+          {
+            "kind": "dup",
+            "run": 2,
+            "ok": true,
+            "timedOut": false,
+            "ms": 27582,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXDUP"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-dup | <scratch>/ws-dup/.cursor/skills/rigprobe-dup/SKILL.md | ZQXDUP"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n| rigprobe-dup | 1 |\nOnly **rigprobe-dup** matches; it appears once.\nENTRY | rigprobe-dup | <scratch>/ws-dup/.cursor/skills/rigprobe-dup/SKILL.md | ZQXDUP"
+          },
+          {
+            "kind": "link",
+            "run": 1,
+            "ok": true,
+            "timedOut": false,
+            "ms": 29653,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXLINK"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-link | <scratch>/ws-link/.cursor/skills/rigprobe-link/SKILL.md | ZQXLINK"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n| rigprobe-link | 1 |\nOnly **rigprobe-link** appears once; no other skill folder/name in that list starts with `rigprobe`.\nENTRY | rigprobe-link | <scratch>/ws-link/.cursor/skills/rigprobe-link/SKILL.md | ZQXLINK\n**Notes:** Skill **name** is taken as the directory immediately before `SKILL.md`. **Description token** is the first word of the `<agent_skill>` description text (for `rigprobe-link`, the probe token **ZQXLINK**). **setup-pstack** appears twice with different paths; both ENTRY lines are included."
+          },
+          {
+            "kind": "link",
+            "run": 2,
+            "ok": true,
+            "timedOut": false,
+            "ms": 23803,
+            "n": 1,
+            "rawEntryLines": 1,
+            "tokens": [
+              "ZQXLINK"
+            ],
+            "dirs": [
+              ".cursor"
+            ],
+            "lines": [
+              "ENTRY | rigprobe-link | <scratch>/ws-link/.cursor/skills/rigprobe-link/SKILL.md | ZQXLINK"
+            ],
+            "answer": "## Skills whose name starts with `rigprobe`\n- **rigprobe-link** — 1\nENTRY | rigprobe-link | <scratch>/ws-link/.cursor/skills/rigprobe-link/SKILL.md | ZQXLINK\n**Note:** `setup-pstack` appears twice (different paths). Only **rigprobe-link** matches the `rigprobe*` name prefix. Description tokens are the first word of each skill’s list blurb, except **rigprobe-link**, which uses **ZQXLINK** from its description."
+          }
+        ]
+      },
+      "sets": {
+        "cursor.reads.skills[].dedupe": "by-name"
+      }
+    },
+    {
+      "probe": "j-cursor-plugin-rules",
+      "claim": "Cursor loads a --plugin-dir plugin (hidden skills invocable), project alwaysApply rules, and user-level rules (A24). The overall verdict is the worst sub-verdict.",
+      "verdict": "INCONCLUSIVE",
+      "evidence": {
+        "strength": "model-reported, but the stream-json event types show no tool call in the sentinel checks, so the text came from injected context",
+        "cursorAgentVersion": "2026.10.22-27dcf5f",
+        "checks": {
+          "pluginDirLoadsSkill": {
+            "verdict": "PASS",
+            "detail": "skill without disable-model-invocation, supplied only via --plugin-dir, appears in the model-visible skill list",
+            "answer": "From the injected skill list, only one skill name starts with `rigprobe`:\nrigprobe-plugin-shown — `<scratch>/plugin/skills/rigprobe-plugin-shown/SKILL.md`",
+            "toolEvents": []
+          },
+          "disableModelInvocationHidesFromList": {
+            "verdict": "PASS",
+            "detail": "plugin and project skills with disable-model-invocation: true are absent from the listing"
+          },
+          "hiddenPluginSkillInvocableBySlash": {
+            "verdict": "PASS",
+            "detail": "prompt \"/rigprobe-plugin\" returns the skill sentinel",
+            "answer": "ZQXPLUGINVOKED",
+            "toolEvents": []
+          },
+          "hiddenProjectSkillInvocableBySlash": {
+            "verdict": "PASS",
+            "detail": "control: same slash invocation for a hidden project skill",
+            "answer": "ZQXPROJINVOKED",
+            "toolEvents": []
+          },
+          "projectRuleAlwaysApply": {
+            "verdict": "PASS",
+            "detail": ".cursor/rules/rigprobe.mdc with alwaysApply: true; sentinel quoted with no tool event in the stream",
+            "answer": "ZQXRULESENT",
+            "toolEvents": []
+          },
+          "userLevelRulesLoad": {
+            "verdict": "INCONCLUSIVE",
+            "needsOperator": "write ~/.cursor/rules/rigprobe-user.mdc (alwaysApply: true, unique sentinel) in the real home directory, ask Cursor for the sentinel from a scratch workspace, then delete the file",
+            "supportingObservation": {
+              "userRuleLinePrefixAnswers": [
+                "NO",
+                "NO"
+              ],
+              "negativeControlAnswers": [
+                "NO",
+                "NO"
+              ],
+              "positiveControlProjectRuleAnswers": [
+                "YES",
+                "YES"
+              ],
+              "usable": true,
+              "reading": "the user-level always-on rule line is not in the headless context",
+              "toolEvents": [],
+              "note": "observation of a pre-existing user rule file, not a unique sentinel; supporting evidence only"
+            }
+          },
+          "userLevelLocalPluginsLoad": {
+            "verdict": "INCONCLUSIVE",
+            "supportingObservation": {
+              "answer": "A: NO  \nB: YES",
+              "toolEvents": [],
+              "note": "a local plugin exists on this machine; line B is the positive control"
+            },
+            "needsOperator": "write a fixture plugin to ~/.cursor/plugins/local/rigprobe-pack in the real home directory, list skills from a scratch workspace, then delete it"
+          }
+        }
+      },
+      "sets": {
+        "cursor.channels.pluginDir": {
+          "flag": "--plugin-dir",
+          "manifest": ".cursor-plugin/plugin.json",
+          "loadsSkills": true
+        },
+        "cursor.skills.hiddenByDisableModelInvocation": {
+          "listed": false,
+          "invocableBySlash": true
+        },
+        "cursor.reads.projectRules.alwaysApply": true,
+        "cursor.reads.userRules": null
+      }
+    },
+    {
+      "probe": "i-cursor-codex-headless-flags",
+      "claim": "Both CLIs expose a non-interactive mode with output format, model, read-only mode, workspace and sandbox flags (PASS = every listed flag is in the help text)",
+      "verdict": "PASS",
+      "evidence": {
+        "strength": "help text of the installed versions; no model call",
+        "cursorAgentVersion": "2026.10.22-27dcf5f",
+        "codexVersion": "codex-cli 0.166.0",
+        "cursor": [
+          {
+            "label": "print",
+            "found": true,
+            "line": "-p, --print                  Print responses to console (for scripts or"
+          },
+          {
+            "label": "output format",
+            "found": true,
+            "line": "--output-format <format>     Output format (only works with --print): text |"
+          },
+          {
+            "label": "model",
+            "found": true,
+            "line": "--model <model>              Model to use (e.g., <model>)."
+          },
+          {
+            "label": "read-only mode",
+            "found": true,
+            "line": "--mode <mode>                Start in the given execution mode. plan:"
+          },
+          {
+            "label": "workspace",
+            "found": true,
+            "line": "--workspace <path-or-name>   Workspace directory or saved workspace name to"
+          },
+          {
+            "label": "sandbox",
+            "found": true,
+            "line": "--sandbox <mode>             Explicitly enable or disable sandbox mode"
+          },
+          {
+            "label": "trust",
+            "found": true,
+            "line": "--trust                      Trust the current workspace without prompting"
+          },
+          {
+            "label": "plugin dir",
+            "found": true,
+            "line": "--plugin-dir <path>          Load a local plugin directory (can be specified"
+          },
+          {
+            "label": "force (allow commands)",
+            "found": true,
+            "line": "-f, --force                  Force allow commands unless explicitly denied"
+          },
+          {
+            "label": "list models",
+            "found": true,
+            "line": "--list-models                List available models and exit (default: false)"
+          }
+        ],
+        "codex": [
+          {
+            "label": "non-interactive subcommand",
+            "found": true,
+            "line": "Run Codex non-interactively"
+          },
+          {
+            "label": "json events",
+            "found": true,
+            "line": "--json"
+          },
+          {
+            "label": "model",
+            "found": true,
+            "line": "-m, --model <MODEL>"
+          },
+          {
+            "label": "sandbox mode with read-only",
+            "found": true,
+            "line": "[possible values: read-only, workspace-write, danger-full-access]"
+          },
+          {
+            "label": "sandbox flag",
+            "found": true,
+            "line": "-s, --sandbox <SANDBOX_MODE>"
+          },
+          {
+            "label": "working root",
+            "found": true,
+            "line": "-C, --cd <DIR>"
+          },
+          {
+            "label": "skip git check",
+            "found": true,
+            "line": "--skip-git-repo-check"
+          },
+          {
+            "label": "ephemeral",
+            "found": true,
+            "line": "--ephemeral"
+          },
+          {
+            "label": "last message file",
+            "found": true,
+            "line": "-o, --output-last-message <FILE>"
+          },
+          {
+            "label": "config override",
+            "found": true,
+            "line": "-c, --config <key=value>"
+          },
+          {
+            "label": "ignore user config",
+            "found": true,
+            "line": "--ignore-user-config"
+          },
+          {
+            "label": "output schema",
+            "found": true,
+            "line": "--output-schema <FILE>"
+          },
+          {
+            "label": "approval policy (top-level only)",
+            "found": true,
+            "line": "-a, --ask-for-approval <APPROVAL_POLICY>"
+          }
+        ],
+        "codexExecHasNoApprovalFlag": true,
+        "cursorModelParameterSyntaxExample": "<model>[context=1m,effort=high,fast=false]"
+      },
+      "sets": {
+        "cursor.headless": {
+          "command": [
+            "cursor-agent",
+            "-p"
+          ],
+          "outputFormat": "--output-format text|json|stream-json",
+          "model": "--model <id>, bracket overrides such as [effort=high]",
+          "readOnly": "--mode ask|plan",
+          "workspace": "--workspace <path>",
+          "sandbox": "--sandbox enabled|disabled",
+          "trust": "--trust",
+          "pluginDir": "--plugin-dir <path>",
+          "printModeHasWriteAndShellByDefault": true
+        },
+        "codex.headless": {
+          "command": [
+            "codex",
+            "exec"
+          ],
+          "outputFormat": "--json (JSONL events), -o <file> for the last message, --output-schema <file>",
+          "model": "-m <id>, -c model_reasoning_effort=<level>",
+          "readOnly": "-s read-only",
+          "workspace": "-C <dir>",
+          "sandbox": "-s read-only|workspace-write|danger-full-access",
+          "other": [
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules"
+          ]
+        }
+      }
+    },
+    {
+      "probe": "d-codex-agents-md-limit",
+      "claim": "A32: the Codex AGENTS.md cap is 32 KiB (32768 bytes) (PASS = cut falls on 32768 within the sentinel spacing)",
+      "verdict": "PASS",
+      "evidence": {
+        "strength": "model-reported, but the JSON event stream shows no tool item, so the text came from injected instructions",
+        "codexVersion": "codex-cli 0.166.0",
+        "docBytes": 40995,
+        "sentinelsInFile": [
+          {
+            "name": "RIGSENT-4096",
+            "start": 4096,
+            "end": 4109
+          },
+          {
+            "name": "RIGSENT-16384",
+            "start": 16384,
+            "end": 16398
+          },
+          {
+            "name": "RIGSENT-30720",
+            "start": 30720,
+            "end": 30734
+          },
+          {
+            "name": "RIGSENT-31744",
+            "start": 31744,
+            "end": 31758
+          },
+          {
+            "name": "RIGSENT-32700",
+            "start": 32700,
+            "end": 32714
+          },
+          {
+            "name": "RIGSENT-32800",
+            "start": 32800,
+            "end": 32814
+          },
+          {
+            "name": "RIGSENT-33280",
+            "start": 33280,
+            "end": 33294
+          },
+          {
+            "name": "RIGSENT-36864",
+            "start": 36864,
+            "end": 36878
+          },
+          {
+            "name": "RIGSENT-39936",
+            "start": 39936,
+            "end": 39950
+          }
+        ],
+        "visibleInDefaultRuns": [
+          {
+            "run": 1,
+            "ok": true,
+            "timedOut": false,
+            "seen": [
+              "RIGSENT-4096",
+              "RIGSENT-16384",
+              "RIGSENT-30720",
+              "RIGSENT-31744",
+              "RIGSENT-32700"
+            ],
+            "toolItems": [],
+            "answer": "RIGSENT-4096\nRIGSENT-16384\nRIGSENT-30720\nRIGSENT-31744\nRIGSENT-32700"
+          },
+          {
+            "run": 2,
+            "ok": true,
+            "timedOut": false,
+            "seen": [
+              "RIGSENT-4096",
+              "RIGSENT-16384",
+              "RIGSENT-30720",
+              "RIGSENT-31744",
+              "RIGSENT-32700"
+            ],
+            "toolItems": [],
+            "answer": "RIGSENT-4096\nRIGSENT-16384\nRIGSENT-30720\nRIGSENT-31744\nRIGSENT-32700"
+          }
+        ],
+        "inferredCutBetweenBytes": {
+          "lowerBoundBytes": 32714,
+          "upperBoundBytes": 32800
+        },
+        "withRaisedLimitFlag": {
+          "flag": "project_doc_max_bytes=65536",
+          "ok": true,
+          "seen": [
+            "RIGSENT-4096",
+            "RIGSENT-16384",
+            "RIGSENT-30720",
+            "RIGSENT-31744",
+            "RIGSENT-32700",
+            "RIGSENT-32800",
+            "RIGSENT-33280",
+            "RIGSENT-36864",
+            "RIGSENT-39936"
+          ],
+          "toolItems": []
+        },
+        "documentedDefaultInBinary": [
+          "project_doc_max_bytes = 32768"
+        ],
+        "helpMentionsLimit": [
+          {
+            "command": "codex --help",
+            "mentionsProjectDoc": false
+          },
+          {
+            "command": "codex exec --help",
+            "mentionsProjectDoc": false
+          }
+        ],
+        "caveat": "The user-level ~/.codex/AGENTS.md was not removed. Whether it loads under --ignore-user-config is unknown. The cut near 32768 shows it did not shrink the project budget in this invocation."
+      },
+      "sets": {
+        "codex.instructions.byteLimit": 32768
+      }
+    },
+    {
+      "probe": "f-codex-skill-hiding",
+      "claim": "A12: agents/openai.yaml policy.allow_implicit_invocation: false removes a skill from the Codex listing (PASS = absent from listing). The disable-model-invocation key is reported separately.",
+      "verdict": "PASS",
+      "evidence": {
+        "strength": "model-reported, but the JSON event stream shows no tool item in the listing runs, so the list came from injected instructions",
+        "codexVersion": "codex-cli 0.166.0",
+        "listingRuns": [
+          {
+            "run": 1,
+            "ok": true,
+            "names": [
+              "rigprobe-dmi",
+              "rigprobe-shown"
+            ],
+            "toolItems": [],
+            "answer": "rigprobe-dmi\nrigprobe-shown"
+          },
+          {
+            "run": 2,
+            "ok": true,
+            "names": [
+              "rigprobe-dmi",
+              "rigprobe-shown"
+            ],
+            "toolItems": [],
+            "answer": "rigprobe-dmi\nrigprobe-shown"
+          }
+        ],
+        "openaiYamlSkillListed": false,
+        "disableModelInvocationSkillListed": true,
+        "explicitInvocation": {
+          "hidden": {
+            "ok": true,
+            "invoked": true,
+            "toolItems": [],
+            "answer": "ZQXINVOKED-rigprobe-hidden"
+          },
+          "dmi": {
+            "ok": true,
+            "invoked": true,
+            "toolItems": [],
+            "answer": "ZQXINVOKED-rigprobe-dmi"
+          }
+        },
+        "binaryMentionsAllowImplicitInvocation": true
+      },
+      "sets": {
+        "codex.skills.hide": {
+          "mechanism": "agents/openai.yaml policy.allow_implicit_invocation: false",
+          "removedFromListing": true,
+          "disableModelInvocationKeyRemovesFromListing": false,
+          "explicitDollarInvocationWorks": true
+        }
+      }
+    }
+  ]
+}
