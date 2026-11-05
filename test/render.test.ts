@@ -175,9 +175,9 @@ test("the frame: whole file or managed block per record, differing only in the d
   const omp = d.get("~/.omp/agent/AGENTS.md");
   const cursor = d.get("~/.cursor/rules/rig-frame.mdc");
   assert.equal(claude.kind, "owned");
-  assert.equal(omp.kind, "owned");
   assert.equal(cursor.kind, "owned");
   assert.equal(codex.kind, "block");
+  assert.equal(omp.kind, "block");
   assert.equal(codex.marker, "rig:frame");
   assert.doesNotMatch(text(codex), /rig:frame/, "block bytes exclude the marker lines");
   const cursorText = text(cursor);
@@ -322,8 +322,9 @@ test("the repo's own data: loadWorld, compose and render agree on the frame", ()
     const d = render(stack, w);
     assert.deepEqual(d.errors, []);
     const at = new Map([...d.entries].map(([abs, e]) => [`~/${abs.slice(fx.home.length + 1)}`, e]));
-    for (const p of ["~/.claude/rules/rig-frame.md", "~/.omp/agent/AGENTS.md", "~/.cursor/rules/rig-frame.mdc"]) assert.equal(at.get(p)?.kind, "owned", p);
+    for (const p of ["~/.claude/rules/rig-frame.md", "~/.cursor/rules/rig-frame.mdc"]) assert.equal(at.get(p)?.kind, "owned", p);
     assert.equal(at.get("~/.codex/AGENTS.md")?.kind, "block");
+    assert.equal(at.get("~/.omp/agent/AGENTS.md")?.kind, "block");
   } finally {
     fx.cleanup();
   }
@@ -362,8 +363,8 @@ test("targets.readSet: the public export reads each harness's dirs with the prob
   }
 });
 
-test("targets.patch: the rendered frame block appends, then converges; a locator failure returns error instead of throwing", () => {
-  const block = render(fixtureStack(), world()).entries.get(`${HOME}/.codex/AGENTS.md`);
+for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent/AGENTS.md"]]) test(`targets.patch (${harness}): the rendered frame block appends, then converges; a locator failure returns error instead of throwing`, () => {
+  const block = render(fixtureStack(), world()).entries.get(`${HOME}/${rel}`);
   const user = new TextEncoder().encode("# My notes\nKeep this line.\n");
   const first = patch(user, block);
   assert.equal(first.error, undefined);

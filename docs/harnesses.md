@@ -55,7 +55,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Skills: hide is `hide: true` in the frontmatter.
 - Commands: `~/.omp/agent/commands/<name>.md`, the source as is. A bare `/name` runs it (probe (e)).
 - Agents and rules: no format. `rig plan` prints an `absent` info line for each.
-- Frame: `~/.omp/agent/AGENTS.md`, a whole file that rig owns. If you already have that file, `rig plan` blocks with `E_ADOPT_MISMATCH` until the bytes match or you move the file.
+- Frame: `~/.omp/agent/AGENTS.md`, a managed block between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->`. rig keeps your own text outside the block as it is.
 - Model surfaces: `~/.omp/agent/config.yml`, kind `keys`, the `modelRoles` map. omp itself rewrites this file (probe (c)). The `keys` kind finds its values by structure and uses no markers.
 - Session hook: none.
 

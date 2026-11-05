@@ -63,13 +63,11 @@ Nothing changed, so rig prints no run line and writes no journal. You can run `r
 
 ## Adopt files you already have
 
-On the first run, rig meets files it does not manage yet. When a file has the same bytes as the render, rig adopts it. rig records the file in `installed.json` and writes nothing to it. A file with other bytes blocks with `E_ADOPT_MISMATCH` and a diff. Start from another fresh HOME. It already has a `~/.omp/agent/AGENTS.md` that equals the render and a hand-written `~/.claude/rules/rig-frame.md` that holds `my own frame`. The test "an unmanaged file at a rendered path blocks with E_ADOPT_MISMATCH and a diff; apply writes nothing" uses the same frame file. The plan shows:
+On the first run, rig meets files it does not manage yet. When a file has the same bytes as the render, rig adopts it. rig records the file in `installed.json` and writes nothing to it. A file with other bytes blocks with `E_ADOPT_MISMATCH` and a diff. Start from another fresh HOME. It already has a hand-written `~/.claude/rules/rig-frame.md` that holds `my own frame`. The test "an unmanaged file at a rendered path blocks with E_ADOPT_MISMATCH and a diff; apply writes nothing" uses the same frame file. The plan shows:
 
 ```text
 ...
 block   owned  claude  ~/.claude/rules/rig-frame.md                                                              E_ADOPT_MISMATCH ~/.claude/rules/rig-frame.md exists and is not managed: bytes differ; rig never deletes what it does not own, so move or delete it by hand (diff below)
-...
-adopt   owned  omp     ~/.omp/agent/AGENTS.md                                                                    core/rig-frame
 ...
 --- ~/.claude/rules/rig-frame.md (current)
 +++ ~/.claude/rules/rig-frame.md (desired)
@@ -85,8 +83,6 @@ adopt   owned  omp     ~/.omp/agent/AGENTS.md                                   
 ```text
 ...
 create  owned  claude  ~/.claude/rules/rig-frame.md                                                              core/rig-frame
-...
-adopt   owned  omp     ~/.omp/agent/AGENTS.md                                                                    core/rig-frame
 ...
 <n> changes, 0 blocks
 run 20261105T205009.647Z-1: <n> ops applied

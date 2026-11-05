@@ -2,7 +2,7 @@
 // docs/design/rig-v1-first-seed.md. Each run copies the config and seeds empty HOMEs with bin/rig.ts.
 
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import {
@@ -67,6 +67,30 @@ describe("the first seed over the committed config", () => {
     assert.deepEqual(run.m1, run.m2);
     const golden = readFileSync(GOLDEN, "utf8").split("\n").filter(Boolean);
     assert.deepEqual(run.m1, golden, "a pin move changes the seeded bytes: review the diff, then write manifest(HOME) of a fresh apply to the golden file");
+  });
+
+  test("omp AGENTS.md is a managed block: user text below it survives plan and apply with 0 changes and no E_DRIFT", () => {
+    const h = makeFixtureHome();
+    try {
+      const a = rig(run.root, h.home, ["apply"]);
+      assert.equal(a.code, 0, a.all);
+      const f = join(h.home, ".omp/agent/AGENTS.md");
+      const mine = "\n# My own rules\nKeep this line.\n";
+      appendFileSync(f, mine);
+      const p = rig(run.root, h.home, ["plan"]);
+      assert.equal(p.code, 0, p.all);
+      assert.match(p.stdout, /^0 changes, 0 blocks$/m);
+      assert.doesNotMatch(p.all, /E_DRIFT/);
+      const b = rig(run.root, h.home, ["apply"]);
+      assert.equal(b.code, 0, b.all);
+      assert.ok(readFileSync(f, "utf8").endsWith(mine));
+      // editing inside the block is drift
+      writeFileSync(f, readFileSync(f, "utf8").replace("<!-- rig:frame:start -->\n", "<!-- rig:frame:start -->\nEDIT\n"));
+      const d = rig(run.root, h.home, ["plan"]);
+      assert.match(d.all, /E_DRIFT/);
+    } finally {
+      h.cleanup();
+    }
   });
 
   test("A5: rig apply --undo of the run restores the manifest from before the apply", () => {
