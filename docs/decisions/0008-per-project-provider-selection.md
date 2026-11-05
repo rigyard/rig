@@ -21,3 +21,11 @@ Synthesis v1 rendered one user-scope frame per profile. Review found a blocker: 
 - Codex, omp and Cursor have no uncommitted per-project instruction file. A local choice there is an overlay `projects` entry, which the frame renders.
 - The frame lists overlay project declarations by directory. That text changes only on `apply`, so it does not bust the prompt cache between sessions.
 - `CLAUDE.local.md` makes Claude skip a repository `AGENTS.md` by default. `doctor --project` warns when both exist.
+
+## Update 2026-11-05
+
+Change: only the `rig-project:` line, or its uncommitted twin, selects a provider. The overlay `projects` map is a `doctor --project` check, not a selector. The frame lists no projects.
+
+Reason: one selector per project, which the model reads in the project itself. See delta 11 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0008 row in section 15. This replaces the two consequences above that say the overlay entry selects and the frame renders it.
+
+Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (overlay entry reported, one selector) and [#20](https://github.com/rigyard/rig/pull/20) (frame without a project list).

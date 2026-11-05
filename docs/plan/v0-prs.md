@@ -17,7 +17,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 This plan adapts the playbook skeleton in these ways:
 
 - Claude Code runs the program, not Cursor. No cloud VM, Bugbot or `control-ui` exists here. Each lane runs in its own git worktree on the operator's machine.
-- The live block is the seed test. Each lane is one named case in `test/live/<pr-id>.test.mjs`. The case uses `liveTest` and `runHarness` from `test/helpers/live.mjs`, so it runs only with `RIG_LIVE=1`. Without the variable, `node --test` reports it as skipped, and CI stays offline.
+- The live block is the seed test. Each lane is one named case in `test/live/<pr-id>.test.ts`. The case uses `liveTest` and `runHarness` from `test/helpers/live.ts`, so it runs only with `RIG_LIVE=1`. Without the variable, `node --test` reports it as skipped, and CI stays offline.
 - A case seeds rig output into a fixture HOME and drives one real harness headless. Claude Code runs in a scratch repo through a project-level mirror, with the normal login. omp runs with `PI_CODING_AGENT_DIR` set to the fixture agent dir. Codex and Cursor run in scratch workspaces in read-only modes. The boot recipe has the exact commands.
 - A lane saves a TAP or JSON file instead of a screenshot. rig is a CLI and has no screen.
 - A PR runs fewer than ten lanes when ten distinct harness scenarios do not exist. Its live block says why.
@@ -41,7 +41,7 @@ This plan adapts the playbook skeleton in these ways:
   - [ ] `<pstack>/skills/swarm/SKILL.md`
   - [ ] `<pstack>/skills/poteto-mode/playbooks/opening-a-pr.md`
   - [ ] `<pstack>/skills/benchmark-checklist/SKILL.md` and `<pstack>/skills/show-me-your-work/SKILL.md`
-  - [ ] Control skill. Claude Code has none for a CLI here. The driver is `test/helpers/live.mjs` plus `test/helpers/mirror.mjs` from `seedkit`.
+  - [ ] Control skill. Claude Code has none for a CLI here. The driver is `test/helpers/live.ts` plus `test/helpers/mirror.ts` from `seedkit`.
 - [ ] On the operator's go, arm the audit tick as `/loop 1h` with the tick prompt below. Never leave the cadence to memory.
 - [ ] Use this tick prompt, verbatim. "Re-read the execution playbook from trunk. Audit the operation against it and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then post a short status message to the operator in chat only when the audit found a tracked change that no earlier status message reported, such as a PR opened, a code-ready head, a round launched or closed, a verdict, a merge, a stuck agent and the action taken, a blocker added or cleared, or a decision only the operator can make. Name every such change and nothing else. Do not repeat a table, the merged list, or an unchanged blocker. If the audit found none, end the turn with no reply text. Either way, log this tick's row in your decision trail. The row names the items reported, or none."
 - [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once.
@@ -63,19 +63,19 @@ This plan adapts the playbook skeleton in these ways:
   - [ ] `product` after `stats` and `checks`.
   - [ ] `records` after this plan PR, because both edit `docs/README.md`. It runs in parallel with every code PR.
 - [ ] Hold the file boundaries. A shared file changes only in PRs that the graph orders, in this order.
-  - [ ] `lib/commands.mjs` changes only in `wiring`. `wiring` moves each handler into `lib/commands/<command>.mjs`, so each later PR owns one handler file.
-  - [ ] `lib/commands/doctor.mjs` changes in `wiring`, `pstack`, `openspec`, `models-cmd` and `scope`.
-  - [ ] `lib/commands/pin.mjs` changes in `pstack`, then `checks`.
-  - [ ] `lib/state/**` and `lib/state.mjs` change in `wiring`, `models-cmd` and `stats`.
-  - [ ] `lib/targets/**` and `lib/targets.mjs` change in #14, `pstack`, `models-cmd`, `scope` and `stats`.
-  - [ ] `lib/world/**` and `lib/world.mjs` change only in `product`. `lib/stack.mjs` changes only in `scope`.
-  - [ ] `lib/commands/apply.mjs` changes in `wiring`, then `scope`. `lib/commands/pack.mjs` and `lib/lock/**` change only in `checks`.
-  - [ ] `lib/gate/**` and `lib/gate.mjs` change only in `checks`. A PR that needs a gate change rebases on `checks` first.
+  - [ ] `lib/commands.ts` changes only in `wiring`. `wiring` moves each handler into `lib/commands/<command>.ts`, so each later PR owns one handler file.
+  - [ ] `lib/commands/doctor.ts` changes in `wiring`, `pstack`, `openspec`, `models-cmd` and `scope`.
+  - [ ] `lib/commands/pin.ts` changes in `pstack`, then `checks`.
+  - [ ] `lib/state/**` and `lib/state.ts` change in `wiring`, `models-cmd` and `stats`.
+  - [ ] `lib/targets/**` and `lib/targets.ts` change in #14, `pstack`, `models-cmd`, `scope` and `stats`.
+  - [ ] `lib/world/**` and `lib/world.ts` change only in `product`. `lib/stack.ts` changes only in `scope`.
+  - [ ] `lib/commands/apply.ts` changes in `wiring`, then `scope`. `lib/commands/pack.ts` and `lib/lock/**` change only in `checks`.
+  - [ ] `lib/gate/**` and `lib/gate.ts` change only in `checks`. A PR that needs a gate change rebases on `checks` first.
   - [ ] `targets/*.json` changes only in #14. #14 sets every v0 field from the probe verdicts.
   - [ ] `packs/core/**` changes in #14, `pstack` and `openspec`. `rig.lock.json` changes in `wiring`, `pstack` and `openspec`, and each of them reseals the core tree hash.
   - [ ] `providers/*.json` change in `pstack`, `openspec` and `product`.
   - [ ] `rig.json` changes in `pstack` and `product`.
-  - [ ] `test/helpers/mirror.mjs` changes in `seedkit`, then only in a PR that the graph orders after the last PR that edited it.
+  - [ ] `test/helpers/mirror.ts` changes in `seedkit`, then only in a PR that the graph orders after the last PR that edited it.
   - [ ] `docs/**` changes only in this plan PR and `records`.
 - [ ] Hold the review gate. No PR changes an interaction, so none waits for an operator review.
 
@@ -103,8 +103,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] `git fetch origin <head-branch> && git worktree add "$TMPDIR/rig-lane-<pr-id>-<n>" <head SHA>`. Run every later step inside that worktree.
 - [ ] Export `RIG_LIVE=1`, `DO_NOT_TRACK=1` and `OPENSPEC_TELEMETRY=0`. Write `node --version` and the version line of each harness CLI that the lane uses to `versions.txt`.
 - [ ] Record the sha256 of `~/.claude/settings.json`, `~/.claude/plugins/installed_plugins.json`, `~/.codex/config.toml` and `~/.omp/agent/config.yml`. Compare them after the lane. A changed hash fails the lane, because no lane may write into the real harness config.
-- [ ] Run only the lane's case, in the foreground. `set -o pipefail; node --test --test-name-pattern '<case>' test/live/<pr-id>.test.mjs | tee <slug>; echo "exit=${PIPESTATUS[0]}"`.
-- [ ] Each case builds a fixture HOME with `makeFixtureHome`, runs `bin/rig.mjs` or the module under test with `HOME` set to it, then drives one harness.
+- [ ] Run only the lane's case, in the foreground. `set -o pipefail; node --test --test-name-pattern '<case>' test/live/<pr-id>.test.ts | tee <slug>; echo "exit=${PIPESTATUS[0]}"`.
+- [ ] Each case builds a fixture HOME with `makeFixtureHome`, runs `bin/rig.ts` or the module under test with `HOME` set to it, then drives one harness.
   - [ ] Claude Code. `mirrorProject` copies the `.claude/` units of the fixture HOME into a scratch git repo. `claude -p --max-turns <n> --output-format json` runs in that repo with the normal login.
   - [ ] omp. `PI_CODING_AGENT_DIR=<fixture>/.omp/agent omp -p --mode json`, with stdin closed.
   - [ ] Codex. `mirrorProject` writes `AGENTS.md` and `.agents/skills/` into a scratch workspace. `codex exec -s read-only --ephemeral --ignore-user-config --json -C <workspace>`.
@@ -118,13 +118,13 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Files.**
 
-- [ ] Create `test/helpers/mirror.mjs`.
-- [ ] Create `test/live/seedkit.test.mjs`, `test/live/state.test.mjs` and `test/live/world.test.mjs`.
-- [ ] Edit `test/helpers.test.mjs`.
+- [ ] Create `test/helpers/mirror.ts`.
+- [ ] Create `test/live/seedkit.test.ts`, `test/live/state.test.ts` and `test/live/world.test.ts`.
+- [ ] Edit `test/helpers.test.ts`.
 
 **Build.**
 
-- [ ] `mirrorProject(home, harness, dir)` in `test/helpers/mirror.mjs` copies the units of one harness from a fixture HOME into a scratch project. Claude units go to `<dir>/.claude/`. Codex units go to `<dir>/AGENTS.md` and `<dir>/.agents/skills/`. Cursor units go to `<dir>/.cursor/`.
+- [ ] `mirrorProject(home, harness, dir)` in `test/helpers/mirror.ts` copies the units of one harness from a fixture HOME into a scratch project. Claude units go to `<dir>/.claude/`. Codex units go to `<dir>/AGENTS.md` and `<dir>/.agents/skills/`. Cursor units go to `<dir>/.cursor/`.
 - [ ] `scratchRepo()` makes a temp git repo. `mirrorProject` and `scratchRepo` refuse any path inside the real HOME, through `assertOutsideHomeDotDirs`.
 - [ ] `harnessArgv(harness, prompt, opts)` returns the headless argv per harness from the probe (i) verdicts. omp gets a closed stdin.
 - [ ] `realConfigHashes()` returns the sha256 of the four real config files that the boot recipe names.
@@ -132,25 +132,25 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **You see.**
 
-- [ ] `RIG_LIVE=1 node --test test/live/*.test.mjs` prints `# pass 10` and `# fail 0`.
+- [ ] `RIG_LIVE=1 node --test test/live/*.test.ts` prints `# pass 10` and `# fail 0`.
 - [ ] `node --test` without `RIG_LIVE` prints the ten live cases as skipped, with the reason from `LIVE_SKIP_REASON`.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/helpers.test.mjs` gains cases for `mirrorProject` (copies only the named harness units) and for the refusal inside the real HOME. Run `node --test test/helpers.test.mjs`.
+- [ ] `test/helpers.test.ts` gains cases for `mirrorProject` (copies only the named harness units) and for the refusal inside the real HOME. Run `node --test test/helpers.test.ts`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/`.
 
-- [ ] Lane 1. Regression lane against trunk. Case `claude sees a mirrored command` in `seedkit.test.mjs`. A hand-written `rigseed-cmd.md` goes into a fixture HOME, `mirrorProject` copies it, and `claude -p "/rigseed-cmd"` runs. Trunk has no mirror helper, so the lane records that and gates head. Save `seedkit-claude.tap`. Pass when the reply holds the sentinel token and the four real config hashes are unchanged.
-- [ ] Lane 2. Case `omp sees a fixture agent dir` in `seedkit.test.mjs`. A sentinel command goes into `<fixture>/.omp/agent/commands/`, and `omp -p` runs it with `PI_CODING_AGENT_DIR` set. Save `seedkit-omp.tap`. Pass when the JSON output holds the sentinel token.
-- [ ] Lane 3. Case `codex reads a mirrored AGENTS.md` in `seedkit.test.mjs`. The workspace `AGENTS.md` holds a sentinel line, and `codex exec -s read-only` quotes it. Save `seedkit-codex.tap`. Pass when the quoted line equals the sentinel line.
-- [ ] Lane 4. Case `cursor reads a mirrored project rule` in `seedkit.test.mjs`. A `.cursor/rules/rigseed.mdc` with `alwaysApply: true` holds a sentinel, and `cursor-agent -p --mode ask` quotes it. Save `seedkit-cursor.tap`. Pass when the reply holds the sentinel token.
-- [ ] Lane 5. Case `state seeds a command that claude runs` in `state.test.mjs`. `apply` from #12 writes `~/.claude/commands/rigseed.md` into the fixture HOME from a hand-built `Desired`, and the mirror runs it. Save `state-claude.tap`. Pass when the reply holds the sentinel token.
-- [ ] Lane 6. Case `undo removes what claude saw` in `state.test.mjs`. Apply, mirror, run, then `undo(runId)`, mirror again, run again. Save `state-undo.tap`. Pass when the second reply lacks the sentinel and the fixture tree hash equals the hash before the run.
-- [ ] Lane 7. Case `crash, recover, omp sees one copy` in `state.test.mjs`. A child apply with `RIG_TEST_ABORT_AFTER=1` dies, the next `apply` recovers, and `omp -p` lists the skills in `<fixture>/.omp/agent/skills/` whose name starts with `rigseed`. Save `state-omp.tap`. Pass when omp names the sentinel skill once and the journal ends with a `commit` line.
-- [ ] Lane 8. Case `compose replace reaches claude` in `world.test.mjs`. A fixture pack replaces `own/rigseed`, the case writes each composed unit's source file into the mirror unchanged, and `claude -p "/rigseed"` runs. Save `world-compose.tap`. Pass when the reply holds the sentinel of the replacing unit and not that of the replaced one.
-- [ ] Lane 9. Case `world reads an omp-written config` in `world.test.mjs`. `omp config set` writes `config.yml` in a scratch agent dir, then `loadWorld` runs with that dir as the omp facts root. Save `world-omp.tap`. Pass when `loadWorld` returns the omp facts with no `E_SCHEMA` and the file keeps its bytes.
-- [ ] Lane 10. Case `world reads claude plugin facts` in `world.test.mjs`. The case copies the real `installed_plugins.json` into a scratch HOME, runs `loadWorld`, and runs `claude plugin list --json` read-only. Save `world-plugins.tap`. Pass when every plugin id and commit in the facts equals the listing.
+- [ ] Lane 1. Regression lane against trunk. Case `claude sees a mirrored command` in `seedkit.test.ts`. A hand-written `rigseed-cmd.md` goes into a fixture HOME, `mirrorProject` copies it, and `claude -p "/rigseed-cmd"` runs. Trunk has no mirror helper, so the lane records that and gates head. Save `seedkit-claude.tap`. Pass when the reply holds the sentinel token and the four real config hashes are unchanged.
+- [ ] Lane 2. Case `omp sees a fixture agent dir` in `seedkit.test.ts`. A sentinel command goes into `<fixture>/.omp/agent/commands/`, and `omp -p` runs it with `PI_CODING_AGENT_DIR` set. Save `seedkit-omp.tap`. Pass when the JSON output holds the sentinel token.
+- [ ] Lane 3. Case `codex reads a mirrored AGENTS.md` in `seedkit.test.ts`. The workspace `AGENTS.md` holds a sentinel line, and `codex exec -s read-only` quotes it. Save `seedkit-codex.tap`. Pass when the quoted line equals the sentinel line.
+- [ ] Lane 4. Case `cursor reads a mirrored project rule` in `seedkit.test.ts`. A `.cursor/rules/rigseed.mdc` with `alwaysApply: true` holds a sentinel, and `cursor-agent -p --mode ask` quotes it. Save `seedkit-cursor.tap`. Pass when the reply holds the sentinel token.
+- [ ] Lane 5. Case `state seeds a command that claude runs` in `state.test.ts`. `apply` from #12 writes `~/.claude/commands/rigseed.md` into the fixture HOME from a hand-built `Desired`, and the mirror runs it. Save `state-claude.tap`. Pass when the reply holds the sentinel token.
+- [ ] Lane 6. Case `undo removes what claude saw` in `state.test.ts`. Apply, mirror, run, then `undo(runId)`, mirror again, run again. Save `state-undo.tap`. Pass when the second reply lacks the sentinel and the fixture tree hash equals the hash before the run.
+- [ ] Lane 7. Case `crash, recover, omp sees one copy` in `state.test.ts`. A child apply with `RIG_TEST_ABORT_AFTER=1` dies, the next `apply` recovers, and `omp -p` lists the skills in `<fixture>/.omp/agent/skills/` whose name starts with `rigseed`. Save `state-omp.tap`. Pass when omp names the sentinel skill once and the journal ends with a `commit` line.
+- [ ] Lane 8. Case `compose replace reaches claude` in `world.test.ts`. A fixture pack replaces `own/rigseed`, the case writes each composed unit's source file into the mirror unchanged, and `claude -p "/rigseed"` runs. Save `world-compose.tap`. Pass when the reply holds the sentinel of the replacing unit and not that of the replaced one.
+- [ ] Lane 9. Case `world reads an omp-written config` in `world.test.ts`. `omp config set` writes `config.yml` in a scratch agent dir, then `loadWorld` runs with that dir as the omp facts root. Save `world-omp.tap`. Pass when `loadWorld` returns the omp facts with no `E_SCHEMA` and the file keeps its bytes.
+- [ ] Lane 10. Case `world reads claude plugin facts` in `world.test.ts`. The case copies the real `installed_plugins.json` into a scratch HOME, runs `loadWorld`, and runs `claude plugin list --json` read-only. Save `world-plugins.tap`. Pass when every plugin id and commit in the facts equals the listing.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -174,10 +174,10 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Files.**
 
-- [ ] Edit `lib/targets.mjs`, `targets/claude.json`, `targets/codex.json`, `targets/omp.json`, `targets/cursor.json` and `packs/core/terms.json`.
-- [ ] Create `lib/targets/formats.mjs` and `lib/targets/terms.mjs`.
-- [ ] Create `test/render.test.mjs`, `test/render.helpers.mjs` and `test/fixtures/render/**`. Edit `test/placement.test.mjs`.
-- [ ] Create `test/live/render.test.mjs`.
+- [ ] Edit `lib/targets.ts`, `targets/claude.json`, `targets/codex.json`, `targets/omp.json`, `targets/cursor.json` and `packs/core/terms.json`.
+- [ ] Create `lib/targets/formats.ts` and `lib/targets/terms.ts`.
+- [ ] Create `test/render.test.ts`, `test/render.helpers.ts` and `test/fixtures/render/**`. Edit `test/placement.test.ts`.
+- [ ] Create `test/live/render.test.ts`.
 
 **Build.**
 
@@ -185,7 +185,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] The frame per instruction mode, `/craft` at the section 12 path per harness, and `/pm` from `aliases` through the core `alias.md` template. A provider entry that needs the lock renders as `not available on this harness` until `pstack`.
 - [ ] `{{rig:term}}` substitution with `E_TERM_UNKNOWN` and `E_TERM_MISSING`, the name lint, and the `never_write` check.
 - [ ] Target record values from the probes. Cursor dedupe `by-name` (b), Codex hiding through `agents/openai.yaml` (f), omp skill and command dirs (e), omp `AGENTS.md` (g), the Codex 32,768-byte cap (d), and the Claude `SessionEnd` record (h).
-- [ ] `readSet` in `lib/targets.mjs` calls `lib/targets/readset.mjs` from #4. On trunk the facade still throws `not implemented`. If #14 leaves it, `wiring` connects it.
+- [ ] `readSet` in `lib/targets.ts` calls `lib/targets/readset.ts` from #4. On trunk the facade still throws `not implemented`. If #14 leaves it, `wiring` connects it.
 
 **You see.**
 
@@ -194,9 +194,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/render.test.mjs` covers S2.11 for the paths, S2.14 for `E_TERM_UNKNOWN`, the name lint, the hide controls per dir, and exactly one copy per harness with `place()`. Run `node --test test/render.test.mjs`.
+- [ ] `test/render.test.ts` covers S2.11 for the paths, S2.14 for `E_TERM_UNKNOWN`, the name lint, the hide controls per dir, and exactly one copy per harness with `place()`. Run `node --test test/render.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/render.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/render.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `claude runs a rendered own command`. `render` output for the fixture `own` pack goes to the fixture HOME, and the mirror runs `/rigseed`. Trunk has no `render`, so the lane records that and gates head. Save `render-claude-cmd.tap`. Pass when the reply holds the sentinel token.
 - [ ] Lane 2. Case `pm expands to craft on claude`. `claude -p "/pm"` runs in the mirror. Save `render-claude-pm.tap`. Pass when the session transcript shows the `/craft` body heading in the expanded user turn.
@@ -231,32 +231,32 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Files.**
 
-- [ ] Edit `lib/commands.mjs`.
-- [ ] Create `lib/commands/plan.mjs`, `apply.mjs` and `doctor.mjs`, plus stubs `stats.mjs`, `models.mjs`, `pack.mjs` and `pin.mjs`.
+- [ ] Edit `lib/commands.ts`.
+- [ ] Create `lib/commands/plan.ts`, `apply.ts` and `doctor.ts`, plus stubs `stats.ts`, `models.ts`, `pack.ts` and `pin.ts`.
 - [ ] Edit `lib/state/**` only for the observe and plan glue that the CLI needs.
-- [ ] Create `test/wiring.test.mjs`, `test/perf/plan-wall.mjs` and `test/live/wiring.test.mjs`.
+- [ ] Create `test/wiring.test.ts`, `test/perf/plan-wall.ts` and `test/live/wiring.test.ts`.
 - [ ] Create `rig.lock.json` with the core tree hash, so the `pin` check of S2.13 has a seal to compare.
-- [ ] Edit `test/cli.test.mjs`.
+- [ ] Edit `test/cli.test.ts`.
 
 **Build.**
 
 - [ ] `planCmd` runs `loadWorld`, `compose`, `render`, `gate`, observe and `plan`. It prints one line per op and the `N changes, M blocks` footer, with the exit codes of section 1.
 - [ ] `applyCmd` with the journaled write and `--undo <run-id>`.
 - [ ] `doctorCmd` without `--project`. Drift, effective duplicates per harness from `readSet`, the `/pm` alias reminder, and a shadowed Cursor local plugin.
-- [ ] The `E_INTERNAL` guard in `lib/commands.mjs`. A handler that returns no exit code exits 1, which closes the scaffold follow-up in the decision trail.
-- [ ] `test/perf/plan-wall.mjs`, the perf lever that every later PR reuses. It takes `--cmd <rig args>`, with `plan` as the default.
+- [ ] The `E_INTERNAL` guard in `lib/commands.ts`. A handler that returns no exit code exits 1, which closes the scaffold follow-up in the decision trail.
+- [ ] `test/perf/plan-wall.ts`, the perf lever that every later PR reuses. It takes `--cmd <rig args>`, with `plan` as the default.
 
 **You see.**
 
-- [ ] `HOME=<fixture> node bin/rig.mjs plan` prints `create` lines for the `own` pack and `N changes, 0 blocks`, and exits 0.
+- [ ] `HOME=<fixture> node bin/rig.ts plan` prints `create` lines for the `own` pack and `N changes, 0 blocks`, and exits 0.
 - [ ] A second `rig apply` prints `0 changes, 0 blocks`.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/wiring.test.mjs` covers S1.1 to S1.3, S2.1, S2.2 (every k through the CLI), S2.6 to S2.10, S2.12, S2.13 and S2.15. Run `node --test test/wiring.test.mjs`.
-- [ ] `test/cli.test.mjs` gains the `E_INTERNAL` case. Run `node --test test/cli.test.mjs`.
+- [ ] `test/wiring.test.ts` covers S1.1 to S1.3, S2.1, S2.2 (every k through the CLI), S2.6 to S2.10, S2.12, S2.13 and S2.15. Run `node --test test/wiring.test.ts`.
+- [ ] `test/cli.test.ts` gains the `E_INTERNAL` case. Run `node --test test/cli.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/wiring.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/wiring.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `plan then apply reaches claude`. `rig plan` runs at trunk and head on the same fixture HOME. Trunk prints `not implemented` and exits 1, so the lane records that. Head runs `rig apply`, and the mirror runs `/rigseed`. Save `wiring-regression.tap`. Pass when trunk exits 1 with `not implemented`, head `plan` exits 0, and the head reply holds the sentinel.
 - [ ] Lane 2. Case `second apply converges`. Two `rig apply` runs, then the mirror runs `/rigseed`. Save `wiring-converge.tap`. Pass when the second run prints `0 changes, 0 blocks` and the reply holds the sentinel.
@@ -272,7 +272,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the default fixture HOME. Trunk stops at the stub, so trunk times only parsing and the throw.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
 - [ ] Baseline. Record the trunk median first, with the note that it times no pipeline work.
 - [ ] Rule. Fail when the head median exceeds 1 s. No ratio to trunk applies, because trunk does no work.
 
@@ -294,14 +294,14 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Edit `providers/pstack.json`, `rig.json` (`pins`) and `rig.lock.json` (the pstack pin and the core reseal).
 - [ ] Edit `packs/core/commands/craft.md` and `packs/core/frame.md` only where the pstack entry needs it.
 - [ ] Edit `lib/targets/` for the `plugin-cache:` and `plugin-local:` entry resolution and the `whole` render of the pstack model files.
-- [ ] Edit `lib/commands/pin.mjs` and `lib/commands/doctor.mjs`.
-- [ ] Create `test/pstack.test.mjs`, `test/fixtures/pstack/**` and `test/live/pstack.test.mjs`.
+- [ ] Edit `lib/commands/pin.ts` and `lib/commands/doctor.ts`.
+- [ ] Create `test/pstack.test.ts`, `test/fixtures/pstack/**` and `test/live/pstack.test.ts`.
 
 **Build.**
 
 - [ ] The Claude `/craft` body names the exact path `~/.claude/plugins/cache/<marketplace>/pstack/<version>/skills/poteto-mode/SKILL.md`, with the version from `rig.lock.json`. It holds no `sort` and no `tail`. Codex and omp get `not available on this harness`.
 - [ ] The frame names pstack as the default provider and states the `rig-project:` rule.
-- [ ] `~/.claude/rules/pstack-models.md` and `~/.cursor/rules/pstack-models.mdc` render as `whole` files from `models.cellValues`. `patch` in `lib/targets.mjs` gains the owned `keep_header` case, so the header lines stay and an equal file adopts.
+- [ ] `~/.claude/rules/pstack-models.md` and `~/.cursor/rules/pstack-models.mdc` render as `whole` files from `models.cellValues`. `patch` in `lib/targets.ts` gains the owned `keep_header` case, so the header lines stay and an equal file adopts.
 - [ ] `pinCmd` for `rig pin check pstack --sha <sha>` and `rig pin set pstack`, through `pinCheck` and `pinSet` from #7.
 - [ ] `rig doctor` reports the pstack pin against `installed_plugins.json` and an `autoUpdate` marketplace that serves it.
 
@@ -312,14 +312,14 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/pstack.test.mjs` covers S2.11 for the lock path, S4.3, S4.11, S3.3 for the header lines of the pstack model files, and the null-entry line on Codex and omp. Run `node --test test/pstack.test.mjs`.
+- [ ] `test/pstack.test.ts` covers S2.11 for the lock path, S4.3, S4.11, S3.3 for the header lines of the pstack model files, and the null-entry line on Codex and omp. Run `node --test test/pstack.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/pstack.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/pstack.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `craft reads poteto-mode at the locked path`. The fixture lock pins the installed pstack version, and `claude -p "/craft name the file you were told to read, then stop"` runs in the mirror. Trunk renders the pstack entry as not available, so the lane records the trunk reply. Save `pstack-craft-path.tap`. Pass when the head transcript holds a Read whose path equals the locked path and that file exists.
 - [ ] Lane 2. Case `craft loads the poteto-mode text`. `claude -p "/craft reply with the H1 heading of the file you read"`. Save `pstack-craft-h1.tap`. Pass when the reply holds `Poteto mode`.
 - [ ] Lane 3. Case `doctor flags a version mismatch`. The fixture lock pins another version, and `rig doctor` runs with the real HOME. Save `pstack-doctor-pin.tap`. Pass when `rig doctor` exits 1, names pstack and both versions, and the real HOME snapshot is unchanged.
-- [ ] Lane 4. Case `pin check against the real marketplace repo`. `rig pin check pstack --sha <installed commit>` clones over the network into a temp dir. Save `pstack-pin-check.tap`. Pass when the candidate tree hash equals the tree hash of the installed cache dir, computed read-only with `lib/tree.mjs`.
+- [ ] Lane 4. Case `pin check against the real marketplace repo`. `rig pin check pstack --sha <installed commit>` clones over the network into a temp dir. Save `pstack-pin-check.tap`. Pass when the candidate tree hash equals the tree hash of the installed cache dir, computed read-only with `lib/tree.ts`.
 - [ ] Lane 5. Case `pin set refuses another commit`. `rig pin check` at another SHA, then `rig pin set pstack`. Save `pstack-pin-set.tap`. Pass when `rig pin set` exits 1 and `rig.lock.json` keeps its bytes.
 - [ ] Lane 6. Case `pstack-models steers the first dispatch` (A22). The rendered `pstack-models.md` goes into the mirror, and `/craft` gets a toy task that needs one subagent. Save `pstack-dispatch.tap`. Pass when the first Agent call in the transcript sets the model and effort of the rendered line for its role.
 - [ ] Lane 7. Case `adopt keeps an equal pstack-models file`. The fixture HOME holds a file with the rendered bytes. Save `pstack-adopt.tap`. Pass when `rig plan` prints `adopt`, `rig apply` leaves the sha unchanged, and claude in the mirror quotes the same `# budget` line.
@@ -330,7 +330,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the default fixture HOME plus the pstack provider and a fixture plugin cache.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
 - [ ] Baseline. Record the trunk median first. Trunk is `wiring`, so both sides run the full pipeline.
 - [ ] Rule. Fail when the head median exceeds 1 s, or exceeds the trunk median by more than 20 percent.
 
@@ -351,12 +351,12 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 - [ ] Edit `providers/openspec.json`.
 - [ ] Edit `packs/core/commands/craft.md` and `packs/core/frame.md` only where the OpenSpec entry needs it, and reseal the core tree hash.
-- [ ] Edit `lib/commands/doctor.mjs`.
-- [ ] Create `test/openspec.test.mjs`, `test/fixtures/openspec/**` and `test/live/openspec.test.mjs`.
+- [ ] Edit `lib/commands/doctor.ts`.
+- [ ] Create `test/openspec.test.ts`, `test/fixtures/openspec/**` and `test/live/openspec.test.ts`.
 
 **Build.**
 
-- [ ] `providers/openspec.json` carries every field of section 2.5. `/craft` routes a `rig-project: openspec` line to `/opsx:propose` on Claude Code and to `/prompts:openspec-propose` on Codex. omp and Cursor get `not available on this harness`. Fix the record or the template wherever a lane shows another route.
+- [ ] `providers/openspec.json` carries every field of section 2.5. `/craft` routes a `rig-project: openspec` line to `/opsx:propose` on Claude Code and to `/prompts:opsx-propose` on Codex. omp and Cursor get `not available on this harness`. Fix the record or the template wherever a lane shows another route.
 - [ ] `rig doctor --project <dir>` reports the declared provider and its source file, agreement with the overlay `projects` map, and footprints such as `openspec/` as info.
 - [ ] The provider record feeds the `telemetry` check from #5. It warns when neither `DO_NOT_TRACK` nor `OPENSPEC_TELEMETRY=0` is set.
 
@@ -367,9 +367,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/openspec.test.mjs` covers S4.6, S4.9, and the `/craft` routing line per harness. Run `node --test test/openspec.test.mjs`.
+- [ ] `test/openspec.test.ts` covers S4.6, S4.9, and the `/craft` routing line per harness. Run `node --test test/openspec.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/openspec.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/openspec.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `craft routes to opsx:propose`. A scratch repo runs `openspec init` for Claude Code (flags from `openspec init --help` at run time), `CLAUDE.md` holds the `rig-project:` line for openspec, and `/craft propose a change that adds a hello command` runs at trunk and head. `render` fills `{{entries}}` from every provider record, so trunk can route already. The lane records the trunk result and gates head. Save `openspec-route.tap`. Pass when the head transcript runs `opsx:propose` or creates `openspec/changes/<id>/proposal.md`.
 - [ ] Lane 2. Case `no line falls back to pstack`. The same repo without the line. Save `openspec-default.tap`. Pass when the transcript holds a Read of the locked poteto-mode path.
@@ -379,13 +379,13 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Lane 6. Case `overlay map disagrees`. The overlay `projects` map names pstack and the line names openspec. Save `openspec-overlay.tap`. Pass when `rig doctor --project` warns and names both, and `/craft` follows the line.
 - [ ] Lane 7. Case `telemetry warns until an opt-out is set`. `rig plan` with no opt-out, then with `DO_NOT_TRACK=1`. Save `openspec-telemetry.tap`. Pass when the first run warns and exits 0, and the second run has no `telemetry` finding.
 - [ ] Lane 8. Case `what openspec init generates` (A8). `git status --porcelain` after `openspec init`. Save `openspec-init.tap`. Pass when the footprint list of `rig doctor --project` equals the generated paths, and the lane records whether `.claude/skills/` appears.
-- [ ] Lane 9. Case `codex reads the route from the frame`. The workspace `AGENTS.md` holds the rendered frame and the line, and `codex exec` asks which command the frame says to run. Codex prompts are user-level only, so no project mirror of `/prompts:craft` exists. Save `openspec-codex.tap`. Pass when the reply names `/prompts:openspec-propose`.
+- [ ] Lane 9. Case `codex reads the route from the frame`. The workspace `AGENTS.md` holds the rendered frame and the line, and `codex exec` asks which command the frame says to run. Codex prompts are user-level only, so no project mirror of `/prompts:craft` exists. Save `openspec-codex.tap`. Pass when the reply names `/prompts:opsx-propose`.
 - [ ] Lane 10. Case `omp says openspec is not available`. omp runs with the rendered frame and a workspace `AGENTS.md` that holds the line. Save `openspec-omp.tap`. Pass when the reply holds `not available on this harness` and names pstack as the fallback.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time with two workflow providers, and `rig doctor --project` wall time on the scratch repo.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup. A second run of the same probe uses `--cmd 'doctor --project <dir>'`.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup. A second run of the same probe uses `--cmd 'doctor --project <dir>'`.
 - [ ] Baseline. Record both trunk medians first.
 - [ ] Rule. Fail when either head median exceeds 1 s, or exceeds its trunk median by more than 20 percent.
 
@@ -400,20 +400,20 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Add the cve and budget checks (checks)
 
-**Depends on.** `pstack`, for `lib/commands/pin.mjs`.
+**Depends on.** `pstack`, for `lib/commands/pin.ts`.
 
 **Files.**
 
-- [ ] Create `lib/gate/cve.mjs` and `lib/gate/budget.mjs`. Edit `lib/gate/registry.mjs` and `lib/gate.mjs`.
+- [ ] Create `lib/gate/cve.ts` and `lib/gate/budget.ts`. Edit `lib/gate/registry.ts` and `lib/gate.ts`.
 - [ ] Edit `lib/lock/` for the OSV `querybatch` fetch.
-- [ ] Edit `lib/commands/pack.mjs` and `lib/commands/pin.mjs`.
-- [ ] Create `test/checks.test.mjs`, `test/fixtures/osv/**` and `test/live/checks.test.mjs`.
+- [ ] Edit `lib/commands/pack.ts` and `lib/commands/pin.ts`.
+- [ ] Create `test/checks.test.ts`, `test/fixtures/osv/**` and `test/live/checks.test.ts`.
 
 **Build.**
 
 - [ ] `cve` blocks on a high or critical advisory in the OSV cache, and blocks when no scanner and no cached result exist. Open user question 2 can turn that second case into a warning.
 - [ ] `budget` over rendered bytes. A description above the harness cap blocks, above 300 characters warns, and an instruction file above the Codex 32,768-byte cap blocks. Tokens are 4 characters each.
-- [ ] `rig pack add` in `lib/commands/pack.mjs` through `vendor` from #7. The OSV refresh runs inside `pack add` and `pin check` only, and the fetch lives in `lib/lock/`.
+- [ ] `rig pack add` in `lib/commands/pack.ts` through `vendor` from #7. The OSV refresh runs inside `pack add` and `pin check` only, and the fetch lives in `lib/lock/`.
 
 **You see.**
 
@@ -422,10 +422,10 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/checks.test.mjs` covers S4.1, S4.5 and S5.4. `test/gate.test.mjs` keeps the registry equal to the table in section 10. Run `node --test test/checks.test.mjs test/gate.test.mjs`.
-- [ ] `test/boundaries.test.mjs` still passes, so `fetch` stays inside `lib/lock/`. Run `node --test test/boundaries.test.mjs`.
+- [ ] `test/checks.test.ts` covers S4.1, S4.5 and S5.4. `test/gate.test.ts` keeps the registry equal to the table in section 10. Run `node --test test/checks.test.ts test/gate.test.ts`.
+- [ ] `test/boundaries.test.ts` still passes, so `fetch` stays inside `lib/lock/`. Run `node --test test/boundaries.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because the checks read bytes and one cache. Only the Codex cap, the Claude listing, OSV, the pstack tree and a real remote clone are real artifacts to check. Each lane follows the boot recipe and runs one case of `test/live/checks.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because the checks read bytes and one cache. Only the Codex cap, the Claude listing, OSV, the pstack tree and a real remote clone are real artifacts to check. Each lane follows the boot recipe and runs one case of `test/live/checks.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `rig blocks before codex truncates`. #14 renders no rules for Codex, so a fixture core pads the Codex `rig:frame` block until the rendered `AGENTS.md` is 33,000 bytes long, with a sentinel at the end. `rig plan` runs at trunk and head, and `codex exec` quotes the sentinel. Save `checks-codex-cap.tap`. Pass when trunk `plan` exits 0, codex cannot quote the tail sentinel, and head `plan` exits 1 and names `budget`.
 - [ ] Lane 2. Case `listing estimate against claude`. The mirror holds the rendered units, and the case reads the skill listing attachment from the session transcript (A15). Save `checks-listing.json`. Pass when the `budget` listing estimate is within 20 percent of the listing bytes in the transcript.
@@ -436,7 +436,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the default fixture HOME with `budget` and `cve` active.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
 - [ ] Baseline. Record the trunk median first.
 - [ ] Rule. Fail when the head median exceeds 1 s, or exceeds the trunk median by more than 20 percent.
 
@@ -451,20 +451,20 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Wire rig models and models set (models-cmd)
 
-**Depends on.** `openspec`, for `lib/commands/doctor.mjs`.
+**Depends on.** `openspec`, for `lib/commands/doctor.ts`.
 
 **Files.**
 
-- [ ] Edit `lib/commands/models.mjs` and `lib/commands/doctor.mjs`.
+- [ ] Edit `lib/commands/models.ts` and `lib/commands/doctor.ts`.
 - [ ] Edit `lib/state/` for the `patch-cells` and `insert-markers` ops and the cell digests in `installed.json`.
 - [ ] Edit `lib/targets/` only to connect `patch` from #8 to the plan.
-- [ ] Create `test/models-cmd.test.mjs` and `test/live/models-cmd.test.mjs`. Reuse `test/fixtures/models/` from #8.
+- [ ] Create `test/models-cmd.test.ts` and `test/live/models-cmd.test.ts`. Reuse `test/fixtures/models/` from #8.
 
 **Build.**
 
 - [ ] `rig models` prints the effective table per harness with the source of each value.
 - [ ] `rig models set <tier> <model> --harness <h>` edits `models/tiers.json` through `setTier`, then runs the apply pipeline restricted to model-bearing files.
-- [ ] The `patch-cells` and `insert-markers` ops, cell and block adopt, and drift by cell digest. `patch` in `lib/targets.mjs` gains the `cells`, `keys`, `frontmatter` and `block` cases through `lib/targets/patch.mjs` from #8.
+- [ ] The `patch-cells` and `insert-markers` ops, cell and block adopt, and drift by cell digest. `patch` in `lib/targets.ts` gains the `cells`, `keys`, `frontmatter` and `block` cases through `lib/targets/patch.ts` from #8.
 - [ ] `rig doctor` reports cell drift, model env overrides and stale model names in prose as info.
 
 **You see.**
@@ -474,9 +474,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/models-cmd.test.mjs` covers S3.1 to S3.12 through the CLI on the real-shape fixtures from #8. Run `node --test test/models-cmd.test.mjs`.
+- [ ] `test/models-cmd.test.ts` covers S3.1 to S3.12 through the CLI on the real-shape fixtures from #8. Run `node --test test/models-cmd.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs six, because model cells reach a harness only through Claude fleet files and the omp config in a scratch agent dir. Codex agent TOML and Cursor fleet agents are user-level files with no project mirror. Each lane follows the boot recipe and runs one case of `test/live/models-cmd.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs six, because model cells reach a harness only through Claude fleet files and the omp config in a scratch agent dir. Codex agent TOML and Cursor fleet agents are user-level files with no project mirror. Each lane follows the boot recipe and runs one case of `test/live/models-cmd.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `claude fleet agent follows a swap`. `rig models set fast haiku --harness claude`, then the mirror holds the rendered fleet agent that `roles.json` maps to tier `fast`, and `claude -p` dispatches that agent once. Trunk has `rig models` as a stub, so the lane records that. Save `models-claude.tap`. Pass when the subagent transcript shows a `message.model` of the haiku family.
 - [ ] Lane 2. Case `omp modelRoles follows a swap`. The case reads the `modelRoles` values of the real `~/.omp/agent/config.yml`, read-only, swaps between two of them with `rig models set`, and runs `omp -p --mode json`. Save `models-omp.tap`. Pass when the fixture `config.yml` changed in one line and the omp JSON names the new model.
@@ -488,7 +488,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the fixture HOME with the five real-shape model surfaces, and `rig models set` wall time.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup. A second run uses `--cmd 'models set strong model-b --harness omp'` on a fresh fixture each time.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup. A second run uses `--cmd 'models set strong model-b --harness omp'` on a fresh fixture each time.
 - [ ] Baseline. Record both trunk medians first. Trunk has no `models set`, so record that and keep only the `plan` ratio.
 - [ ] Rule. Fail when the head `plan` median exceeds 1 s or the trunk median by more than 20 percent, or when `models set` exceeds 1 s.
 
@@ -503,14 +503,14 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Deliver per-project packs without repository writes (scope)
 
-**Depends on.** `models-cmd`, for `lib/commands/doctor.mjs` and `lib/targets/`.
+**Depends on.** `models-cmd`, for `lib/commands/doctor.ts` and `lib/targets/`.
 
 **Files.**
 
-- [ ] Edit `lib/stack.mjs` for the scope rules and the absent-part info line.
+- [ ] Edit `lib/stack.ts` for the scope rules and the absent-part info line.
 - [ ] Edit `lib/targets/` for the Claude local plugin render into `$XDG_DATA_HOME/rig/marketplace`.
-- [ ] Edit `lib/commands/apply.mjs` and `lib/commands/doctor.mjs`.
-- [ ] Create `test/scope.test.mjs` and `test/live/scope.test.mjs`.
+- [ ] Edit `lib/commands/apply.ts` and `lib/commands/doctor.ts`.
+- [ ] Create `test/scope.test.ts` and `test/live/scope.test.ts`.
 
 **Build.**
 
@@ -525,9 +525,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/scope.test.mjs` covers S4.7, S4.8 and S4.12, and asserts that `~/.claude/settings.json` keeps its bytes across `rig apply`. Run `node --test test/scope.test.mjs`.
+- [ ] `test/scope.test.ts` covers S4.7, S4.8 and S4.12, and asserts that `~/.claude/settings.json` keeps its bytes across `rig apply`. Run `node --test test/scope.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because only Claude Code has a project channel in v0, and its full variant needs an operator. Each lane follows the boot recipe and runs one case of `test/live/scope.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because only Claude Code has a project channel in v0, and its full variant needs an operator. Each lane follows the boot recipe and runs one case of `test/live/scope.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `machine-hidden stays hidden and invocable`. Trunk already hides through `render`, so trunk and head both run it. Save `scope-hidden.tap`. Pass when both sides keep the skill out of the listing and invoke it by name.
 - [ ] Lane 2. Case `project plugin loads in one project only`. The no-write variant of probe (k) passes the rendered plugin dir to one `claude -p` run, and a control run has no plugin. Save `scope-plugin.tap`. Pass when the first run lists the namespaced skill and the control run does not.
@@ -538,7 +538,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the fixture HOME with one `project` pack and one `hybrid` pack.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
 - [ ] Baseline. Record the trunk median first.
 - [ ] Rule. Fail when the head median exceeds 1 s, or exceeds the trunk median by more than 20 percent.
 
@@ -557,15 +557,15 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Files.**
 
-- [ ] Edit `lib/commands/stats.mjs` and `lib/metrics/propose.mjs`.
+- [ ] Edit `lib/commands/stats.ts` and `lib/metrics/propose.ts`.
 - [ ] Edit `lib/state/` for the `json-element` op and `lib/targets/` for the hook element patch.
-- [ ] Create `test/stats.test.mjs` and `test/live/stats.test.mjs`.
+- [ ] Create `test/stats.test.ts` and `test/live/stats.test.ts`.
 
 **Build.**
 
 - [ ] `statsCmd` with `--since`, `--harness`, `--suggest`, `--record` and `--session`, and the exit-2 combinations of section 1.
 - [ ] `--suggest` writes a unified diff to `proposals/<date>.patch` and applies nothing.
-- [ ] `patch` in `lib/targets.mjs` gains the `json-element` case. The `json-element` op writes one `hooks.SessionEnd` element into `~/.claude/settings.json` when `metrics.session_hook` is true, and blocks with `E_JSON_ROUNDTRIP` on a file that does not round-trip.
+- [ ] `patch` in `lib/targets.ts` gains the `json-element` case. The `json-element` op writes one `hooks.SessionEnd` element into `~/.claude/settings.json` when `metrics.session_hook` is true, and blocks with `E_JSON_ROUNDTRIP` on a file that does not round-trip.
 
 **You see.**
 
@@ -574,9 +574,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/stats.test.mjs` covers S5.1 to S5.3 and S5.5 to S5.8. Run `node --test test/stats.test.mjs`.
+- [ ] `test/stats.test.ts` covers S5.1 to S5.3 and S5.5 to S5.8. Run `node --test test/stats.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs six, because three harnesses write transcripts that a headless run can produce, plus the hook, the store privacy and one proposal. Each lane follows the boot recipe and runs one case of `test/live/stats.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs six, because three harnesses write transcripts that a headless run can produce, plus the hook, the store privacy and one proposal. Each lane follows the boot recipe and runs one case of `test/live/stats.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `stats counts a real claude session once`. `claude -p --output-format json` runs in a scratch repo with a sentinel prompt. The case copies that session's transcript into the fixture transcript root and runs `rig stats --record --session <id>`. Trunk has `rig stats` as a stub, so the lane records that. Save `stats-claude.tap`. Pass when the input and output token totals equal the usage in the claude result JSON.
 - [ ] Lane 2. Case `the store holds no content`. `grep -c <sentinel>` over `metrics.jsonl`, `proposals/` and `log/` after lanes 1 and 6. Save `stats-privacy.tap`. Pass when every count is 0.
@@ -588,7 +588,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig stats` wall time over the fixture transcripts, and `rig stats --record` wall time in hook mode, because the hook runs at every session end.
-- [ ] Probe. `node test/perf/plan-wall.mjs --cmd 'stats' --runs 10` and `--cmd 'stats --record'` with a fixture payload on stdin, at trunk and head. Trunk has `stats` as a stub.
+- [ ] Probe. `node test/perf/plan-wall.ts --cmd 'stats' --runs 10` and `--cmd 'stats --record'` with a fixture payload on stdin, at trunk and head. Trunk has `stats` as a stub.
 - [ ] Baseline. Record that trunk has no `stats`. Record both head medians.
 - [ ] Rule. Fail when `rig stats` exceeds 1 s or `rig stats --record` exceeds 300 ms.
 
@@ -610,8 +610,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Create `packs/product/pack.json`, `packs/product/skills/office-hours/SKILL.md`, `packs/product/skills/office-hours/references/product-core.md` and `packs/product/commands/oh.md`.
 - [ ] Create `packs/product/NOTICE.md` and `packs/product/licenses/MIT-gstack.txt`.
 - [ ] Edit `providers/pstack.json`, `providers/openspec.json` and `rig.json`.
-- [ ] Edit `lib/world/schemas.mjs` for the `intake` and `ported_from` keys.
-- [ ] Create `test/product.test.mjs` and `test/live/product.test.mjs`.
+- [ ] Edit `lib/world/schemas.ts` for the `intake` and `ported_from` keys.
+- [ ] Create `test/product.test.ts` and `test/live/product.test.ts`.
 
 **Build.**
 
@@ -626,9 +626,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/product.test.mjs` checks the rendered body for `gstack-`, `$GSTACK` and leftover `{{` placeholders, the `license` check with the notice, the `budget` caps, and one `intake` line per provider. Run `node --test test/product.test.mjs`.
+- [ ] `test/product.test.ts` checks the rendered body for `gstack-`, `$GSTACK` and leftover `{{` placeholders, the `license` check with the notice, the `budget` caps, and one `intake` line per provider. Run `node --test test/product.test.ts`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because `/oh` has one artifact, a design doc, and two provider endings, on the two harnesses with a bare command dir. Each lane follows the boot recipe and runs one case of `test/live/product.test.mjs`.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head is the default. This PR runs five, because `/oh` has one artifact, a design doc, and two provider endings, on the two harnesses with a bare command dir. Each lane follows the boot recipe and runs one case of `test/live/product.test.ts`.
 
 - [ ] Lane 1. Regression lane against trunk. Case `oh writes a design doc`. `claude -p "/oh <idea with its answers stated>" --max-turns 15` runs in a scratch repo. Trunk has no `/oh`, so the lane records the unknown command. Save `product-oh.tap`. Pass when head creates `docs/designs/<slug>.md` with the template headings and the transcript has no call to a `gstack-` binary.
 - [ ] Lane 2. Case `oh closes with the pstack intake`. The scratch repo has no `rig-project:` line. Save `product-pstack.tap`. Pass when the last reply holds the pstack `intake` line.
@@ -639,7 +639,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. `rig plan` wall time on the fixture HOME with the product pack.
-- [ ] Probe. `node test/perf/plan-wall.mjs --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
+- [ ] Probe. `node test/perf/plan-wall.ts --trunk <trunk worktree> --head . --runs 10`. It runs `rig plan` on a fresh default fixture HOME, alternates trunk and head, prints both medians, and also times `node -e 0` so the reader can subtract Node startup.
 - [ ] Baseline. Record the trunk median first.
 - [ ] Rule. Fail when the head median exceeds 1 s, or exceeds the trunk median by more than 20 percent.
 
@@ -659,19 +659,19 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **Files.**
 
 - [ ] Edit `docs/decisions/0002`, `0003`, `0004`, `0005`, `0007`, `0008`, `0010`, `0012`, `0013`, `0015` and `0020`.
-- [ ] Create `docs/decisions/0025-product-pack-in-v0.md` for delta 6, which the user reversed when the product roles joined the seed tests.
+- [ ] Create `docs/decisions/0026-product-pack-in-v0.md` for delta 6, which the user reversed when the product roles joined the seed tests.
 - [ ] Edit `docs/README.md`, the decision table and the status of the slices plan.
 - [ ] Edit the After v0 list of `docs/plan/v0-slices.md` and row 6 of section 14 in `docs/design/rig-architecture.md`.
 
 **Build.**
 
 - [ ] Each record gains an update paragraph that names its row in the table of section 15 and the delta row of section 14.
-- [ ] Record 0025 states that `office-hours` as `/oh` is back in v0, with the decision trail row as its source. Its status follows the user's word.
+- [ ] Record 0026 states that `office-hours` as `/oh` is back in v0, with the decision trail row as its source. Its status follows the user's word.
 
 **You see.**
 
 - [ ] Every record in the section 15 table names its delta.
-- [ ] `docs/README.md` lists 0025.
+- [ ] `docs/README.md` lists 0026. (0025 went to the TypeScript decision first.)
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -701,7 +701,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 ## Close the program
 
 - [ ] Every box above is checked with its evidence.
-- [ ] Run `RIG_LIVE=1 node --test test/live/*.test.mjs` once at the last merged trunk SHA and save the TAP file. Every case passes, or the report names each skip and its reason.
+- [ ] Run `RIG_LIVE=1 node --test test/live/*.test.ts` once at the last merged trunk SHA and save the TAP file. Every case passes, or the report names each skip and its reason.
 - [ ] Run `rig doctor` and `rig plan` with the real HOME and compare snapshots of every read dir before and after (S1.4). The diff is empty.
 - [ ] Reply to the operator with the report the execution playbook names, per `<pstack>/skills/ketchup/SKILL.md`.
 
@@ -711,9 +711,9 @@ Four throwaway prototypes settled the forks with the most risk on 2026-11-04. Th
 
 | Question | Prototype and command | Variants | Measured result | Decision |
 |---|---|---|---|---|
-| How does `apply` converge after a crash and undo a run? | `p1-transaction/`, `node proto.mjs all` | A journal plus pre-image backups. B generations. C direct writes with only an installed record. | A passed every scenario. B lost a user file that rig replaced on the first run (scenario 4b fails). | A, merged in #12. Record the mode with the sha, and sweep temp litter on start. |
+| How does `apply` converge after a crash and undo a run? | `p1-transaction/`, `node proto.ts all` | A journal plus pre-image backups. B generations. C direct writes with only an installed record. | A passed every scenario. B lost a user file that rig replaced on the first run (scenario 4b fails). | A, merged in #12. Record the mode with the sha, and sweep temp litter on start. |
 | How does rig patch model cells inside files that people and harnesses also edit? | `p2-cells/`, `node run.js A`, `B` or `C` | A structural line locators, a closed set of six kinds. B parse and reserialize. C markers around existing cells. | A changed 0 bytes outside cells. B changed 1,826 bytes outside cells. C broke the no-write adopt, and its markers vanished on a YAML rewrite. | A, merged in #8. Markers only where rig inserts a new block. Effort syntax is declared per target, because a last-colon rule misread `acme/foo:medium`. |
-| Where does each unit go so that every harness sees it exactly once? | `p3-placement/`, `node place.mjs --full` | A minimal-set solver over the declared writable dirs. B and B+ a fixed channel per harness. C shared dir first. A0 and AU solver variants. | Exactly once in 32 of 32 cells for A and AU, 28 for A0 and C, 26 for B+ and 21 for B. Fixed channels listed a skill twice on Cursor. | A, merged in #4. |
+| Where does each unit go so that every harness sees it exactly once? | `p3-placement/`, `node place.ts --full` | A minimal-set solver over the declared writable dirs. B and B+ a fixed channel per harness. C shared dir first. A0 and AU solver variants. | Exactly once in 32 of 32 cells for A and AU, 28 for A0 and C, 26 for B+ and 21 for B. Fixed channels listed a skill twice on Cursor. | A, merged in #4. |
 | How does `rig stats` count tokens without content? | `p4-metrics/`, `node reader.js A`, `B` or `C` | A naive sums. B dedupe and per-harness fields. C B plus a canary harvest. | Naive sums overcount Claude 2.1 to 2.5 times, because usage repeats per content block. Codex input includes cached tokens. Advisor iterations form a separate bucket. The field allowlist leaked 0 of 20 canaries. | B, merged in #6. Dedupe Claude by `message.id`, the last line wins. |
 
 The slice 0 probes in #2, #9 and #10 are evidence too. Their verdicts are in `probes/results/*.json` and `docs/research/2026-11-05-probes-*.md`.
@@ -736,7 +736,7 @@ These questions stay unproven. The PR that proves each one is in parentheses.
 - **Naive token sums.** Prototype p4 variant A summed every usage line. It overcounted Claude 2.1 to 2.5 times.
 - **One end-to-end milestone instead of a seed test per PR.** The decision trail first planned one tracer milestone. The user asked for seeding as the test of each step, so every PR now carries its own live cases.
 - **An isolated `CLAUDE_CONFIG_DIR` for the Claude seed.** Claude Code is not logged in there, and rig never copies credentials. The project-level mirror runs with the normal login and writes only into a scratch repo.
-- **More parallel PRs after `wiring`.** Five PRs edit `lib/commands/doctor.mjs` and four edit `lib/state/`. A chain costs wall time. Parallel branches would cost merge conflicts in the files that the plan proves, so only `checks` and `records` run beside the chain.
+- **More parallel PRs after `wiring`.** Five PRs edit `lib/commands/doctor.ts` and four edit `lib/state/`. A chain costs wall time. Parallel branches would cost merge conflicts in the files that the plan proves, so only `checks` and `records` run beside the chain.
 
 ## Appendix C. Risks
 

@@ -18,3 +18,11 @@ The user's rough hypothesis: playbooks are providers per task type, step-slots e
 
 - This changes the hypothesis on one point: providers are per project, not per task type.
 - `verify`, `code-review` and `ship` are v1 slot candidates.
+
+## Update 2026-11-05
+
+Change: the slot list and the filler kinds follow section 2 of [the architecture doc](../design/rig-architecture.md). In v0 the slots are `doc-review` and `second-opinion` stubs plus the frame fillers. The `/craft` entry lists each provider entry from its provider record.
+
+Reason: the architecture fixes the slot contract in closed-key schemas. See the 0007 row in section 15 and delta 17 in section 14.
+
+Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (schemas, provider records) and [#20](https://github.com/rigyard/rig/pull/20) (fillers rendered from provider records).

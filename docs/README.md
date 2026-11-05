@@ -6,16 +6,16 @@ rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesse
 
 | File | Status | Content |
 |---|---|---|
-| [design/rig-design-draft.md](design/rig-design-draft.md) | Draft design (v4) | Composition and pack scope, core, providers, model table, router and step-slots, product pack, safe seeding and checks, frame, observability and self-feedback, commands and six v0 slices, findings table. |
-| [design/rig-architecture.md](design/rig-architecture.md) | v0 architecture sketch | CLI usage and three traced cases, config and state schemas, file ownership, type sketch, module map and boundary test, pipeline, read-set placement, cells and adopt, journal and recovery, gate, scope, `/craft`, rationale, scored assumptions. |
+| [design/rig-design-draft.md](design/rig-design-draft.md) | Draft design (v4), kept as history | Composition and pack scope, core, providers, model table, router and step-slots, product pack, safe seeding and checks, frame, observability and self-feedback, commands and six v0 slices, findings table. |
+| [design/rig-architecture.md](design/rig-architecture.md) | v0 architecture, mostly implemented | CLI usage and three traced cases, config and state schemas, file ownership, type sketch, module map and boundary test, pipeline, read-set placement, cells and adopt, journal and recovery, gate, scope, `/craft`, rationale, scored assumptions. |
 | [assumptions-and-open-questions.md](assumptions-and-open-questions.md) | Living record | Verified facts, scored assumptions with probes, overall confidence, open questions for the user. |
 
 ## Plan
 
 | File | Status | Content |
 |---|---|---|
-| [plan/v0-slices.md](plan/v0-slices.md) | Plan, not started | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
-| [plan/v0-prs.md](plan/v0-prs.md) | Program plan | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
+| [plan/v0-slices.md](plan/v0-slices.md) | Plan, delivered through `v0-prs.md` | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
+| [plan/v0-prs.md](plan/v0-prs.md) | Program plan, in progress | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
 
 ## Research
 
@@ -55,5 +55,6 @@ rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesse
 | [0023](decisions/0023-repository-identity.md) | Accepted | Repository commit identity and visibility. |
 | [0024](decisions/0024-measure-per-turn-context-hook-first.md) | Accepted | Measure a per-turn context hook first, decide on disabling it later on data. |
 | [0025](decisions/0025-typescript-native-type-stripping.md) | Accepted | TypeScript through Node native type stripping, a strict tsc ratchet in CI, no runtime dependencies. |
+| [0026](decisions/0026-product-pack-in-v0.md) | Accepted | The product pack (`/oh`) is back in v0. |
 
 "Accepted" means the user stated or agreed to the decision. "Proposed" means the design work recommends it and the user has not confirmed it.

@@ -12,7 +12,7 @@ Re-run all five:
 
 ```
 for p in b-cursor-dedupe j-cursor-plugin-rules d-codex-agents-md-limit f-codex-skill-hiding i-cursor-codex-headless-flags; do
-  node probes/$p.mjs --out "probes/results/$p.json"
+  node probes/$p.ts --out "probes/results/$p.json"
 done
 ```
 

@@ -19,9 +19,9 @@ Status: probe record, 2026-11-05. Harness: omp 18.16.0. Probes c, e, g and i (om
 - The isolated directory holds no credentials. Model calls still worked, so omp took its authentication from the environment. The scripts never read credential files or `agent.db`.
 - The runs set `--model` through `RIG_PROBE_OMP_MODEL` or `--model <id>`. Evidence does not record the model id. The default model hit a provider spending limit during the work.
 - Each script stats the real `~/.omp/agent/config.yml` before and after and records both modification times. The value was 1793773337346 ms both times in every probe.
-- Run all four: `node probes/<script>.mjs --scratch <dir> --out <file>`. Each script prints the verdict line, then the JSON object.
-- The slice plan names `probes/e-omp-skill-command-dirs.mjs` and `probes/i-headless-flags.mjs`. These scripts use the names `e-omp-skill-dirs-dedupe.mjs` and `i-omp-headless-flags.mjs`. The plan asks for a `PASS <letter> <value>` first line, and the scripts print `<VERDICT> <probe> <derived value>` followed by JSON.
-- `probes/lib/omp.mjs` holds the shared helpers (isolation checks, process runner, redaction).
+- Run all four: `node probes/<script>.ts --scratch <dir> --out <file>`. Each script prints the verdict line, then the JSON object.
+- The slice plan names `probes/e-omp-skill-command-dirs.ts` and `probes/i-headless-flags.ts`. These scripts use the names `e-omp-skill-dirs-dedupe.ts` and `i-omp-headless-flags.ts`. The plan asks for a `PASS <letter> <value>` first line, and the scripts print `<VERDICT> <probe> <derived value>` followed by JSON.
+- `probes/lib/omp.ts` holds the shared helpers (isolation checks, process runner, redaction).
 
 ## Probe c: omp rewrites `config.yml`
 

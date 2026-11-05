@@ -22,3 +22,11 @@ The user named Cursor an important harness. It is pstack's native home. Cursor r
 - A marketplace plugin with the same name wins over a local one. `doctor` flags that shadowing.
 - Whether Cursor collapses a skill that it finds in several directories is unverified. Slice 1 probes it.
 - The Cursor frame target is unverified. Slice 2 probes `~/.cursor/rules/rig-frame.mdc`.
+
+## Update 2026-11-05
+
+Change: v0 writes no Cursor `hooks.json`. Cursor holds `hooks.session_end: null` until a probe shows a session-end event. `rig plan` gives the duplicate warning that this record assigns to the `audit` command.
+
+Reason: Cursor `stop` fires once per turn, which breaks the zero per-turn injection budget. `audit` folded into `plan`. See deltas 1 and 7 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0020 row in section 15.
+
+Implemented in: [#24](https://github.com/rigyard/rig/pull/24) (target records) and [#21](https://github.com/rigyard/rig/pull/21) (`plan`).

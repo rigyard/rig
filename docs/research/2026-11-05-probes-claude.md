@@ -11,7 +11,7 @@ Rules the runs followed:
 - Each run was capped with `--max-turns` and a timeout under 120 seconds.
 - Probe (a) read two keys of two settings files with a JSON parse. It printed nothing else from them. The committed evidence replaces the plugin id with `<plugin>` and the project path with `<project>`.
 
-To rerun: `node probes/<script>.mjs --out <file>`. The shared helper is `probes/_lib.mjs`.
+To rerun: `node probes/<script>.ts --out <file>`. The shared helper is `probes/_lib.ts`.
 
 ## Summary
 
@@ -25,7 +25,7 @@ To rerun: `node probes/<script>.mjs --out <file>`. The shared helper is `probes/
 
 ## (a) `enabledPlugins` precedence
 
-Script: `probes/a-enabledplugins-precedence.mjs`.
+Script: `probes/a-enabledplugins-precedence.ts`.
 
 What it ran. The script walks the home directory (depth 5, skipping caches and `.worktrees`). It looks for a project whose git-tracked `.claude/settings.json` sets a plugin id to `true` while the user settings set the same id to `false`. It found several. It took the first one. It ran `claude plugin list --json` and `claude plugin list` with that project as cwd. As a control, it ran the same two commands in an empty scratch directory.
 
@@ -47,7 +47,7 @@ Resolves: A31, for the precedence part. The no-fetch check stays open.
 
 ## (h) `SessionEnd` payload
 
-Script: `probes/h-sessionend-payload.mjs`.
+Script: `probes/h-sessionend-payload.ts`.
 
 What it ran. A scratch project with `.claude/settings.json` holding a `SessionEnd` hook. The hook command writes its stdin to a file. Then `claude -p --max-turns 1 "reply ok"` in that project.
 
@@ -69,7 +69,7 @@ Limit. One run. The `reason` value for interactive exits (for example `clear` or
 
 ## (k) Project-only local plugin
 
-Script: `probes/k-local-plugin-project.mjs`.
+Script: `probes/k-local-plugin-project.ts`.
 
 What it ran.
 
@@ -93,7 +93,7 @@ Resolves: nothing. A25 stays open.
 
 ## (i-claude) Headless flags
 
-Script: `probes/i-claude-headless-flags.mjs`.
+Script: `probes/i-claude-headless-flags.ts`.
 
 What it ran. It parsed `claude --help`. Then it ran one small `claude -p --max-turns 1` call per behaviour check: `--output-format json`, `--output-format stream-json`, `--setting-sources`, `--append-system-prompt` and `--model`. A control run passed a made-up flag and confirmed the CLI rejects unknown flags.
 
@@ -116,7 +116,7 @@ Resolves: no A-number. A14 covers omp and the Cursor flags belong to A27.
 
 ## (craft-claude) Project command and skill, headless
 
-Script: `probes/craft-claude-project-units.mjs`.
+Script: `probes/craft-claude-project-units.ts`.
 
 What it ran. A scratch project with `.claude/commands/rigprobe-cmd.md` (body: reply `cmd-ok`) and `.claude/skills/rigprobe-skill/SKILL.md` with `disable-model-invocation: true` (body: reply `skill-ok`). Then `claude -p "/rigprobe-cmd"` and `claude -p "/rigprobe-skill"`.
 

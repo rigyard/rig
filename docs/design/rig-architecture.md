@@ -1,6 +1,6 @@
 # rig v0 architecture
 
-Status: v0 architecture sketch, 2026-11-04. It turns design Draft v4 and the Accepted decisions 0001 to 0024 into data shapes, module boundaries and a type sketch. It contains no implementation code. Section [What changes from Draft v4](#14-what-changes-from-draft-v4) lists each delta and its reason. The slice plan is in [v0 slices](../plan/v0-slices.md).
+Status: v0 architecture, 2026-11-04. Updated 2026-11-05 for what the merged PRs changed. It turns design Draft v4 and the Accepted decisions 0001 to 0024 into data shapes, module boundaries and a type sketch. It contains no implementation code. Section [What changes from Draft v4](#14-what-changes-from-draft-v4) lists each delta and its reason. The slice plan is in [v0 slices](../plan/v0-slices.md).
 
 Measured values come from one machine. They show shapes, not targets.
 
@@ -409,7 +409,7 @@ Two kinds. A `workflow` provider is a playbook that a project declares. A `headl
 
 // providers/openspec.json (abridged)
 {"schema": 1, "name": "openspec", "kind": "workflow", "pin": {"cli": "openspec", "version": "1.5.0"},
- "entry": {"claude": {"command": "/opsx:propose"}, "codex": {"command": "/prompts:openspec-propose"}, "omp": null, "cursor": null},
+ "entry": {"claude": {"command": "/opsx:propose"}, "codex": {"command": "/prompts:opsx-propose"}, "omp": null, "cursor": null},
  "phases": ["explore", "propose", "apply", "sync", "archive"], "artifacts": "openspec/changes/<name>/", "model_surfaces": [],
  "telemetry": {"default_on": true, "optout_env": ["OPENSPEC_TELEMETRY=0", "DO_NOT_TRACK=1"]},
  "footprint": {"any": "dir:openspec/"}}
@@ -1423,7 +1423,7 @@ Each row is a real delta against Draft v4. Rows marked "decision update" also di
 | 3 | No rollback command. | `rig apply --undo <run-id>`. | The journal already holds each run's pre-images, so undo reuses the one writer. A flag keeps the count at 7. |
 | 4 | An `--only models` flag on `apply`, and `rig models set` as sugar over it. | The filter is internal to `rig models set`. No public flag. | A public flag would be a second way to swap a model. |
 | 5 | Six slices, 1 to 6. The probes sit inside slices 1 to 3. | Slices 0 to 5. Slice 0 runs eleven probes, (a) to (k), before any writer. | Each probe sets a target-record value that a writer depends on. |
-| 6 | The product pack (`office-hours` as `/oh`) in slice 5. | Not in the v0 slices. Listed under "After v0" in the slice plan. See the product pack question in section 15. | Slices 1 to 5 already hold the riskiest work, and the port has its own size risk (assumption A6). |
+| 6 | The product pack (`office-hours` as `/oh`) in slice 5. | Back in v0 by user decision, after the product roles joined the seed tests. Ported as `/oh` in [#17](https://github.com/rigyard/rig/pull/17) and enabled in [#22](https://github.com/rigyard/rig/pull/22). Decision update: [0026](../decisions/0026-product-pack-in-v0.md). The first v0 plan listed it under "After v0". | The seed tests need the product roles. The port has its own size risk (assumption A6), which the PR sequence covers. |
 | 7 | The session hook goes into Claude Code `SessionEnd` and the omp, Codex and Cursor equivalents where they exist (assumption A34). It runs `rig stats --record --session <id>`. | Claude Code only in v0. Codex, omp and Cursor hold `hooks.session_end: null` until a probe shows a session-end event. The hook runs `rig stats --record` and reads the session id from stdin. `--session <id>` is for a run by hand. Decision update: 0020. | Codex `Stop` and Cursor `stop` fire once per turn, which breaks the zero per-turn injection budget. A fixed command string identifies rig's element in the JSON merge. |
 | 8 | A `packs` list plus a separate `scope` map. | One object per pack in `packs`, with its scope, projects, harnesses and channel. | One list instead of two, so a pack and its scope cannot disagree. |
 | 9 | Ten gate rows, with `injection` and `private_terms` as checks of their own. | Eight checks. Injection phrases warn inside `unicode`. `private_terms` is a sub-rule of `secret`. Decision update: 0002. | The gate has exactly eight checks. |
@@ -1479,7 +1479,7 @@ One candidate, by user decision: arena and interrogate skipped. Base: the orches
 
 ### Open questions and risks
 
-- Decision records that need an update. This file does not edit them.
+- Decision records that need an update. Each record below now holds an "Update 2026-11-05" section with the change, the reason and the implementing PR. Decision 0026 records delta 6.
 
   | Record | Change |
   |---|---|
@@ -1509,7 +1509,7 @@ One candidate, by user decision: arena and interrogate skipped. Base: the orches
 - Logging. Decided here: `plan` and `doctor` write nothing, so they write no log. Only `apply`, `stats`, `pack`, `pin` and `models set` log (section 1). Confirm.
 - State root location. Decided here: the state root and the data root must resolve inside `$HOME`, else exit 2 with `E_STATE_ROOT` (section 1). Confirm.
 - Undo with a conflict. Decided here: the undo stops before any write and lists every conflicting path (section 9). The alternative restores the other paths and blocks only the conflicting ones. Confirm.
-- Product pack. Draft v4 puts `office-hours` in slice 5. The slice plan moves it after v0. Keep it out of v0, or add it back as slice 6?
+- Product pack. Decided: `office-hours` is back in v0 as `/oh` ([decision 0026](../decisions/0026-product-pack-in-v0.md)).
 - Codex agent text. Decided here: a Codex agent TOML takes its `description` and `developer_instructions` from the Claude fleet agent file of the same role (section 8). Confirm, or name another source.
 - Codex comment lines. The `block` kind needs Codex to keep the `# rig:models` marker comments in `config.toml`. If Codex drops them, `plan` blocks with `E_LOCATOR` on the next run.
 

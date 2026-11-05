@@ -57,7 +57,7 @@ The test builds the secret-shaped string at run time by concatenation. The repo 
 
 ### Fixture HOME builder
 
-`test/helpers/fixture-home.mjs` (proposed) builds a HOME from a small spec. Default layout per harness:
+`test/helpers/fixture-home.ts` (proposed) builds a HOME from a small spec. Default layout per harness:
 
 | Harness | Dirs and files |
 |---|---|
@@ -85,31 +85,31 @@ Real-shape foreign files, all with placeholder values (model names such as `mode
 
 ### Fault injection
 
-The apply transaction has a fault-injection hook that is active only when `RIG_TEST=1`. The count comes from `RIG_TEST_ABORT_AFTER=<k>`. `lib/state.mjs` kills the process after op `k`, with no `commit` line in the journal. The hook is not a CLI flag.
+The apply transaction has a fault-injection hook that is active only when `RIG_TEST=1`. The count comes from `RIG_TEST_ABORT_AFTER=<k>`. `lib/state.ts` kills the process after op `k`, with no `commit` line in the journal. The hook is not a CLI flag.
 
 ### Boundary test
 
-`test/boundaries.test.mjs` fails on every rule of the boundary table in the architecture doc (section 5). In short, it fails when:
+`test/boundaries.test.ts` fails on every rule of the boundary table in the architecture doc (section 5). In short, it fails when:
 
-- a module outside its allowlist imports a write primitive of `lib/fs.mjs`: `writeHome` only from `state`, `writeConfig` only from `lock` and `models`, `writeState` and `appendState` only from `state`, `metrics` and `gate`,
-- any module other than `lib/fs.mjs` imports a write function of `node:fs`,
+- a module outside its allowlist imports a write primitive of `lib/fs.ts`: `writeHome` only from `state`, `writeConfig` only from `lock` and `models`, `writeState` and `appendState` only from `state`, `metrics` and `gate`,
+- any module other than `lib/fs.ts` imports a write function of `node:fs`,
 - any module uses a dynamic `import()`,
 - any module spawns a path inside a pack,
-- any module other than `lib/lock.mjs` imports `node:child_process`, `node:http`, `node:https` or `node:net`, or calls `fetch` (network only in `pack add` and `pin check`),
-- any module other than `lib/state.mjs` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER`,
+- any module other than `lib/lock.ts` imports `node:child_process`, `node:http`, `node:https` or `node:net`, or calls `fetch` (network only in `pack add` and `pin check`),
+- any module other than `lib/state.ts` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER`,
 - the `plan` or `doctor` code path reaches the logger.
 
 The test has its own test: a planted temp module that breaks each rule makes it fail.
 
 ### Snapshot helper
 
-`test/helpers/snapshot.mjs` (proposed) records path, size, mode, mtime and sha256 for every entry under a list of roots. Done-checks compare two snapshots. The "tree hash" in the done-checks is the sha256 over the sorted lines of files and symlinks (path, mode, sha256), without mtime. Directories count only through their entries, so an empty dir that a run created does not change it.
+`test/helpers/snapshot.ts` (proposed) records path, size, mode, mtime and sha256 for every entry under a list of roots. Done-checks compare two snapshots. The "tree hash" in the done-checks is the sha256 over the sorted lines of files and symlinks (path, mode, sha256), without mtime. Directories count only through their entries, so an empty dir that a run created does not change it.
 
 ## Slice 0: probes
 
 ### Rules for every probe
 
-- One script per probe under `probes/`. Scripts are `.mjs`: the same runtime as rig, built-in JSON parsing and sha256, and `fs.mkdtemp` for temp dirs. A shell version would need `jq` and would differ between BSD and GNU tools.
+- One script per probe under `probes/`. Scripts are `.ts`: the same runtime as rig, built-in JSON parsing and sha256, and `fs.mkdtemp` for temp dirs. A shell version would need `jq` and would differ between BSD and GNU tools.
 - The first output line is `PASS`, `FAIL` or `INCONCLUSIVE`, the probe letter and the derived value. Evidence lines follow. Evidence uses sentinel tokens and placeholder names only, so you can paste it into a commit.
 - Isolation, in this order: a scratch HOME (`HOME=<tmp>`) plus the harness's config-dir override where one exists. When the harness cannot authenticate in scratch state, the probe prints `INCONCLUSIVE <letter> auth` and names the fallback. The fallback uses the real config dir and a scratch project as the working directory, and the probe lists every real path it touched. Probes pass API keys only as env references and do not copy credential files.
 - Listings: a probe reads a machine-readable channel (a CLI list command, a session init event) where one exists. Otherwise it asks the model for sentinel tokens three times. Any disagreement between the runs gives `INCONCLUSIVE`.
@@ -118,7 +118,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (a) Claude `enabledPlugins` precedence
 
-- Script: `probes/a-enabledplugins-precedence.mjs`.
+- Script: `probes/a-enabledplugins-precedence.ts`.
 - Setup: scratch Claude config. A marketplace dir in the temp dir holds plugin `rig-probe-a` (one skill, sentinel in its description) and plugin `rig-probe-a2` (never installed). User settings set `rig-probe-a` to `false`. Scratch project P1 has a committed `.claude/settings.json` with `rig-probe-a` `true`. Project P2 has no setting. Project P3 sets `rig-probe-a2` `true` only.
 - Run: in P1, P2 and P3, the CLI plugin listing where it reports effective state, else a `claude -p` sentinel question. Then list the scratch plugin cache.
 - PASS: the sentinel shows in P1 and not in P2, and no cache dir for `rig-probe-a2` appears after P3.
@@ -129,7 +129,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (b) Cursor dedupe across its skill dirs
 
-- Script: `probes/b-cursor-skill-dedupe.mjs`.
+- Script: `probes/b-cursor-skill-dedupe.ts`.
 - Setup: scratch HOME. One control skill with a unique name in each of `~/.cursor/skills`, `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`. `rig-probe-b-same`: identical bytes in `~/.cursor/skills` and `~/.claude/skills`. `rig-probe-b-diff`: one name, two different description sentinels, in `~/.agents/skills` and `~/.codex/skills`. `rig-probe-b-link`: a real dir in `~/.agents/skills` and a symlink to it in `~/.cursor/skills`.
 - Run: `cursor-agent -p --output-format json --mode ask` with a prompt that asks for every skill name that starts with `rig-probe-b` and its description, three runs.
 - PASS: all four controls show, and the entry counts map to exactly one value of `none | identical-bytes | by-name`. Same 1, diff 2, link 1 gives `identical-bytes`. All 1 gives `by-name`. All 2 gives `none`.
@@ -140,7 +140,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (c) omp rewrites `config.yml`
 
-- Script: `probes/c-omp-config-rewrite.mjs`.
+- Script: `probes/c-omp-config-rewrite.ts`.
 - Setup: scratch HOME with `~/.omp/agent/config.yml`, mode 0600, holding `modelRoles` with five placeholder values, a comment line, an unknown top-level key, keys in a non-default order, and a marker line `# rig:models:start`. The script records sha256, bytes, mode and the state of `config.yml.lock`.
 - Run: one settings change through the smallest non-interactive path that omp documents. If none exists, the script prints one manual step (change one setting in an interactive omp session) and waits.
 - PASS: the line-level `keys` kind finds all five `modelRoles` cells in the file that omp wrote.
@@ -152,7 +152,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (d) Codex `AGENTS.md` size limit
 
-- Script: `probes/d-codex-agents-md-limit.mjs`.
+- Script: `probes/d-codex-agents-md-limit.ts`.
 - Setup: a 48 KiB `AGENTS.md` of filler lines with a canary token every 2 KiB. Each canary is `CANARY-<offset>-<random>`, so the model cannot guess one. The file goes to the Codex user-level path under the config-dir override. Fallback: a scratch project with the file as the project instructions file. That measures the project limit, which can differ, and the evidence says which path the probe used.
 - Run: `codex exec` asks for every token that starts with `CANARY-`, in order, three runs. A second pass bisects between the last seen and the first missing canary to 1 KiB.
 - PASS: a stable truncation point to within 1 KiB in every run.
@@ -163,7 +163,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (e) omp skill dirs, command dir and dedupe rule
 
-- Script: `probes/e-omp-skill-command-dirs.mjs`.
+- Script: `probes/e-omp-skill-command-dirs.ts`.
 - Setup: scratch HOME. A unique control skill in each of `~/.omp/agent/skills`, `~/.claude/skills`, `~/.codex/skills` and `~/.agents/skills`. An identical pair across `~/.claude/skills` and `~/.codex/skills`. A pair with identical `SKILL.md` bytes where the Codex copy adds a sidecar `agents/openai.yaml`. A same-name pair with different bytes. A command `~/.omp/agent/commands/rig-probe-e.md` whose body prints a sentinel.
 - Run: `omp -p --mode json` listing prompt, three runs, then `omp -p "/rig-probe-e"`.
 - PASS: the read or not-read result of every control is the same in all three runs, the counts map to one dedupe enum value, and the command sentinel appears.
@@ -174,7 +174,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (f) Codex hides a skill
 
-- Script: `probes/f-codex-skill-hiding.mjs`.
+- Script: `probes/f-codex-skill-hiding.ts`.
 - Setup: scratch HOME, three skills in `~/.agents/skills`: one with `agents/openai.yaml` that sets `policy.allow_implicit_invocation: false`, one with frontmatter `disable-model-invocation: true`, one control. Each description holds a sentinel. Each body holds a second sentinel.
 - Run: `codex exec` listing prompt, three runs. Then one explicit invocation by name per hidden skill, with the invocation syntax recorded in the evidence.
 - PASS: at least one mechanism keeps the description out of the listing, and explicit invocation still returns the body sentinel.
@@ -185,7 +185,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (g) omp user-level `AGENTS.md` path
 
-- Script: `probes/g-omp-agents-md-path.mjs`.
+- Script: `probes/g-omp-agents-md-path.ts`.
 - Setup: scratch HOME. `~/.omp/agent/AGENTS.md` holds sentinel G1. `~/.codex/AGENTS.md` holds G2.
 - Run: `omp -p` asks to quote every line that starts with `PROBE-G`, three runs.
 - PASS: G1 shows.
@@ -196,7 +196,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (h) Claude `SessionEnd` payload
 
-- Script: `probes/h-claude-sessionend-payload.mjs`.
+- Script: `probes/h-claude-sessionend-payload.ts`.
 - Setup: scratch Claude config whose `settings.json` sets `hooks.SessionEnd` to a recorder in the temp dir. The recorder writes its stdin to a file and prints nothing.
 - Run: `claude -p "reply ok"`. If no payload arrives, the script prints one manual step: open an interactive session in the scratch config and exit it.
 - PASS: the payload parses as JSON and holds a session id and a transcript path that exists. The evidence lists every field name.
@@ -207,7 +207,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (i) Headless flags per CLI
 
-- Script: `probes/i-headless-flags.mjs`.
+- Script: `probes/i-headless-flags.ts`.
 - Setup: none beyond a temp dir. The probe needs the real binaries.
 - Run, part 1 (no model call, no state): `--help` of `claude`, `codex exec`, `omp` and `cursor-agent`, plus `cursor-agent --list-models`. The probe checks every flag of the `second-opinion` argv templates and saves each flag list for the stubs. Part 2: one minimal JSON-output run per CLI. This touches only each harness's own session logs.
 - PASS: every template flag is in the help text and every JSON output parses.
@@ -218,7 +218,7 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (j) Cursor local plugin and user rules
 
-- Script: `probes/j-cursor-local-plugin-rules.mjs`.
+- Script: `probes/j-cursor-local-plugin-rules.ts`.
 - Setup: scratch HOME. A local plugin `~/.cursor/plugins/local/rig/` in the layout the Cursor target renders, with skill `rig-probe-j` (sentinel J1 in its description, sentinel J2 in its body) and skill `rig-probe-j-hidden` with `disable-model-invocation: true` (sentinel J3 in its body). A user rule `~/.cursor/rules/rig-probe-j.mdc` with `alwaysApply: true` and sentinel J4.
 - Run: `cursor-agent -p --output-format json --mode ask` asks for every skill name that starts with `rig-probe-j` and every line that starts with `PROBE-J`, three runs. Then one explicit invocation of `rig-probe-j-hidden`, with the invocation name recorded in the evidence.
 - PASS: J1 and J4 show, `rig-probe-j-hidden` is absent from the listing, and the explicit invocation returns J3.
@@ -229,8 +229,8 @@ The test has its own test: a planted temp module that breaks each rule makes it 
 
 ### (k) Claude local-path plugin from a rig-owned marketplace
 
-- Script: `probes/k-claude-local-marketplace.mjs`.
-- Setup: scratch Claude config. A marketplace under `<tmp>/xdg-data/rig/marketplace`, in the layout `lib/targets.mjs` renders, holds plugin `rig-probe-k` with one skill (sentinel in its description). The script runs the registration commands that `rig apply` would print, then sets `rig-probe-k` to `false` at user scope. Scratch project K1 has `.claude/settings.local.json` with `rig-probe-k` `true`. Project K2 has no setting.
+- Script: `probes/k-claude-local-marketplace.ts`.
+- Setup: scratch Claude config. A marketplace under `<tmp>/xdg-data/rig/marketplace`, in the layout `lib/targets.ts` renders, holds plugin `rig-probe-k` with one skill (sentinel in its description). The script runs the registration commands that `rig apply` would print, then sets `rig-probe-k` to `false` at user scope. Scratch project K1 has `.claude/settings.local.json` with `rig-probe-k` `true`. Project K2 has no setting.
 - Run: in K1 and K2, the CLI plugin listing where it reports effective state, else a `claude -p` sentinel question, three runs.
 - PASS: the sentinel shows in K1 and not in K2, and the plugin loads from the local path with no fetch.
 - FAIL: K1 hides it, K2 shows it, or the registration needs a network fetch.
@@ -247,10 +247,10 @@ Goal: rig sees the read-sets of the four harnesses and reports effective duplica
 Content:
 
 - Test harness: fixture HOME builder, recording stubs, snapshot helper, boundary test, `node --test` wiring.
-- `bin/rig.mjs`: the command table with the `doctor` row, the strict parser, exit codes.
-- `lib/world.mjs`: the target record schema (closed keys, `schema` field) and `loadWorld(env)` for `targets/` only.
-- `lib/targets.mjs`: `readSet(world)` and `place()`.
-- `lib/fs.mjs`: read primitives and realpath containment.
+- `bin/rig.ts`: the command table with the `doctor` row, the strict parser, exit codes.
+- `lib/world.ts`: the target record schema (closed keys, `schema` field) and `loadWorld(env)` for `targets/` only.
+- `lib/targets.ts`: `readSet(world)` and `place()`.
+- `lib/fs.ts`: read primitives and realpath containment.
 - `targets/<h>.json` for Claude, Codex, omp and Cursor, with `reads`, `never_write` and the probe values.
 
 Done-checks:
@@ -275,15 +275,15 @@ Goal: rig writes whole files that it owns, converges after a crash, and undoes a
 
 Content:
 
-- `lib/world.mjs`: schemas of `rig.json`, `pack.json`, `providers/<p>.json`, `audit.allow.json`, and a read of `rig.lock.json`.
-- `lib/stack.mjs`: `compose(world)` with the core seal, the `own` pack, the four customization operations, slot stubs, `E_CLASH`, `E_CORE_SHADOW`, `E_SLOT_TWICE`.
-- `lib/targets.mjs`: `render()` for owned skills, commands, agents and rules, instruction modes, core `terms.json` and `{{rig:term}}`, `/craft` and `/pm` per harness, the Cursor local plugin `~/.cursor/plugins/local/rig`.
+- `lib/world.ts`: schemas of `rig.json`, `pack.json`, `providers/<p>.json`, `audit.allow.json`, and a read of `rig.lock.json`.
+- `lib/stack.ts`: `compose(world)` with the core seal, the `own` pack, the four customization operations, slot stubs, `E_CLASH`, `E_CORE_SHADOW`, `E_SLOT_TWICE`.
+- `lib/targets.ts`: `render()` for owned skills, commands, agents and rules, instruction modes, core `terms.json` and `{{rig:term}}`, `/craft` and `/pm` per harness, the Cursor local plugin `~/.cursor/plugins/local/rig`.
 - Provider records for pstack and OpenSpec.
-- `lib/gate.mjs`: the registry with `pin`, `exec`, `secret`, `unicode`, `license`, ack parsing and id hashing.
-- `lib/state.mjs`: `observe`, `plan`, `apply` with the journal, recovery, `undo`, `installed.json`, whole-file adopt.
-- `lib/fs.mjs`: write primitives (temp file in the same dir, fsync, rename, mode kept), refusal of a backup path inside any read-set.
-- `lib/lock.mjs`: tree hashing for the core seal (read side only).
-- `bin/rig.mjs`: rows `plan` and `apply [--undo <run-id>]`. Doctor gains owned-file drift and the `/pm` alias reminder.
+- `lib/gate.ts`: the registry with `pin`, `exec`, `secret`, `unicode`, `license`, ack parsing and id hashing.
+- `lib/state.ts`: `observe`, `plan`, `apply` with the journal, recovery, `undo`, `installed.json`, whole-file adopt.
+- `lib/fs.ts`: write primitives (temp file in the same dir, fsync, rename, mode kept), refusal of a backup path inside any read-set.
+- `lib/lock.ts`: tree hashing for the core seal (read side only).
+- `bin/rig.ts`: rows `plan` and `apply [--undo <run-id>]`. Doctor gains owned-file drift and the `/pm` alias reminder.
 
 Done-checks:
 
@@ -315,12 +315,12 @@ Goal: one tier change reaches every model cell through the same gate and writer,
 
 Content:
 
-- `lib/world.mjs`: schemas of `models/roles.json`, `models/tiers.json`, and the overlay `rig.json` `model_surfaces` list.
-- `lib/models.mjs`: roles x tiers to cell values per harness and consumer, ladders and clamping, aliases versus pinned ids, `setTier()`, the effective table.
-- `lib/targets.mjs`: the five render kinds (`frontmatter`, `cells`, `whole`, `keys`, `block`), the four `effort_syntax` values, cell rendering, fleet agent frontmatter on hand-written files, Codex agent TOML as `whole` files with text from the Claude fleet agent file of the same role.
-- `lib/state.mjs`: ops `patch-cells` and `insert-markers`, cell and block adopt, drift by the digests in `installed.json`.
-- `lib/stack.mjs`: the `second-opinion` slot and `E_SAME_FAMILY`.
-- `bin/rig.mjs`: row `models [set <tier> <model> --harness <h>]`. Doctor gains cell drift, model env overrides and stale prose mentions as info.
+- `lib/world.ts`: schemas of `models/roles.json`, `models/tiers.json`, and the overlay `rig.json` `model_surfaces` list.
+- `lib/models.ts`: roles x tiers to cell values per harness and consumer, ladders and clamping, aliases versus pinned ids, `setTier()`, the effective table.
+- `lib/targets.ts`: the five render kinds (`frontmatter`, `cells`, `whole`, `keys`, `block`), the four `effort_syntax` values, cell rendering, fleet agent frontmatter on hand-written files, Codex agent TOML as `whole` files with text from the Claude fleet agent file of the same role.
+- `lib/state.ts`: ops `patch-cells` and `insert-markers`, cell and block adopt, drift by the digests in `installed.json`.
+- `lib/stack.ts`: the `second-opinion` slot and `E_SAME_FAMILY`.
+- `bin/rig.ts`: row `models [set <tier> <model> --harness <h>]`. Doctor gains cell drift, model env overrides and stale prose mentions as info.
 
 Done-checks:
 
@@ -349,12 +349,12 @@ Goal: rig vendors and pins third-party content, merges the overlay, and delivers
 
 Content:
 
-- `lib/lock.mjs`: `pack add` (clone at SHA into a temp dir, copy paths, tree sha256, lock entry, `pack.json` skeleton), `pin check`, `pin set`, the OSV refresh inside those two commands.
-- `lib/gate.mjs`: `cve`, `telemetry`, and `private_terms` as a sub-rule of `secret`.
-- `lib/world.mjs`: overlay merge (adds only, core references rejected), the `projects` map, per-pack scope choice.
-- `lib/world.mjs` and `lib/stack.mjs`: scopes `machine-hidden`, `project`, `hybrid`, the `machine-hidden` default, `E_SCOPE_MODE`, and the info line for a project part that is absent on a harness.
-- `lib/targets.mjs`: the Claude local plugin render into `$XDG_DATA_HOME/rig/marketplace`, and the registration commands that `rig apply` prints.
-- `bin/rig.mjs`: rows `pack add` and `pin check` / `pin set`. Doctor gains pins versus installed plugins, `autoUpdate` marketplaces, telemetry env and `--project`.
+- `lib/lock.ts`: `pack add` (clone at SHA into a temp dir, copy paths, tree sha256, lock entry, `pack.json` skeleton), `pin check`, `pin set`, the OSV refresh inside those two commands.
+- `lib/gate.ts`: `cve`, `telemetry`, and `private_terms` as a sub-rule of `secret`.
+- `lib/world.ts`: overlay merge (adds only, core references rejected), the `projects` map, per-pack scope choice.
+- `lib/world.ts` and `lib/stack.ts`: scopes `machine-hidden`, `project`, `hybrid`, the `machine-hidden` default, `E_SCOPE_MODE`, and the info line for a project part that is absent on a harness.
+- `lib/targets.ts`: the Claude local plugin render into `$XDG_DATA_HOME/rig/marketplace`, and the registration commands that `rig apply` prints.
+- `bin/rig.ts`: rows `pack add` and `pin check` / `pin set`. Doctor gains pins versus installed plugins, `autoUpdate` marketplaces, telemetry env and `--project`.
 
 Tests use local `file://` bare git repositories and a fixture OSV cache. No test touches the network.
 
@@ -383,10 +383,10 @@ Goal: rig measures usage from transcripts, stores no content, and proposes chang
 
 Content:
 
-- `lib/metrics.mjs`: transcript readers for `claude-jsonl`, `codex-rollout`, `omp-jsonl` and `cursor-agent-jsonl`, dedupe by message id, content-free aggregates, `record()`, the report, proposals.
-- `lib/gate.mjs`: `budget` over rendered bytes plus the always-on files rig can read.
-- `lib/state.mjs`: the `json-element` op, a JSON merge that keeps every entry rig did not write, for `~/.claude/settings.json` `hooks.SessionEnd`.
-- `bin/rig.mjs`: rows `stats [--since <dur>] [--harness <h>] [--suggest]` and `stats --record [--session <id>]`.
+- `lib/metrics.ts`: transcript readers for `claude-jsonl`, `codex-rollout`, `omp-jsonl` and `cursor-agent-jsonl`, dedupe by message id, content-free aggregates, `record()`, the report, proposals.
+- `lib/gate.ts`: `budget` over rendered bytes plus the always-on files rig can read.
+- `lib/state.ts`: the `json-element` op, a JSON merge that keeps every entry rig did not write, for `~/.claude/settings.json` `hooks.SessionEnd`.
+- `bin/rig.ts`: rows `stats [--since <dur>] [--harness <h>] [--suggest]` and `stats --record [--session <id>]`.
 
 Fixture transcripts are synthetic files in the shapes the readers expect. They carry a unique sentinel in every prompt and response.
 
@@ -436,7 +436,6 @@ Leaves out: OpenTelemetry, cost from a price table, session-end hooks on Codex, 
 
 ## After v0
 
-- Product pack (`office-hours`). Draft v4 put it in slice 5. The placement is an open question in the architecture doc (section 15).
 - pi and Hermes targets.
 - `doctor --live`.
 - `models sweep`.
@@ -452,7 +451,7 @@ The architecture doc (section 15) now decides the five questions that this plan 
 4. **State root outside HOME.** The state root and the data root must resolve inside HOME, else exit 2 with `E_STATE_ROOT`. S2.15 pins it.
 5. **Exit code for config parse errors.** A config parse error exits 2. S2.7 and S4.12 pin it.
 
-The product pack placement stays open (see "After v0").
+The product pack is back in v0 ([decision 0026](../decisions/0026-product-pack-in-v0.md)). It is no longer under "After v0".
 
 ## Uncertainties and assumptions
 

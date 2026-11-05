@@ -20,3 +20,11 @@ The user set a binding constraint: the repository stays generic, like pstack or 
 
 - Pack scope is per pack and chosen by the user, from v0 ([decision 0017](0017-per-pack-scope-no-context-inference.md)).
 - The `private_terms` check is skipped when no overlay exists. A fork without an overlay gets no leak protection from it.
+
+## Update 2026-11-05
+
+Change: `private_terms` is now a sub-rule of the `secret` check, not a check of its own. Injection phrases warn inside `unicode`. The gate has eight checks. It skips the sub-rule when no overlay exists, as before.
+
+Reason: the gate has exactly eight checks. See delta 9 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0002 row in its decision update table (section 15).
+
+Implemented in: [#5](https://github.com/rigyard/rig/pull/5) (registry, `secret`, `unicode`) and [#16](https://github.com/rigyard/rig/pull/16) (`cve`, `budget`).

@@ -165,7 +165,7 @@ One provider is active per project. It routes its own task types ([decision 0007
 
 ```json
 {"name":"openspec","kind":"cli","pin":{"cli":"openspec","version":"1.5.0"},
- "entry":{"claude":"/opsx:propose","codex":"/openspec-propose","omp":null,"cursor":null},
+ "entry":{"claude":"/opsx:propose","codex":"/prompts:opsx-propose","omp":null,"cursor":null},
  "phases":["explore","propose","apply","sync","archive"],"artifacts":"openspec/changes/<name>/",
  "injects":[],"footprint":{"any":"dir:openspec/"},"models":null,
  "intake":{"claude":"/opsx:new <slug>, then /opsx:propose with the design doc as input"},
@@ -173,8 +173,8 @@ One provider is active per project. It routes its own task types ([decision 0007
 ```
 
 - The project declares it with `rig-project: openspec`. The `openspec/` directory alone selects nothing.
-- The Codex entry string is unverified. Codex invokes custom prompts as `/prompts:<name>`, so the entry may be `/prompts:openspec-propose`. The Cursor entry is null until `openspec init --tools` is checked for a Cursor value.
-- Setup is the CLI's own: `openspec init --tools claude,codex,pi` in the repository. Claude Code gets `.claude/commands/opsx/*.md` (verified). Codex gets global `~/.codex/prompts/openspec-*.md` (verified).
+- The Codex entry is `/prompts:opsx-propose`. Codex invokes custom prompts as `/prompts:<name>`, and OpenSpec 1.5.0 writes `opsx-propose`. The Cursor entry is null until `openspec init --tools` is checked for a Cursor value.
+- Setup is the CLI's own: `openspec init --tools claude,codex,pi` in the repository. Claude Code gets `.claude/commands/opsx/*.md` (verified). Codex gets global `~/.codex/prompts/opsx-*.md` (verified).
 - `--tools` has no omp value. omp is degraded: run `openspec instructions <artifact>` and follow it.
 - `openspec update` regenerates files after a CLI upgrade. `doctor --project` checks them against the pinned version.
 - rig installs nothing. The record gives the frame the entry, the phases ("no verify or review phase: verify yourself") and the artifact path.

@@ -26,3 +26,11 @@ Smallest proving tests:
 
 - v0 runs one headless smoke test per harness instead of gate stubs.
 - Frame obedience stays unproven until v1.
+
+## Update 2026-11-05
+
+Change: the fixture HOME premise was false. A fixture HOME alone does not make a harness read rig output. v0 therefore adds live seed tests. Claude Code reads a project-level mirror of the rendered units in a scratch repo, with the normal login. omp runs with an isolated `HOME` and `PI_CODING_AGENT_DIR`. A guard checks that the real config hashes stay unchanged.
+
+Reason: the harnesses read their own config dirs and logins, so fixture-HOME tests cannot show that a harness sees a unit. See the 0015 row in section 15 of [the architecture doc](../design/rig-architecture.md#15-rationale).
+
+Implemented in: [#18](https://github.com/rigyard/rig/pull/18) (`test/helpers/mirror.ts`, live seed tests).

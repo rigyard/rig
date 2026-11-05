@@ -22,3 +22,11 @@ The user decided that routing is a core slot. Research found no evidence that a 
 - Synthesis v1 cut a task-type router, because each provider routes its own task types. This decision adds a model router, which is a different thing.
 - The design draft v4 contains this slot.
 - Escalation counts from transcripts are heuristic, because transcripts record no uniform gate result.
+
+## Update 2026-11-05
+
+Change: the router renders cells only. It needs no core stub, because the router filler renders frame lines.
+
+Reason: core holds what rig's own contract needs. See delta 12 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0010 row in section 15.
+
+Implemented in: [#20](https://github.com/rigyard/rig/pull/20).

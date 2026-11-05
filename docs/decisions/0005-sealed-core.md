@@ -19,3 +19,11 @@ The user wants a core that stays fixed and a layer that other people can change.
 
 - The seal is tamper-evident, not tamper-proof. A fork owner can reseal.
 - Design candidate 1 proposed a larger core (mode skill, principle leaves, writing skills). Core membership is an open question.
+
+## Update 2026-11-05
+
+Change: core holds the frame template, the principles index, the `doc-review` and `second-opinion` stubs, the entry templates, `terms.json` and the schemas. It no longer holds `rules/working.md`, `rules/writing.md` or a `router` stub. A deliberate core change is a commit plus `rig pin check core` and `rig pin set core`.
+
+Reason: core holds what rig's own contract needs. The rules files are user prose, and the router filler renders frame lines. See delta 12 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0005 row in section 15.
+
+Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (core data) and [#20](https://github.com/rigyard/rig/pull/20) (frame and `/craft`, core resealed).
