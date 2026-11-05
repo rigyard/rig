@@ -81,4 +81,4 @@ Tests build a temporary HOME and never touch yours. Tests that run real harness 
 
 Design, decisions and research live in [docs/](./docs/README.md).
 
-rig v1 is in design. rig seeds pstack and gstack from pinned upstream commits and compiles its own mode skill, `rig-mode`, from pack data. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI. v1 features arrive PR by PR.
+rig v1 is in design. rig seeds pstack and gstack from pinned upstream commits and renders its own mode skill, `craft` (`/craft`), around pstack's hub. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI. v1 features arrive PR by PR.

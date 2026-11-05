@@ -3,7 +3,8 @@
 This plan builds the first seeded rig for the rig maintainers and the agents that build rig.
 The first seed is the default config compiled from pstack at `2776ddd` and gstack at `b406820` into Claude Code, Codex, Cursor and omp.
 The rule is that seeding stays deterministic. A CI runner with no model gets byte-identical HOMEs from the committed config.
-The order is `subtract`, then `vendor`, `links` and `mode` in parallel, then `port` after `vendor`, then `seed`.
+The order is `subtract`, then `vendor`, `links` and `mode` in parallel, then `port` after `vendor`, then `seed`. `subtract`, `links`, `vendor` and `port` are merged (#35 to #38). `mode` is next, then `seed`.
+On 2026-11-05 the user changed the mode shape. The mode skill is `craft` (`/craft`), and pstack's hub installs byte-identical inside it as `craft/hub.md`. The `mode` and `seed` sections below follow that shape.
 The design is [docs/design/rig-v1-first-seed.md](../design/rig-v1-first-seed.md). The concept is [docs/design/rig-v1-concept.md](../design/rig-v1-concept.md).
 
 ## How to read this
@@ -53,8 +54,8 @@ This plan adapts the playbook skeleton in the same ways as [v0-prs.md](v0-prs.md
   - [ ] `lib/lock.ts`, `lib/lock/**` and `lib/commands/pack.ts` change in `subtract`, `vendor`, then `port`.
   - [ ] `lib/commands/pin.ts` changes in `subtract`, then `port`.
   - [ ] `lib/gate/pin.ts` changes in `subtract`, `vendor`, `port`, then `seed`.
-  - [ ] `lib/gate/registry.ts` changes in `subtract`, then `links`. `lib/gate/links.ts` and `lib/gate/budget.ts` change only in `links`. `lib/gate/telemetry.ts` changes only in `subtract`.
-  - [ ] `lib/world/schemas.ts` changes only in `subtract`. It holds every schema 2 validator, the lock's included (`lib/world/schemas.ts:239-251`). `subtract` lands all schema 2 fields at once, so `vendor`, `port` and `mode` do not edit it. `lib/mode.ts` validates the inner shape of the mode block. `lib/world.ts` changes in `subtract`, then `mode`.
+  - [ ] `lib/gate/registry.ts` changes in `subtract`, `links`, `port`, then `mode`, which adds the `mode` check. `port` (#38) added `E_PORT_STALE` to the `pin` row. `lib/gate/links.ts` and `lib/gate/budget.ts` change only in `links`. `lib/gate/mode.ts` appears only in `mode`. `lib/gate/telemetry.ts` changes only in `subtract`.
+  - [ ] `lib/world/schemas.ts` changes in `subtract`, `port`, the license fix #39, then `mode`. It holds every schema 2 validator, the lock's included (`lib/world/schemas.ts:206-235` at `adae5ed`). `subtract` landed the schema 2 fields. `port` (#38) added `candidate.exclude`, and #39 added the optional `candidate.license`. `mode` adds rig.json `auto` and the optional `domain` of a fill trigger. `lib/mode.ts` validates the inner shape of the mode block. `lib/world.ts` changes in `subtract`, `vendor` (#37), then `mode`.
   - [ ] `lib/stack.ts`, `lib/mode.ts`, `lib/targets.ts` and `lib/targets/**` change in `subtract`, then `mode`.
   - [ ] `packs/core/**` changes in `subtract`, then `mode`. Each of them reseals `lock.core.tree`.
   - [ ] `rig.json` changes in `subtract`, then `seed`. `rig.lock.json` changes in `subtract`, `mode`, then `seed`, because `mode` reseals the core tree. `packs/pstack/**`, `packs/cursor-team-kit/**` and `packs/cli-for-agent/**` appear only in `seed`. `packs/product/**` changes in `subtract`, then `seed`.
@@ -98,6 +99,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Save every artifact, the TAP file, the harness JSON and `versions.txt`, to `/tmp/swarm-<pr-id>/worker-<n>/`. Return the paths with the report.
 
 ## Remove the v0 provider path (subtract)
+
+**Status.** Done. Merged as #35 (`d9c82d8`). The boxes below record the plan as it ran.
 
 **Depends on.** None. It branches from `main`.
 
@@ -153,6 +156,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Vendor with root, excludes and a name (vendor)
 
+**Status.** Done. Merged as #37 (`52d2b00`). The boxes below record the plan as it ran.
+
 **Depends on.** `subtract`.
 
 **Files.**
@@ -200,6 +205,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Check links and count hidden units right (links)
 
+**Status.** Done. Merged as #36 (`5216ed6`). The boxes below record the plan as it ran.
+
 **Depends on.** `subtract`.
 
 **Files.**
@@ -244,46 +251,65 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged, or a single verifier passed at the new head.
 - [ ] The root posts the merge-ready report. The operator lands links after subtract.
 
-## Compile the mode skill from pack data (mode)
+## Render the craft mode skill from pack data (mode)
 
-**Depends on.** `subtract`.
+**Depends on.** `subtract`, merged as #35. It branches from `main`.
 
 **Files.**
 
-- [ ] Create `lib/mode.ts`, `packs/core/skills/rig-mode/SKILL.md`, `packs/core/domains.json`.
-- [ ] Edit `lib/stack.ts`, `lib/targets.ts`, `lib/targets/vars.ts`, `lib/world/schemas.ts`, `lib/world.ts`, `packs/core/frame.md`.
-- [ ] Create `test/mode.test.ts`, `test/fixtures/rig-mode-pack/`, `test/live/mode.test.ts`.
+- [ ] Create `lib/mode.ts`, `lib/gate/mode.ts`, `packs/core/skills/craft/SKILL.md`, `packs/core/domains.json`.
+- [ ] Edit `lib/stack.ts`, `lib/targets.ts`, `lib/targets/vars.ts`, `lib/world/schemas.ts`, `lib/world.ts`, `lib/gate/registry.ts`, `packs/core/frame.md`, `rig.lock.json`.
+- [ ] Create `test/mode.test.ts`, `test/fixtures/craft-pack/`, `test/live/mode.test.ts`. The fixture craft pack holds a small hub that names the **architect** skill, one bug-fix playbook, an `architect` leaf and a `design-probe` leaf, so its plan gives 0 `E_MODE_NAME` findings.
 
 **Build.**
 
-- [ ] `compileMode` and `modeMarkdown` in `lib/mode.ts`, with the types of the design's type sketch. `compileMode` resolves adopted files, refs, fills and the artifact graph.
-- [ ] `compileMode` validates the mode block, including the `subagents` and `adapter` sections. `domains.json` lists the four domains and their stages.
-- [ ] `discover` maps core `skills/rig-mode/` to unit type `mode`. `renderMode` in `lib/targets.ts` runs after every other unit and writes `rig-mode/SKILL.md`, `rig-mode/playbooks/*` and `rig-mode/references/*` per harness.
-- [ ] New errors `E_MODE_REF`, `E_FILL_UNKNOWN` and `E_ARTIFACT_DANGLING` block `rig plan`.
+- [ ] `compileMode`, `modeFiles`, `insertAnchor` and `stripAnchor` in `lib/mode.ts`, with the types of the design's type sketch. `compileMode` resolves adopted files, refs, pack hooks, fills, triggers, `auto` and the artifact graph, and groups them per domain.
+- [ ] `domains.json` lists the four domains and their stages.
+- [ ] `discover` maps core `skills/craft/` to unit type `mode`, and skips every path that a pack's `mode.adopt` claims. `renderMode` in `lib/targets.ts` runs after every other unit. Per skill dir it writes `craft/SKILL.md`, `craft/hub.md`, `craft/playbooks/*`, `craft/references/bugbot-triage.md`, one `craft/references/<domain>.md` per domain and `craft/references/adapter.md`.
+- [ ] `craft/references/adapter.md` always exists. It holds one section for each harness that reads the dir, headed with the harness name. A harness with no `mode.adapter` text gets a section that says the skills use its own names, with no mapping.
+- [ ] The shell template `packs/core/skills/craft/SKILL.md` says the six items of the design's install layout section, in that order. Write it per `asd-ste100` Strict mode.
+- [ ] `packs/core/frame.md` gains one line after the invariants, ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.`` (design D10). Reseal `lock.core.tree`.
+- [ ] Every skill copy gets the harness hide switch of `targets/*.json` `hide`, `craft` included. `hidden = !isCore(unit)` at `lib/targets.ts:97` becomes `hidden = !mode.auto.has(unit.id)`.
+- [ ] `skillCopy` calls `insertAnchor` on the `SKILL.md` of each skill of a vendored pack (lock `paths` not empty). The two-line marker block links to `../craft/references/adapter.md`. A leaf with no frontmatter close gives `E_ANCHOR_MISSING`, which blocks `rig plan`.
+- [ ] rig.json schema 2 in `lib/world/schemas.ts` gains `auto`, a list of unit refs with default `[]`, a union in the overlay. A fill trigger gains an optional `domain`.
+- [ ] `compileMode` gives `E_MODE_REF`, `E_FILL_UNKNOWN`, `E_ARTIFACT_DANGLING`, `E_CLASH` and `E_PLAYBOOK_UNLABELED`. They block `rig plan` and are not ackable. An `auto` entry that names no kept unit is `E_MODE_REF`.
+- [ ] The new gate check `mode` in `lib/gate/mode.ts` gives `E_MODE_NAME`. It blocks and is ackable. It reads names per the spelling rules of the design's `lib/gate/mode.ts` sketch. Register it in `lib/gate/registry.ts`.
 
 **You see.**
 
-- [ ] With the fixture mode pack enabled, `rig plan` plans `~/.claude/skills/rig-mode/SKILL.md` and the adopted playbooks.
-- [ ] A fill of `eng:shipit` prints `E_FILL_UNKNOWN eng:shipit`. An artifact that requires `prd` with no writer prints `E_ARTIFACT_DANGLING prd`.
+- [ ] With the fixture craft pack enabled, `rig plan` plans `~/.claude/skills/craft/SKILL.md`, `craft/hub.md`, the adopted playbooks, one `craft/references/<domain>.md` per domain and `craft/references/adapter.md`.
+- [ ] A fill of `eng:shipit` prints `E_FILL_UNKNOWN eng:shipit`. An artifact that requires `prd` with no writer prints `E_ARTIFACT_DANGLING prd`. A fixture hub line with `` `/nope` `` prints `E_MODE_NAME nope`. A fixture playbook with no label prints `E_PLAYBOOK_UNLABELED` and its path.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/mode.test.ts` gains cases for adoption, an adopt clash across packs, `{{skill:...}}` resolution per harness, the derived principles index, the Subagents section, the Claude-only adapter, every fill address form, `E_FILL_UNKNOWN`, `E_ARTIFACT_DANGLING`, render-twice identical bytes, and `place()` over all four harnesses giving each harness exactly one `rig-mode`. Run `node --test test/mode.test.ts`.
+- [ ] `test/mode.test.ts` gains these cases. Run `node --test test/mode.test.ts`.
+  - [ ] Adoption of `hub.md`, `playbooks/` and `references/bugbot-triage.md` at their `craft/` paths, with bytes equal to the fixture pack.
+  - [ ] An adopt clash across packs, a second pack that adopts `hub.md`, and an adopt onto a rendered path. Each gives `E_CLASH`.
+  - [ ] `{{skill:...}}` resolution per harness, a pack hook that a fill at the same address replaces, every fill address form, a trigger with and without a `domain`, `E_FILL_UNKNOWN`, `E_ARTIFACT_DANGLING` and `E_PLAYBOOK_UNLABELED`.
+  - [ ] `E_MODE_NAME` for each closed spelling, no finding for each allowlist name, and an ack that clears the finding.
+  - [ ] No finding for `` `/tmp/<slug>-resume.md` `` and `` `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png` ``, because a name never continues across `/`. `` `/loop 1h` `` gives the name `loop`, which the allowlist clears.
+  - [ ] `insertAnchor` then `stripAnchor` gives the input bytes. A leaf with no frontmatter close gives `E_ANCHOR_MISSING`.
+  - [ ] `adapter.md` exists for every harness. A harness with no `mode.adapter` text gets a section that says the skills use its own names and lists no mapping.
+  - [ ] The hide switch on `craft` and on a leaf on all four harnesses. `auto` with one unit drops the switch for that unit only. An `auto` entry with no kept unit gives `E_MODE_REF`.
+  - [ ] Render twice gives identical bytes.
+  - [ ] `place()` over all four harnesses gives each harness exactly one `craft`. In each read-set, `craft/references/adapter.md` and the anchor target of each leaf hold a section headed with that harness's name.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Five lanes on `sonnet high` at the PR head, one per harness plus one routing case. Each lane follows the boot recipe and runs one case of `test/live/mode.test.ts` with the fixture mode pack.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Seven lanes on `sonnet high` at the PR head. They are two Claude Code routing cases, one typed-invocation case per other harness, the precedence case and the Codex adapter case. Each lane follows the boot recipe and runs one case of `test/live/mode.test.ts` with the fixture craft pack. The typed form is `/craft` on Claude Code, Cursor and omp, and `$craft` on Codex. A lane records the form that worked in `versions.txt`.
 
-- [ ] Lane 1. Regression lane against trunk. Case `claude invokes the mode skill`. Trunk has no mode skill, so the lane records that and gates head. Seed, mirror, run `claude -p "/rig-mode which playbook fits a failing test report?"`. Save `mode-claude.tap`. Pass when the reply names the fixture bug-fix playbook.
-- [ ] Lane 2. Case `claude reads an adopted playbook`. Ask Claude to quote step 1 of the adopted fixture playbook. Save `mode-playbook.tap`. Pass when the quote matches the fixture bytes.
-- [ ] Lane 3. Case `codex lists the mode skill`. Run `codex exec -s read-only` with a prompt that lists the available skills. Save `mode-codex.tap`. Pass when `rig-mode` is listed and the fixture leaf is not.
-- [ ] Lane 4. Case `cursor lists the mode skill`. Run `cursor-agent -p --mode ask` with the same prompt. Save `mode-cursor.tap`. Pass when `rig-mode` is listed.
-- [ ] Lane 5. Case `omp lists the mode skill`. Run `omp -p` with the same prompt. Save `mode-omp.tap`. Pass when `rig-mode` is listed once.
+- [ ] Lane 1. Regression lane against trunk. Case `claude invokes craft`. Trunk has no mode skill, so the lane records that and gates head. Seed, mirror, run `claude -p "/craft which playbook fits a failing test report?"`. Save `mode-claude.tap`. Pass when the transcript reads `craft/hub.md` and the reply names the fixture bug-fix playbook.
+- [ ] Lane 2. Case `claude reads an adopted playbook`. Ask `/craft` to quote step 1 of the adopted fixture playbook. Save `mode-playbook.tap`. Pass when the quote matches the fixture bytes.
+- [ ] Lane 3. Case `codex runs typed craft and hides the leaf`. Run `codex exec -s read-only` once with `$craft` and a task, and once with a prompt that lists the available skills. Save `mode-codex.tap`. Pass when the first transcript reads `craft/hub.md` and the listing names neither `craft` nor the fixture leaf.
+- [ ] Lane 4. Case `cursor runs typed craft and hides the leaf`. Run `cursor-agent -p --mode ask` with the same two prompts. Save `mode-cursor.tap`. Pass on the same conditions as lane 3.
+- [ ] Lane 5. Case `omp runs typed craft and hides the leaf`. Run `omp -p` with the same two prompts. Save `mode-omp.tap`. Pass on the same conditions as lane 3, and when omp loads `craft` once.
+- [ ] Lane 6. Case `claude follows the domain file over the hub`. The fixture hub names the **architect** skill for a function boundary. The fixture `rig.json` sets `eng:design` to the fixture unit `fixture/design-probe`. Run `claude -p "/craft eng: design the boundary between two fixture modules"`. Save `mode-precedence.tap`. Pass when the transcript reads `design-probe/SKILL.md` and does not read `architect/SKILL.md`.
+- [ ] Lane 7. Case `codex architect reads the adapter`. Run `codex exec -s read-only` with `$architect` and a small design task. Save `mode-codex-adapter.tap`. Pass when the transcript reads `craft/references/adapter.md`.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. `rig plan` wall time on a fresh fixture HOME. The diff adds the mode skill compile, measured with the fixture mode pack enabled.
-- [ ] Probe. Ten interleaved runs at trunk and at head with the repository config, then ten head runs with the fixture mode pack.
+- [ ] Metric. `rig plan` wall time on a fresh fixture HOME. The diff adds the mode compile and render, measured with the fixture craft pack enabled.
+- [ ] Probe. Ten interleaved runs at trunk and at head with the repository config, then ten head runs with the fixture craft pack.
 - [ ] Baseline. Record the trunk median first.
-- [ ] Rule. Fail when the head median with the repository config exceeds the trunk median by more than 20 percent, or when the run with the fixture mode pack exceeds 1 s.
+- [ ] Rule. Fail when the head median with the repository config exceeds the trunk median by more than 20 percent, or when the run with the fixture craft pack exceeds 1 s.
 
 **Review gate.** None. mode is not review-gated.
 
@@ -295,6 +321,8 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] The root posts the merge-ready report. The operator lands mode after subtract.
 
 ## Record ports and detect stale ones (port)
+
+**Status.** Done. Merged as #38 (`7173bb1`). The boxes below record the plan as it ran.
 
 **Depends on.** `vendor`.
 
@@ -344,7 +372,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 ## Seed the default config from pstack and gstack (seed)
 
-**Depends on.** `mode`, `port` and `links`.
+**Depends on.** `mode`, `port` and `links`. `port` and `links` are merged (#38, #36).
 
 **Files.**
 
@@ -355,8 +383,9 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 **Build.**
 
-- [ ] Run the commands of the design's "Build the seed" block. pstack, cursor-team-kit and cli-for-agent vendor at `2776ddd2355d6d6c8747d3964600f28daf62f049`. product adopts at `b244e6d11a6466650c5147cd7dc023859968c4b5`, gets attested, and moves to `b4068209809315ab1578c78e33e73512b29749ca` with `pin check` and `pin set`.
-- [ ] Port the hub and the Claude Code adapter into `packs/pstack/pack.json` `mode`, and add the pstack `model_surfaces`. Move the four step-anchored triggers into the `rig.json` fills. Keep the situational triggers. Run `rig pin set pstack --ported`.
+- [ ] Run the commands of the design's "Build the seed" block. pstack, cursor-team-kit and cli-for-agent vendor at `2776ddd2355d6d6c8747d3964600f28daf62f049`. The pstack excludes keep the hub and `agents/poteto-agent.md`, and the only pstack port source is `docs/harness/claude-code.md`. cursor-team-kit vendors `deslop`, `control-cli` and `control-ui`, so every unit that the hub names is kept (A15). product adopts at `b244e6d11a6466650c5147cd7dc023859968c4b5`, gets attested, and moves to `b4068209809315ab1578c78e33e73512b29749ca` with `pin check` and `pin set`.
+- [ ] Write `packs/pstack/pack.json` `mode`: the three adopt entries, one domain label for each of the 23 playbooks, the `eng:review.before` hook and the four adapters. Port the Claude adapter from `docs/harness/claude-code.md`. Write the Codex, Cursor and omp adapters per `asd-ste100` Strict mode. Add the pstack `model_surfaces`. Run `rig pin set pstack --ported`.
+- [ ] Set the default fills that restate the hub's step triggers, per the design's table. The hub's situational triggers stay in the hub.
 - [ ] The pin gate in `lib/gate/pin.ts` blocks a non-core pack folder with no lock entry. Every pack has one from this PR on.
 - [ ] `rig plan` blocks with `E_FOREIGN_INSTALL` when a harness also holds a seeded upstream that rig does not own. The first case is a Claude Code or Cursor plugin install of pstack, cursor-team-kit or gstack, read from `~/.claude/plugins/installed_plugins.json` and the Cursor plugin cache. The finding names the plugin and the harness command that removes it. It is not ackable. rig never deletes a file that it does not own. An unmanaged folder with the name of a seeded unit, such as `~/.agents/skills/architect`, already gives `E_ADOPT_MISMATCH`. Its message gains the same removal hint.
 - [ ] Set the `rig.json` of the design.
@@ -364,29 +393,29 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 **You see.**
 
 - [ ] `rig plan` on a fresh fixture HOME prints `0 blocks` and only the warns of assertion A11.
-- [ ] `~/.claude/skills/rig-mode/SKILL.md` in the fixture HOME lists the step fills and the `brief` artifact.
+- [ ] In the fixture HOME, `~/.claude/skills/craft/SKILL.md` names the four domain files. `craft/references/engineering.md` lists the `eng` fills and hooks, and `craft/references/product.md` lists the `brief` artifact.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `test/first-seed.test.ts` runs assertions A1 to A14 of the design against the committed config. `test/seed.test.ts` runs the synthetic twin. Run `npm test`.
+- [ ] `test/first-seed.test.ts` runs assertions A1 to A17 of the design against the committed config. `test/seed.test.ts` runs the synthetic twin. Run `npm test`.
+- [ ] `test/seed.test.ts` gains a case where the fixture HOME holds a pstack plugin record in `installed_plugins.json`. Pass when `rig plan` prints `E_FOREIGN_INSTALL pstack` and exits 1.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `sonnet high` at the PR head. Each lane follows the boot recipe and runs one case of `test/live/first-seed.test.ts`.
 
-- [ ] Lane 1. Regression lane against trunk. Case `claude routes a bug report`. Trunk has no seed, so the lane records that and gates head. Seed, mirror, run `claude -p "/rig-mode a test fails after the last merge, what do I do?"`. Save `seed-claude-route.tap`. Pass when the reply names the Bug fix playbook.
+- [ ] Lane 1. Regression lane against trunk. Case `claude routes a bug report`. Trunk has no seed, so the lane records that and gates head. Seed, mirror, run `claude -p "/craft a test fails after the last merge, what do I do?"`. Save `seed-claude-route.tap`. Pass when the reply names the Bug fix playbook.
 - [ ] Lane 2. Case `re-vendor reproduces the lock`. Run the design's commands in a config dir that holds only `rig.json`, the pack.json files and `packs/product`. Save `seed-revendor.tap`. Pass when every tree hash equals the committed `rig.lock.json`.
-- [ ] Lane 3. Case `claude spawns Agent, not Task`. Run `/rig-mode` with a task that the Bug fix playbook delegates and read the transcript tool names. Save `seed-claude-adapter.tap`. Pass when the transcript holds an `Agent` tool call and no tool named `Task`.
-- [ ] Lane 4. Case `claude runs office-hours into a repo artifact`. Run `/rig-mode` with a product idea in a scratch repo, limited by `--max-turns`. Save `seed-claude-brief.tap`. Pass when `docs/designs/<slug>.md` exists in the scratch repo and nothing exists under `~/.gstack`.
-- [ ] Lane 5. Case `claude applies the ship hook`. Ask `/rig-mode` what runs before a commit. Save `seed-claude-hook.tap`. Pass when the reply names `deslop`.
-- [ ] Lane 6. Case `codex lists the mode skill and hides leaves`. Save `seed-codex.tap`. Pass when `rig-mode` is listed and `how` is not.
-- [ ] Lane 7. Case `cursor lists the mode skill and hides leaves`. Save `seed-cursor.tap`. Pass when `rig-mode` is listed and `how` is not.
-- [ ] Lane 8. Case `omp lists the mode skill once`. Save `seed-omp.tap`. Pass when omp names `rig-mode` once and `how` is absent from the listing.
-- [ ] Unit. `test/seed.test.ts` gains a case where the fixture HOME holds a pstack plugin record in `installed_plugins.json`. Pass when `rig plan` prints `E_FOREIGN_INSTALL pstack` and exits 1.
+- [ ] Lane 3. Case `claude spawns Agent, not Task`. Run `/craft` with a task that the Bug fix playbook delegates and read the transcript tool names. Save `seed-claude-adapter.tap`. Pass when the transcript holds an `Agent` tool call and no tool named `Task`.
+- [ ] Lane 4. Case `claude runs office-hours into a repo artifact`. Run `/craft prod:` with a product idea in a scratch repo, limited by `--max-turns`. Save `seed-claude-brief.tap`. Pass when `docs/designs/<slug>.md` exists in the scratch repo and nothing exists under `~/.gstack`.
+- [ ] Lane 5. Case `claude applies the ship hook`. Ask `/craft` what runs before a commit. Save `seed-claude-hook.tap`. Pass when the reply names `deslop`.
+- [ ] Lane 6. Case `codex runs typed craft and hides leaves`. Save `seed-codex.tap`. Pass when `$craft` reads `craft/hub.md` and the model-visible listing names neither `craft` nor `how`.
+- [ ] Lane 7. Case `cursor runs typed craft and hides leaves`. Save `seed-cursor.tap`. Pass when `/craft` reads `craft/hub.md` and the model-visible listing names neither `craft` nor `how`.
+- [ ] Lane 8. Case `omp runs typed craft once`. Save `seed-omp.tap`. Pass when omp loads `craft` once and `how` is absent from the model-visible listing.
 - [ ] Lane 9. Case `undo clears the seed`. Apply, then `rig apply --undo <run>`. Save `seed-undo.tap`. Pass when the fixture HOME manifest equals the manifest before apply.
 - [ ] Lane 10. Case `pin check is fresh`. Run `rig pin check pstack --sha 2776ddd2355d6d6c8747d3964600f28daf62f049` and `rig pin check product --sha b4068209809315ab1578c78e33e73512b29749ca`. Save `seed-pin.tap`. Pass when both print `unchanged, port fresh` and exit 0.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. `rig plan` and `rig apply` wall time on a fresh fixture HOME with the full seed. The diff adds about 107 pstack files per harness.
+- [ ] Metric. `rig plan` and `rig apply` wall time on a fresh fixture HOME with the full seed. The diff adds 109 pstack files (369,744 bytes) per harness.
 - [ ] Probe. Ten interleaved `rig plan` runs at trunk and at head, then ten head `rig apply` runs, each on a new fixture HOME.
 - [ ] Baseline. Record the trunk `rig plan` median first. The prototype with an unexcluded pstack measured 0.40 s.
 - [ ] Rule. Fail when the head `rig plan` median exceeds 1 s or the head `rig apply` median exceeds 2 s. Trunk lacks the seed, so the rule uses absolute budgets and no ratio.
@@ -413,11 +442,12 @@ The prototype ran on 2026-11-05 on a scratch copy of this repository with a fixt
 - The gate blocks 67 `exec` findings and 1 `unicode` finding in four subtrees. `disable` does not clear them, so `vendor` adds `--exclude`.
 - Compose found 58 skills and 2 agents and planned 1,166 file creates across four harnesses.
 - `rig plan` took 0.19 s on trunk and 0.40 s with the vendored pstack.
-- Three points stay unproven. They are the mode skill compile, the adopted playbook links on Cursor, and the Claude adapter behavior. Lanes `mode` 2, `seed` 1 and `seed` 3 settle them.
+- Four points stay unproven. They are the mode skill render, the adopted playbook links on Cursor, the Claude adapter behavior and the precedence of a domain file over the hub. Lanes `mode` 2, `mode` 4 (Cursor), `seed` 3 and `mode` 6 settle them. `seed` lane 7 repeats the Cursor case on the full seed, and assertion A17 checks the playbook paths of the Cursor read-set offline.
 
 ## Appendix B. Alternatives rejected
 
 - Derive the mode skill at every seed with a parser over the pinned hub. It keeps rig downstream of pstack's prose format. Details are in the design's alternatives table.
+- Port the hub into pack `mode` data. Rejected on 2026-11-05. The hub installs byte-identical as `craft/hub.md`, so the default behavior stays pstack's.
 - Ack the 68 gate findings instead of excluding the subtrees. It approves 121 KB of scripts to run on developer machines.
 - A `rig seed` command with recipes per upstream commit. It is a second way to vendor.
 - Keep the v0 provider path beside the mode skill. Two ways to start a task, and the installed-plugin pins stay.
@@ -427,17 +457,19 @@ The prototype ran on 2026-11-05 on a scratch copy of this repository with a fixt
 
 - `subtract` also makes the v0 user guide from #33 stale in ten pages. Leaving it for later breaks `test/docs.test.ts` and tells a user about a `/craft` that no longer exists, so `subtract` owns that rewrite.
 - `subtract` breaks many tests at once. The owner watches for tests that assert v0 behavior with no v1 meaning and deletes them in the same PR, with one line per deleted file in the PR body.
-- `mode` placement on Cursor. Cursor reads `~/.claude/skills`. The owner watches `mode` lane 4 and assertion A9.
+- `mode` placement on Cursor. Cursor reads `~/.claude/skills` and keeps the first copy of a name, and `craft/references/adapter.md` holds one section per harness that reads the dir. The owner watches `mode` lane 4, the `place()` unit case and assertions A9 and A16.
 - Between `subtract` and `seed`, rig renders no `~/.claude/rules/pstack-models.md`. A real `rig apply` on a machine with an installed pstack in that window removes a file that pstack reads. Run real applies only after `seed`.
 - `seed` depends on GitHub for lane 2. A network failure gives no verdict, per the verdict rules.
-- The compiled mode skill may pass 5,000 tokens. The `seed` owner records the count and does not trim upstream text to pass. The budget warn is on the allowed list.
-- The installed pstack 0.15.36 in the Claude plugin cache has an adapter link (`../../docs/harness/claude-code.md`) in 23 skills. The pinned commit `2776ddd` has the same version string and the link in 1 file. A dry run of the `links` check over the cache gave 31 blocks. The `seed` owner runs the check over the pinned tree and resolves each block. Either the vendored `docs/harness/` file is rendered at the linked path, or the mode adapter section replaces the link. Acks are not an option.
+- `/craft` reads the shell and the 5,336-token hub. The `seed` owner records both token counts and does not trim upstream text. A `craft/SKILL.md` budget warn is on the allowed list.
+- The installed pstack 0.15.36 in the Claude plugin cache has an adapter link (`../../docs/harness/claude-code.md`) in 23 skills. The pinned commit `2776ddd` has the same version string and the link in 1 file, `poteto-help`, which the seed excludes. Changed on 2026-11-05: rig inserts its own two-line anchor to `../craft/references/adapter.md` in each leaf copy, and A9 checks that link. Acks are not an option.
+- The model applies "the domain file wins over the hub" as prose (score 6). `mode` lane 6 is the probe. A failure there means a team fill does not change what the model runs, and the owner reports it to the operator before `seed`.
 - The first real `rig apply` on a machine with pstack already installed stops at `E_FOREIGN_INSTALL` and `E_ADOPT_MISMATCH`. This is intended. The operator removes the old installs by hand, once per machine.
-- Codex and omp leaves use Cursor names with no adapter. `seed` lanes 6 to 8 check listing only. Phase 4 `adapter` covers behavior.
+- The Codex, Cursor and omp adapters are rig-authored and unmeasured. `mode` lane 7 checks that one Codex leaf reads its adapter. Leaf behavior on omp stays an open risk (concept uncertainty, score 4).
+- Done in #39 (`adae5ed`), outside this program. `detectLicense` passed a GPL license file in a subfolder under an MIT root. It now blocks a license file that matches no rule at every level, reads every vendored `package.json`, parenthesizes joined ids, and records the license in the pin check candidate.
 
 ## Appendix D. Links and reading list
 
 - Read [rig-v1-concept.md](../design/rig-v1-concept.md) and [rig-v1-first-seed.md](../design/rig-v1-first-seed.md) before you edit.
 - Read [rig-architecture.md](../design/rig-architecture.md) sections on the pipeline, the gate and the journal. They stay valid for v1.
-- `mode` and `seed` get `<pstack>/skills/how/SKILL.md` before the change and `<pstack>/skills/interrogate/SKILL.md` on the compiled mode skill.
+- `mode` and `seed` get `<pstack>/skills/how/SKILL.md` before the change and `<pstack>/skills/interrogate/SKILL.md` on the rendered `craft` files.
 - Keep the decision trail per `<pstack>/skills/show-me-your-work/SKILL.md` in the orchestrator's session store.
