@@ -17,7 +17,7 @@ export type ArtifactDef = {
 };
 /**
  * pack.json `mode`. Prose fields may hold {{skill:<pack>/<unit>}}. Nothing else is substituted.
- * A pack with a hub uses adopt, playbooks, artifacts, hooks and adapter only. triggers and sections serve a pack with no hub.
+ * A pack with a hub uses adopt, playbooks, artifacts, hooks, adapter and hub_triggers only. triggers and sections serve a pack with no hub.
  */
 export type ModeData = {
   /** Install path under craft/ to a pack-relative source. The key "hub.md" marks the hub. A key that ends in "/" adopts a folder. */
@@ -31,6 +31,8 @@ export type ModeData = {
   adapter?: Record<string, string>;
   triggers?: { when: string; then: string; domain?: DomainName }[];
   sections?: Record<string, { domain: DomainName; text: string }>;
+  /** The hub trigger that a step or hook address restates, verbatim from a `- ` line of hub.md. The domain file quotes it when the address is filled. */
+  hub_triggers?: Partial<Record<StepAddress | HookAddress, string>>;
 };
 export type Step = { before: UnitRef[]; slot: UnitRef | null; after: UnitRef[] };
 /** rig.json `fill`. compileMode parses the address grammar against DomainTable (E_FILL_UNKNOWN). */
@@ -44,6 +46,8 @@ export type DomainView = {
   artifacts: Map<string, ArtifactDef & { pack: string }>;
   triggers: { when: string; then: string }[];
   sections: { title: string; text: string; pack: string }[];
+  /** Hub trigger text by step or hook address, from pack `hub_triggers`. */
+  replaces: Map<string, string>;
 };
 /**
  * The compiled mode skill. Invariants: every ref names a kept unit. Every adopted playbook has a domain label. Artifact ids
@@ -107,7 +111,7 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
   const views = (Object.entries(domains.domains) as [DomainName, DomainTable["domains"][DomainName]][]).map(([name, d]): DomainView => ({
     name, prefix: d.prefix,
     steps: new Map(d.stages.map((s) => [`${d.prefix}:${s}` as StepAddress, { before: [], slot: null, after: [] }])),
-    playbooks: [], artifacts: new Map(), triggers: [], sections: [],
+    playbooks: [], artifacts: new Map(), triggers: [], sections: [], replaces: new Map(),
   }));
   const byName = new Map(views.map((v) => [v.name, v]));
   const byPrefix = new Map(views.map((v) => [v.prefix, v]));
@@ -140,6 +144,7 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
   const isHookList = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
   const replaced = new Set(Object.entries(fill).filter(([k, v]) => k !== "triggers" && isHookList(v)).map(([k]) => k));
   const triggers: Mode["triggers"] = [];
+  const hubTriggers = new Map<string, { text: string; pack: string }>();
   let hub: Mode["hub"] = null;
 
   for (const pack of packs.values()) {
@@ -225,6 +230,21 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
       proseRefs(s.text, at(`sections.${title}`));
       domainOf(s.domain, at(`sections.${title}.domain`))?.sections.push({ title, text: s.text, pack: pack.name });
     }
+
+    for (const [key, text] of sorted(data.hub_triggers)) {
+      const where = address(key);
+      if (!where) err("E_FILL_UNKNOWN", `${key}: ${at(`hub_triggers.${key}`)} is no step or hook address of packs/core/domains.json`);
+      else if (hubTriggers.has(key)) err("E_CLASH", `${key}: packs ${hubTriggers.get(key)!.pack} and ${pack.name} both name the hub trigger of the address`);
+      else {
+        hubTriggers.set(key, { text: text as string, pack: pack.name });
+        where.view.replaces.set(key, text as string);
+      }
+    }
+  }
+
+  const hubLines = new Set(new TextDecoder().decode(files.get(HUB)?.bytes ?? new Uint8Array()).split("\n").map((l) => l.replace(/\r$/, "")));
+  for (const [key, { text, pack }] of hubTriggers) {
+    if (!hubLines.has(`- ${text}`)) err("E_MODE_REF", `${key}: packs/${pack}/pack.json mode.hub_triggers.${key} is no "- " line of craft/${HUB}`);
   }
 
   for (const [id, a] of artifacts) {
@@ -317,7 +337,14 @@ export function modeFiles(mode: Mode, template: string, view: ModeView): { files
   for (const d of mode.domains) {
     const from = `references/${d.name}.md`;
     const refs = (rs: string[]) => (rs.length ? rs.map((r) => skill(r, from)).join(", ") : "none");
-    const steps = [...d.steps].map(([at, s]) => `\`${at}\`. Before: ${refs(s.before)}. Slot: ${s.slot ? skill(s.slot, from) : "none"}. After: ${refs(s.after)}.`);
+    const filled = (at: string, s: Step) => [[at, s.slot !== null], [`${at}.before`, s.before.length > 0], [`${at}.after`, s.after.length > 0]] as const;
+    const steps = [...d.steps].map(([at, s]) => [
+      `\`${at}\`. Before: ${refs(s.before)}. Slot: ${s.slot ? skill(s.slot, from) : "none"}. After: ${refs(s.after)}.`,
+      ...filled(at, s).flatMap(([key, set]) => (set && d.replaces.has(key) ? [`  Replaces the hub trigger: "${d.replaces.get(key)}"`] : [])),
+    ].join("\n"));
+    const start = d.playbooks.length > 0 || d.artifacts.size > 0
+      ? "Follow the playbook that the hub selects. If the hub selects no playbook, skip each step whose artifact for this task already exists, and start at the first step left."
+      : "Start at the first step.";
     const playbooks = d.playbooks.map((p) => [`[${p.id}](../${p.file}). Pack \`${p.pack}\`.`, p.title && `${prose(p.title, from)}.`, p.when && `When: ${prose(p.when, from)}`].filter(Boolean).join(" "));
     const artifacts = [...d.artifacts].map(([id, a]) => [
       `\`${id}\` writes \`${a.generates}\` at \`${a.write_at}\`. Requires: ${a.requires.length ? a.requires.map((r) => `\`${r}\``).join(", ") : "none"}.`,
@@ -332,7 +359,9 @@ export function modeFiles(mode: Mode, template: string, view: ModeView): { files
       "",
       `Prefix: \`${d.prefix}\`. Stages: ${[...d.steps.keys()].map((s) => s.split(":")[1]).join(", ")}.`,
       "",
-      `Read this file after \`${HUB}\`. If this file and the hub name the same step, obey this file.`,
+      `Read this file after \`${HUB}\`. A step below with a \`Replaces the hub trigger:\` line runs in place of the hub trigger that it quotes. Every other hub trigger still applies.`,
+      "",
+      start,
       "",
       "## Steps",
       "",
@@ -403,6 +432,7 @@ const MODE_SHAPE: Shape = {
     adapter: { map: "str" },
     triggers: { arr: { rec: { when: "str", then: "str", domain: "str" }, req: ["when", "then"] } },
     sections: { map: { rec: { domain: "str", text: "str" }, req: ["domain", "text"] } },
+    hub_triggers: { map: "str" },
   },
 };
 

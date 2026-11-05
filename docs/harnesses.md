@@ -8,7 +8,7 @@ This page lists, per harness, the dirs that the harness reads and the files that
 - **Dedupe.** How a harness collapses two skills with one name. `none` shows each copy. `identical-bytes` collapses copies with equal bytes. `by-name` keeps the first copy, whatever its bytes.
 - **Placement.** For each skill, rig picks the smallest set of writable dirs. Each target harness then sees exactly one copy after its dedupe rule. Every other harness sees at most one. When no such set exists, `rig plan` blocks with `E_READSET` and names the exits.
 - **Hide control.** Every skill copy, `craft` included, carries the hide control of every harness that reads its dir. So a shared dir does not leak it into a listing. rig adds no hide control to a unit in `rig.json` `auto`, but a hide key that its source already sets stays, and `rig plan` prints an info line for it.
-- **Mode skill.** rig places a `craft/` dir in every skill dir that holds a vendored leaf, and each harness reads one `craft`. Its `references/adapter.md` holds one section per harness that reads the dir, headed with the harness id, such as `## codex`. Each `SKILL.md` copy of a vendored pack links that file in two lines after its frontmatter. See [Run multi-step work with /craft](./guide/06-craft.md).
+- **Mode skill.** rig places a `craft/` dir in every skill dir that holds a vendored leaf, and each harness reads one `craft`. Its `references/adapter.md` holds one section per harness that reads the dir, headed with the harness id, such as `## codex`. Each `SKILL.md` copy of a vendored pack links that file in two lines after its frontmatter. With the seeded default, rig writes `craft/` in `~/.claude/skills` and in `~/.agents/skills`. See [Run multi-step work with /craft](./guide/06-craft.md).
 - **Never write.** Globs that rig refuses to render into. A render there is an `E_CONTAINMENT` error (`test/render.test.ts`, "nothing renders under a never_write glob").
 - **Model surfaces.** Model-bearing files and their render kind. `frontmatter` patches the model keys of a file that you wrote. `whole` is a file that rig owns. `block` is a region between marker lines. `keys` patches YAML values line by line. A surface renders only when `models/tiers.json` names a model for that harness. On main it names models for Claude Code only, so `rig plan` prints lines such as:
 
@@ -22,9 +22,9 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 ## Claude Code
 
 - Read dirs: `~/.claude/skills` (writable, dedupe `none`) and `~/.claude/plugins/cache` (read-only, plugins, dedupe `none`).
-- Never write: `~/.claude/plugins/**`.
+- Never write: `~/.claude/plugins/**`. rig reads `~/.claude/plugins/installed_plugins.json`, and a plugin install of an upstream that a pack seeds blocks `rig plan` with `E_FOREIGN_INSTALL` and the `claude plugin uninstall` command.
 - Skills: `~/.claude/skills/<name>/`. Hide: `disable-model-invocation: true` in the frontmatter.
-- Commands: `~/.claude/commands/<name>.md`, the source as is. `/oh` lands here.
+- Commands: `~/.claude/commands/<name>.md`, the source as is.
 - Agents: `~/.claude/agents/<name>.md`, the source as is.
 - Rules: `~/.claude/rules/<name>.md`.
 - Frame: `~/.claude/rules/rig-frame.md`, a whole file that rig owns.
@@ -37,7 +37,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Read dirs: `~/.codex/skills` and `~/.agents/skills`, both writable, dedupe `none`. On a default install, `rig plan` places Codex copies in `~/.agents/skills`, which omp and Cursor also read.
 - Never write: none declared.
 - Skills: hide is the sidecar `agents/openai.yaml` with `policy.allow_implicit_invocation: false`. Codex ignores `disable-model-invocation` (probe (f)).
-- Commands: `~/.codex/prompts/<name>.md`, body only, frontmatter dropped. You type `/prompts:<name>`, for example `/prompts:oh`.
+- Commands: `~/.codex/prompts/<name>.md`, body only, frontmatter dropped. You type `/prompts:<name>`.
 - Agents: `~/.codex/agents/<name>.toml` with `name`, `description` and `developer_instructions`.
 - Rules: no rule format. `rig plan` prints an `absent` info line for a rule unit.
 - Frame: a managed block in `~/.codex/AGENTS.md`, between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->`. Your lines outside the markers keep their bytes (`test/render.test.ts`, "targets.patch: the rendered frame block appends, then converges").
@@ -61,9 +61,9 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 ## Cursor
 
 - Read dirs, all dedupe `by-name`: `~/.cursor/skills`, `~/.agents/skills`, `~/.claude/skills` and `~/.codex/skills` (read-only), and `~/.cursor/plugins/local/rig/skills` (writable, rig's local plugin). Cursor keeps the first copy of a name (probe (b)).
-- Never write: `~/.cursor/skills-cursor/**`, `~/.cursor/hooks.json` and `~/.cursor/chats/**`. Cursor owns its built-in skills in `~/.cursor/skills-cursor/`.
+- Never write: `~/.cursor/skills-cursor/**`, `~/.cursor/hooks.json` and `~/.cursor/chats/**`. Cursor owns its built-in skills in `~/.cursor/skills-cursor/`. A plugin folder under `~/.cursor/plugins/cache/<marketplace>/` or `~/.cursor/plugins/local/` with the name of a seeded upstream, such as `pstack`, blocks `rig plan` with `E_FOREIGN_INSTALL`.
 - Skills: the only writable dir is the local plugin. Hide: `disable-model-invocation: true`.
-- Commands: hidden skills at `~/.cursor/plugins/local/rig/skills/<name>/SKILL.md`, with `name` and `disable-model-invocation: true`. rig writes the manifest `~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json` once a file lands in the plugin.
+- Commands: hidden skills at `~/.cursor/plugins/local/rig/skills/<name>/SKILL.md`, with `name` and `disable-model-invocation: true`. rig writes the manifest `~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json` once a file lands in the plugin. The seed has no command, so on main rig writes no local plugin.
 - Agents: `~/.cursor/agents/<name>.md` with `name`, `description` and the body. The Claude model keys stay out.
 - Rules: `~/.cursor/rules/<name>.mdc`, with `alwaysApply: true` added.
 - Frame: `~/.cursor/rules/rig-frame.mdc`, a whole file with `alwaysApply: true`. Whether Cursor loads user-level rules and local plugins is not verified (probe (j), assumption A24).

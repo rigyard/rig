@@ -202,13 +202,13 @@ describe("fills, hooks, triggers and artifacts", () => {
 
   test("an artifact that requires prd with no writer prints E_ARTIFACT_DANGLING prd", () => {
     const brief = { generates: "docs/designs/<slug>.md", write_at: "prod:discover", instruction: "Write the brief.", requires: ["prd"] };
-    const o = withManifest((m: any) => ({ ...m, mode: { ...m.mode, artifacts: { brief } } }));
+    const o = withManifest((m: any) => ({ ...m, mode: { ...m.mode, artifacts: { sketch: brief } } }));
     const r = plan(o);
     assert.equal(r.code, 1);
     assert.match(r.out, /^block E_ARTIFACT_DANGLING prd: /m);
-    const ok = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, artifacts: { brief: { ...brief, requires: [] } } } })));
+    const ok = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, artifacts: { sketch: { ...brief, requires: [] } } } })));
     assert.deepEqual(ok.errors, []);
-    assert.match(ok.text("~/.claude/skills/craft/references/product.md"), /^- `brief` writes `docs\/designs\/<slug>\.md` at `prod:discover`\. Requires: none\. Write the brief\.$/m);
+    assert.match(ok.text("~/.claude/skills/craft/references/product.md"), /^- `sketch` writes `docs\/designs\/<slug>\.md` at `prod:discover`\. Requires: none\. Write the brief\.$/m);
   });
 
   test("an adopted playbook with no label prints E_PLAYBOOK_UNLABELED and its path", () => {
@@ -441,12 +441,39 @@ describe("adapter, hide switch and placement", () => {
     const b = built();
     const shell = b.text("~/.claude/skills/craft/SKILL.md");
     assert.match(shell, /^1\. Read \[hub\.md\]\(hub\.md\) in full\.$/m);
-    assert.match(shell, /^1\. If a domain file and the hub name the same step, obey the domain file\.$/m);
+    assert.match(shell, /^1\. Hub triggers are keyed by situation, not by step\. If a step of the domain file has a `Replaces the hub trigger:` line, run that step and not the hub trigger that the line quotes\. Every other hub trigger still applies\.$/m);
+    assert.match(shell, /^1\. An optional first argument names a domain, for example `eng: \.\.\.`\./m);
+    assert.doesNotMatch(shell, /\/craft eng:/);
     for (const d of ["business", "product", "engineering", "upkeep"]) assert.match(shell, new RegExp(`\\[${d}\\]\\(references/${d}\\.md\\)`));
     const bare = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, adopt: { "playbooks/": m.mode.adopt["playbooks/"] } } })));
     const noHub = bare.text("~/.claude/skills/craft/SKILL.md");
     assert.doesNotMatch(noHub, /hub\.md\)/);
     assert.doesNotMatch(noHub, /\{\{/);
+  });
+
+  test("a domain with a playbook or an artifact gets the playbook start rule; a domain with neither starts at the first step", () => {
+    const b = built();
+    const precedence = "Read this file after `hub\\.md`\\. A step below with a `Replaces the hub trigger:` line runs in place of the hub trigger that it quotes\\. Every other hub trigger still applies\\.";
+    const playbook = "Follow the playbook that the hub selects\\. If the hub selects no playbook, skip each step whose artifact for this task already exists, and start at the first step left\\.";
+    for (const [d, rule] of [["engineering", playbook], ["product", playbook], ["business", "Start at the first step\\."], ["upkeep", "Start at the first step\\."]]) {
+      assert.match(b.text(`~/.claude/skills/craft/references/${d}.md`), new RegExp(`^${precedence}\\n\\n${rule}$`, "m"), d);
+    }
+  });
+
+  test("a filled address with a hub_triggers entry quotes the hub trigger under its step; an unfilled one quotes nothing", () => {
+    const line = "Code crossing a function boundary → the **architect** skill.";
+    const b = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, hub_triggers: { "eng:design": line, "eng:ground": line } } })));
+    assert.deepEqual(b.errors, []);
+    const eng = b.text("~/.claude/skills/craft/references/engineering.md");
+    assert.ok(eng.includes(`- \`eng:design\`. Before: none. Slot: [design-probe](../../design-probe/SKILL.md). After: none.\n  Replaces the hub trigger: "${line}"\n`), eng);
+    assert.match(eng, /^- `eng:ground`\. Before: none\. Slot: none\. After: none\.$/m);
+    assert.equal(eng.match(/^  Replaces the hub trigger:/gm)?.length, 1);
+  });
+
+  test("a hub_triggers entry that is no line of hub.md is E_MODE_REF; one at no step address is E_FILL_UNKNOWN", () => {
+    const b = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, hub_triggers: { "eng:design": "Code crossing a function boundary", "eng:nope": "x" } } })));
+    assert.match(errorOf(b, "E_MODE_REF").message, /^eng:design: packs\/fixture\/pack\.json mode\.hub_triggers\.eng:design is no "- " line of craft\/hub\.md$/);
+    assert.match(errorOf(b, "E_FILL_UNKNOWN").message, /^eng:nope: /);
   });
 
   test("a mode block with a bad inner shape is E_SCHEMA with its key path", () => {

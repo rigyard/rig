@@ -7,6 +7,7 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { loadWorld } from "../lib/world.ts";
+import { treeHash } from "../lib/tree.ts";
 
 export const ROOT = fileURLToPath(new URL("..", import.meta.url));
 export const NOW = "2026-11-05T12:00:00.000Z";
@@ -57,8 +58,19 @@ export function fixture({ repo = {}, overlay = null, home = {}, env = {} } = {})
   return { env: e, home: fx.home, path: fx.path, load: () => loadWorld(e), cleanup: fx.cleanup };
 }
 
-/** rig.json of the repo with changes merged on top. @param {object} changes */
-export const rigJson = (changes = {}) => ({ ...baseJson("rig.json"), ...changes });
+/** rig.json of the repo with changes merged on top. Changes that replace `packs` drop the repo `fill`, which names seeded units. */
+export const rigJson = (changes: Record<string, unknown> = {}) => ({ ...baseJson("rig.json"), ...("packs" in changes ? { fill: {} } : {}), ...changes });
+
+/** The pack entries of this repo's rig.lock.json, for a fixture that copies the packs rig.json lists. */
+export const repoLockPacks = () => JSON.parse(readFileSync(join(ROOT, "rig.lock.json"), "utf8")).packs;
+
+const enc = new TextEncoder();
+
+/** The lock entry of an authored fixture pack: no vendored paths, and the tree of its files (text or bytes). */
+export function authoredEntry(name: string, files: Record<string, string | Uint8Array>) {
+  const tree = treeHash(Object.entries(files).map(([path, v]) => ({ path, mode: 0o644, bytes: typeof v === "string" ? enc.encode(v) : v })));
+  return { repo: `https://example.invalid/${name}.git`, sha: "0".repeat(40), root: ".", paths: [], exclude: [], license: "MIT", tree, port: null, candidate: null };
+}
 
 /** Files of one pack. */
 export function pack(name: string, unitFiles: Record<string, string>, manifest: object = {}) {

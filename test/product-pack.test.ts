@@ -94,7 +94,7 @@ describe("product pack", () => {
       const stack = compose(world);
       assert.deepEqual(stack.errors, []);
       const ids = stack.units.filter((u) => u.id.startsWith("product/")).map((u) => `${u.type}:${u.id}`);
-      assert.deepEqual(ids, ["skill:product/office-hours", "command:product/oh"]);
+      assert.deepEqual(ids, ["skill:product/office-hours"]);
     }));
 
   test("the gate finds nothing in the pack's sources", () =>
@@ -138,7 +138,7 @@ describe("product pack", () => {
     }
   });
 
-  test("the skill name equals its folder, fits the budget limits, and the /oh command runs it", () => {
+  test("the skill name equals its folder and fits the budget limits", () => {
     const skill = readFileSync(join(SKILL, "SKILL.md"), "utf8");
     assert.match(skill, /^---\nname: office-hours\ndescription: .+\n---\n/);
     const fm = skill.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -147,9 +147,6 @@ describe("product pack", () => {
     const body = fm[2].replace(/\n$/, "");
     assert.ok(body.split("\n").length <= LIMITS.bodyLines, "skill body lines");
     assert.ok(Math.ceil(body.length / LIMITS.charsPerToken) <= LIMITS.bodyTokens, "skill body tokens");
-    const oh = readFileSync(join(PACK, "commands/oh.md"), "utf8");
-    assert.match(oh, /^---\ndescription: .+\n---\n/);
-    assert.match(oh, /office-hours skill/);
   });
 
   test("no pack file names a workflow provider, a step slot or a v0 core skill, and the handoff ends with the doc path", () =>

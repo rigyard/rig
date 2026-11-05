@@ -7,9 +7,28 @@
     "cursor"
   ],
   "packs": {
-    "product": {}
+    "cli-for-agent": {},
+    "cursor-team-kit": {},
+    "product": {},
+    "pstack": {}
   },
   "aliases": {},
+  "fill": {
+    "eng:design": "pstack/architect",
+    "eng:ground": "pstack/how",
+    "eng:ship.before": [
+      "cursor-team-kit/deslop"
+    ],
+    "prod:discover": "product/office-hours",
+    "triggers": [
+      {
+        "when": "Building or changing a CLI",
+        "use": "cli-for-agent/cli-for-agents",
+        "domain": "engineering"
+      }
+    ]
+  },
+  "auto": [],
   "disable": [],
   "metrics": {
     "session_hook": false

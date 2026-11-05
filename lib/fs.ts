@@ -67,9 +67,33 @@ function realHome(ctx) {
 }
 
 /**
+ * Throws E_CONTAINMENT when a dir of rel below its first segment is a symlink, such as ~/.claude/skills/how -> ~/mine/how.
+ * rig owns no symlink, so a write through one lands in a dir that rig does not own. The first segment may be a link
+ * (~/.codex -> ~/dotfiles/codex), so a dotfiles checkout of a whole harness dir still works.
+ */
+function linkedDir(rh: string, rel: string, p: string) {
+  const parts = path.dirname(rel).split(path.sep).filter((x) => x !== "" && x !== ".");
+  for (let i = 2; i <= parts.length; i++) {
+    const dir = path.join(rh, ...parts.slice(0, i));
+    let st;
+    try {
+      st = fs.lstatSync(dir);
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code === "ENOENT" || code === "ENOTDIR") return;
+      throw e;
+    }
+    if (st.isSymbolicLink()) {
+      const link = `~/${parts.slice(0, i).join("/")}`;
+      throw rigError("E_CONTAINMENT", `${link} is a symlink to ${fs.readlinkSync(dir)}, so ~/${rel.split(path.sep).join("/")} would land in a dir that rig does not own; rig writes nothing through a symlink, so replace the link with a real dir by hand`, p);
+    }
+  }
+}
+
+/**
  * Read-only containment check for a path in HOME. Throws E_CONTAINMENT.
- * Refuses: a path outside HOME, a parent chain whose realpath leaves HOME, a never_write match (lexical or real),
- * a symlink or a non-file at the path, and a path inside the state root.
+ * Refuses: a path outside HOME, a parent chain whose realpath leaves HOME, a symlinked dir below the first segment,
+ * a never_write match (lexical or real), a symlink or a non-file at the path, and a path inside the state root.
  * @param {string} p absolute or "~/"-relative @param {object} ctx
  * @returns {{abs: string, tilde: string, rel: string}}
  */
@@ -87,6 +111,7 @@ function resolveHome(p, ctx) {
   const lexAbs = path.join(rh, rel);
   const realParent = realish(path.dirname(lexAbs));
   if (!inside(rh, realParent)) throw rigError("E_CONTAINMENT", `a parent of ${p} resolves outside HOME`, p);
+  linkedDir(rh, rel, p);
   const realAbs = path.join(realParent, path.basename(lexAbs));
   for (const g of ctx.neverWrite ?? []) {
     const ga = expand(ctx.home, g);

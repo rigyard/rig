@@ -18,7 +18,8 @@ const RANK = { block: 0, warn: 1, info: 2 };
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * Run every registered check over sources and rendered bytes. Pure over its inputs; reads the OSV cache from world.
+ * Run every registered check over sources and rendered bytes. Reads the OSV cache from world. The pin check also reads
+ * the harness plugin records under HOME for E_FOREIGN_INSTALL.
  * Throws E_SCHEMA when world.acks holds an invalid ack or an ack for a check that is never ackable.
  */
 export function gate(stack: Stack, desired: Desired, world: World): {findings: Finding[], blocked: boolean} {

@@ -7,18 +7,22 @@ In this page you preview a plan, write it with one journaled apply, adopt files 
 Run `rig plan`. It composes the stack, renders it per harness, runs the gate and compares the result with disk and with `installed.json`. On a fresh HOME it prints:
 
 ```text
-info budget */harness:claude: always-on: 717 characters, 180 tokens
+warn budget pstack/skills/ketchup-video/SKILL.md: reference chain skills/ketchup-video/SKILL.md -> skills/ketchup/SKILL.md -> skills/bro/SKILL.md is 2 levels deep; keep references one level from SKILL.md
+...
+info budget */harness:claude: always-on: 1,289 characters, 323 tokens
 ...
 info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/config.yml does not render
-create  owned  claude  ~/.claude/rules/rig-frame.md                                    core/rig-frame
-create  block  codex   ~/.codex/AGENTS.md                                              core/rig-frame
+create  owned  claude  ~/.claude/rules/rig-frame.md                                                              core/rig-frame
+create  block  codex   ~/.codex/AGENTS.md                                                                        core/rig-frame
 ...
-create  owned  claude  ~/.claude/commands/oh.md                                        product/oh
+create  owned  claude  ~/.claude/skills/craft/SKILL.md                                                           core/craft
 ...
-33 changes, 0 blocks
+create  owned  claude  ~/.claude/skills/craft/hub.md                                                             core/craft
+...
+305 changes, 0 blocks
 ```
 
-Gate findings come first, then `info` lines, then one line per op. Each op line names the op, the entry kind, the harness, the path and the unit. An `owned` file belongs to rig as a whole. A `block` entry is one marked region inside a file that you also edit, such as `~/.codex/AGENTS.md`. The last line counts the changes and the blocks.
+The checkout seeds pstack, cursor-team-kit, cli-for-agent and product, so a fresh HOME gets 305 files. The two `warn budget` lines are reference chains inside upstream pstack skills. rig does not edit upstream text to clear them. Gate findings come first, then `info` lines, then one line per op. Each op line names the op, the entry kind, the harness, the path and the unit. An `owned` file belongs to rig as a whole. A `block` entry is one marked region inside a file that you also edit, such as `~/.codex/AGENTS.md`. The last line counts the changes and the blocks.
 
 `rig plan` writes nothing and logs nothing. After the run above, the temp HOME was still empty. It exits 1 when anything blocks, else 0.
 
@@ -28,19 +32,19 @@ Run `rig apply`. It runs the same pipeline and then writes the ops. Start from a
 
 ```text
 ...
-update  block  codex   ~/.codex/AGENTS.md                                              core/rig-frame
+update  block  codex   ~/.codex/AGENTS.md                                                                        core/rig-frame
 ...
-33 changes, 0 blocks
-run 20261105T055231.480Z-1: 33 ops applied
+305 changes, 0 blocks
+run 20261105T204938.618Z-1: 305 ops applied
 ```
 
 Every write into a harness file goes through this journaled transaction. `rig apply` runs it for the whole plan. `rig models set` runs it for the model cells only, as [Models](./07-models.md) shows. For each op, the transaction copies the current bytes into `backups/<run-id>/` and appends an intent line to the journal. Then it checks the file once more and writes through a temp file and a rename. After the last op it replaces `installed.json` and appends a `commit` line. The state root now holds:
 
 ```text
 ~/.local/state/rig/installed.json
-~/.local/state/rig/journal/20261105T055231.480Z-1.jsonl
+~/.local/state/rig/journal/20261105T204938.618Z-1.jsonl
 ~/.local/state/rig/log/rig.log
-~/.local/state/rig/backups/20261105T055231.480Z-1/.codex/AGENTS.md
+~/.local/state/rig/backups/20261105T204938.618Z-1/.codex/AGENTS.md
 ```
 
 rig appended its frame between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->` and left your lines above it as they were. The backup holds your original file. A created file has no pre-image, so it gets no backup.
@@ -59,44 +63,41 @@ Nothing changed, so rig prints no run line and writes no journal. You can run `r
 
 ## Adopt files you already have
 
-On the first run, rig meets files it does not manage yet. When a file has the same bytes as the render, rig adopts it. rig records the file in `installed.json` and writes nothing to it. A file with other bytes blocks with `E_ADOPT_MISMATCH` and a diff. Start from another fresh HOME. It already has a `~/.claude/rules/rig-frame.md` that equals the render and a hand-written `~/.claude/commands/oh.md`. The plan shows:
+On the first run, rig meets files it does not manage yet. When a file has the same bytes as the render, rig adopts it. rig records the file in `installed.json` and writes nothing to it. A file with other bytes blocks with `E_ADOPT_MISMATCH` and a diff. Start from another fresh HOME. It already has a `~/.omp/agent/AGENTS.md` that equals the render and a hand-written `~/.claude/rules/rig-frame.md` that holds `my own frame`. The test "an unmanaged file at a rendered path blocks with E_ADOPT_MISMATCH and a diff; apply writes nothing" uses the same frame file. The plan shows:
 
 ```text
 ...
-adopt   owned  claude  ~/.claude/rules/rig-frame.md                                    core/rig-frame
+block   owned  claude  ~/.claude/rules/rig-frame.md                                                              E_ADOPT_MISMATCH ~/.claude/rules/rig-frame.md exists and is not managed: bytes differ; rig never deletes what it does not own, so move or delete it by hand (diff below)
 ...
-block   owned  claude  ~/.claude/commands/oh.md                                        E_ADOPT_MISMATCH ~/.claude/commands/oh.md exists and is not managed: bytes differ (diff below)
+adopt   owned  omp     ~/.omp/agent/AGENTS.md                                                                    core/rig-frame
 ...
---- ~/.claude/commands/oh.md (current)
-+++ ~/.claude/commands/oh.md (desired)
- ---
-+description: Office hours. Pressure-test a product idea and write a design doc before any code.
--description: My office hours prompt
- ---
-+Run the office-hours skill with the same arguments.
--Ask one question at a time.
+--- ~/.claude/rules/rig-frame.md (current)
++++ ~/.claude/rules/rig-frame.md (desired)
++# rig frame
+...
+-my own frame
  
-32 changes, 1 block
+<n> changes, 1 block
 ```
 
-`rig plan` exits 1. `rig apply` prints the same report, then `blocked: nothing written`, and exits 1. It creates no state root. rig never replaces a file it does not manage. Model files and marked regions follow the same rules per cell or per block, as section 8 of the [architecture](../design/rig-architecture.md) shows. Move your file away, or make it equal to the render. After `mv ~/.claude/commands/oh.md ~/oh-mine.md`, the next apply passes:
+`rig plan` exits 1. `rig apply` prints the same report, then `blocked: nothing written`, and exits 1. It creates no state root. rig never replaces a file it does not manage. Model files and marked regions follow the same rules per cell or per block, as section 8 of the [architecture](../design/rig-architecture.md) shows. Move your file away, or make it equal to the render. After `mv ~/.claude/rules/rig-frame.md ~/rig-frame-mine.md`, the next apply passes:
 
 ```text
 ...
-adopt   owned  claude  ~/.claude/rules/rig-frame.md                                    core/rig-frame
+create  owned  claude  ~/.claude/rules/rig-frame.md                                                              core/rig-frame
 ...
-create  owned  claude  ~/.claude/commands/oh.md                                        product/oh
+adopt   owned  omp     ~/.omp/agent/AGENTS.md                                                                    core/rig-frame
 ...
-33 changes, 0 blocks
-run 20261105T055302.933Z-1: 33 ops applied
+<n> changes, 0 blocks
+run 20261105T205009.647Z-1: <n> ops applied
 ```
 
 ## Undo a run
 
-Pass the run id of the AGENTS.md run to `--undo`. `rig apply --undo 20261105T055231.480Z-1` prints:
+Pass the run id of the AGENTS.md run to `--undo`. `rig apply --undo 20261105T204938.618Z-1` prints:
 
 ```text
-undid run 20261105T055231.480Z-1 as run 20261105T055244.304Z-2: 33 ops restored
+undid run 20261105T204938.618Z-1 as run 20261105T204954.970Z-2: 305 ops restored
 ```
 
 rig walks the journal of that run in reverse. Each file it changed gets its pre-image back, byte for byte. Each file it created moves into the backups of the new run, because rig never deletes. Here `cmp` found `~/.codex/AGENTS.md` identical to the hand-written original, and `installed.json` went back to `"entries": {}`.
@@ -104,9 +105,9 @@ rig walks the journal of that run in reverse. Each file it changed gets its pre-
 The undo is a new journaled run with its own backups. Before it writes, it checks that every path still has the bytes the run left. If any path differs, it lists every conflict, restores nothing, and exits 1. A second undo of the same run shows this:
 
 ```text
-conflict E_UNDO_CONFLICT ~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json: ~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json no longer has the after hash of run 20261105T055231.480Z-1
+conflict E_UNDO_CONFLICT ~/.claude/rules/pstack-models.md: ~/.claude/rules/pstack-models.md no longer has the after hash of run 20261105T204938.618Z-1
 ...
-33 conflicts: nothing restored
+305 conflicts: nothing restored
 ```
 
 ## Recover from a crash
@@ -114,25 +115,25 @@ conflict E_UNDO_CONFLICT ~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json:
 If an apply dies halfway, the next `rig apply` reads the open journal and recovers first. An op whose file has the new bytes counts as done. An op whose file still has the old bytes goes back into the plan. The tests simulate the crash with `RIG_TEST=1 RIG_TEST_ABORT_AFTER=<n>`, which kills rig after n writes. It is a test hook, not a CLI flag. With `n=5` on a fresh HOME, apply exits 137, and the next plan shows:
 
 ```text
-info run 20261105T055332.152Z-1 was interrupted; rig apply recovers it first
-28 changes, 0 blocks
+info run 20261105T205051.505Z-1 was interrupted; rig apply recovers it first
+<n> changes, 0 blocks
 ```
 
-The next apply writes the 28 ops and closes the old journal with `{"type":"recovered","by":"20261105T055332.638Z-2"}`. The apply after that prints `0 changes, 0 blocks`. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
+The next apply writes the 300 ops and closes the old journal with `{"type":"recovered","by":"20261105T205052.321Z-2"}`. The apply after that prints `0 changes, 0 blocks`. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
 
 ## Let the gate stop a write
 
 The gate runs inside the plan, so it blocks before the first byte. A pack script with an exec bit and a shebang, added to a copy of the checkout, gives:
 
 ```text
-...
+block pin product/.: tree sha256:3782a8f1ace9... differs from locked sha256:b5191d96c33f...
 block exec product/skills/office-hours/scripts/run.sh: exec bit, shebang, script extension; mode 755, sha256 299001868fb8
   ack: {"id":"a7e004059f9b28ae","check":"exec","pack":"product","path":"skills/office-hours/scripts/run.sh","reason":"","expires":""}
 ...
-35 changes, 1 block
+<n> changes, 2 blocks
 blocked: nothing written
 ```
 
-`rig apply` exits 1 and leaves HOME and the state root as they were. No flag skips the gate. The `ack:` stanza under the finding is how you accept a finding on purpose. The next page covers it.
+The `pin` block comes first, because the new file also changes the pack tree that `rig.lock.json` locks. `rig apply` exits 1 and leaves HOME and the state root as they were. No flag skips the gate. The `ack:` stanza under the finding is how you accept a finding on purpose. The next page covers it.
 
 Next: [Pass the gate](./03-the-gate.md).

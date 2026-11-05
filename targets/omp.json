@@ -17,7 +17,7 @@
   "hide": {"method": "frontmatter-key", "key": "hide", "value": true},
   "models": {"source": "the modelRoles key in ~/.omp/agent/config.yml"},
   "instructions": {"path": "~/.omp/agent/AGENTS.md", "mode": "whole-file"},
-  "skill_prefix": "/",
+  "skill_prefix": "/skill:",
   "effort_syntax": "colon-suffix",
   "model_surfaces": [
     {"path": "~/.omp/agent/config.yml", "consumer": "omp", "kind": "keys", "map": "modelRoles", "grammar": "{model_effort}",

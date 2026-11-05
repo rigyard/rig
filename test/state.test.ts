@@ -87,6 +87,24 @@ describe("fs containment", () => {
     assert.equal(fs.readFileSync(path.join(home2, "dotfiles/codex/AGENTS.md"), "utf8"), "ok\n");
   });
 
+  test("a symlinked skill dir below a harness dir blocks the plan, and apply writes nothing through it", () => {
+    const home = fresh("rig-link-");
+    write(home, "mine/how/SKILL.md", "my own how\n", undefined);
+    fs.mkdirSync(path.join(home, ".claude/skills"), { recursive: true });
+    fs.symlinkSync(path.join(home, "mine/how"), path.join(home, ".claude/skills/how"));
+    const world = makeWorld(home);
+    const p0 = path.join(home, ".claude/skills/how/SKILL.md");
+    const desired = { entries: new Map([[p0, { kind: "owned", path: p0, bytes: Buffer.from("rig how\n"), mode: 0o644, unit: "pstack/how" }]]) };
+    const before = snap(home);
+    const p = plan(desired, OK, world, OPTS);
+    assert.deepEqual(codes(p), [["~/.claude/skills/how/SKILL.md", "E_CONTAINMENT"]]);
+    assert.match(p.ops[0]?.error?.message ?? "", /^~\/\.claude\/skills\/how is a symlink to .*mine\/how, so ~\/\.claude\/skills\/how\/SKILL\.md would land in a dir that rig does not own; /);
+    assert.deepEqual(apply(p as never, world), { run: null, changed: 0 });
+    assert.throws(() => writeHome("~/.claude/skills/how/SKILL.md", Buffer.from("x"), 0o644, ctxOf(world)), { code: "E_CONTAINMENT" });
+    assert.deepEqual(snap(home), before);
+    assert.equal(fs.readFileSync(path.join(home, "mine/how/SKILL.md"), "utf8"), "my own how\n");
+  });
+
   test("a symlink at the target path is refused", () => {
     const { home, world } = seeded(0);
     fs.rmSync(path.join(home, ".claude/agents/reviewer.md"));

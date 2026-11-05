@@ -1,8 +1,92 @@
 {
   "schema": 2,
   "core": {
-    "tree": "sha256:b532886e1bf150074bc77e01aadd74a847912450a8cbd7b605c41dfdd7762473",
+    "tree": "sha256:e2120816caac70fcf95e88bd1f15378e30d862fa689e610e9a9aa5cf28982431",
     "candidate": null
   },
-  "packs": {}
+  "packs": {
+    "cli-for-agent": {
+      "repo": "https://github.com/cursor/plugins",
+      "sha": "2776ddd2355d6d6c8747d3964600f28daf62f049",
+      "root": "cli-for-agent",
+      "paths": [
+        "LICENSE",
+        "skills/cli-for-agents"
+      ],
+      "exclude": [],
+      "license": "MIT",
+      "tree": "sha256:365b6a5aea1427244e2e718694b31cbae698d60aaff71aeea478c7340fe3b7bc",
+      "port": null,
+      "candidate": null
+    },
+    "cursor-team-kit": {
+      "repo": "https://github.com/cursor/plugins",
+      "sha": "2776ddd2355d6d6c8747d3964600f28daf62f049",
+      "root": "cursor-team-kit",
+      "paths": [
+        "LICENSE",
+        "skills/control-cli",
+        "skills/control-ui",
+        "skills/deslop"
+      ],
+      "exclude": [],
+      "license": "MIT",
+      "tree": "sha256:3ebd9445476e95b2cb8498065b9e7e129b5e4dde0d416f4ae00e3bcaa4e43798",
+      "port": null,
+      "candidate": null
+    },
+    "product": {
+      "repo": "https://github.com/garrytan/gstack",
+      "sha": "b4068209809315ab1578c78e33e73512b29749ca",
+      "root": ".",
+      "paths": [],
+      "exclude": [],
+      "license": "MIT",
+      "tree": "sha256:b5191d96c33f2b2884de67799b7f91e570174bd313575dc8f358b6f5306d19c0",
+      "port": {
+        "paths": [
+          "LICENSE",
+          "office-hours/SKILL.md",
+          "office-hours/sections"
+        ],
+        "tree": "sha256:a1db91a35bcab5d88d355c687e9e1e5018f9183b2dc9abf50244c68386947c8e",
+        "reviewed_sha": "b244e6d11a6466650c5147cd7dc023859968c4b5",
+        "reviewed_tree": "sha256:a1db91a35bcab5d88d355c687e9e1e5018f9183b2dc9abf50244c68386947c8e"
+      },
+      "candidate": null
+    },
+    "pstack": {
+      "repo": "https://github.com/cursor/plugins",
+      "sha": "2776ddd2355d6d6c8747d3964600f28daf62f049",
+      "root": "pstack",
+      "paths": [
+        "."
+      ],
+      "exclude": [
+        "README.md",
+        "assets",
+        "automations",
+        "docs/guide",
+        "plugin.json",
+        "skills/create-formal-verification-skill",
+        "skills/make-bot-ui",
+        "skills/poteto-help",
+        "skills/poteto-mode/scripts",
+        "skills/setup-pstack",
+        "skills/show-me-your-work/scripts",
+        "skills/statechart"
+      ],
+      "license": "MIT",
+      "tree": "sha256:537435a04e2ef2e3fb3511557246dff40d8fb5d990078c370a41360b6855ee37",
+      "port": {
+        "paths": [
+          "docs/harness/claude-code.md"
+        ],
+        "tree": "sha256:5cc703e163e29625b9507818b6b5af65c21cef450bfb72315d48a8d874bd2a04",
+        "reviewed_sha": "2776ddd2355d6d6c8747d3964600f28daf62f049",
+        "reviewed_tree": "sha256:5cc703e163e29625b9507818b6b5af65c21cef450bfb72315d48a8d874bd2a04"
+      },
+      "candidate": null
+    }
+  }
 }

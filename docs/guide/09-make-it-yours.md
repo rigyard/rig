@@ -27,10 +27,10 @@ Add the unit id, `<pack>/<unit>`, to `disable` in the overlay `rig.json`:
 ```text
 rig plan
 ...
-22 changes, 0 blocks
+<n> changes, 0 blocks
 ```
 
-The same plan without the entry has 33 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
+The same plan without the entry has 305 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
 
 ```text
 block E_UNKNOWN_UNIT disable names product/nothing, which no listed pack contains
@@ -46,12 +46,21 @@ Put the pack under `~/.config/rig/packs/<name>/` and list it in the overlay `rig
 ~/.config/rig/rig.json                      {"schema": 2, "packs": {"mine": {"harnesses": ["claude"]}}}
 ```
 
+Every pack needs a lock entry, so this plan blocks with `block pin mine/.: pack mine has no lock entry; rig pack add writes the entry`. Commit the pack in the git repository of your overlay, then adopt it from that commit and attest it:
+
 ```text
+rig pack add file:///home/you/.config/rig --sha <full commit of the overlay repo> --name mine --port packs/mine --into overlay
+rig pin set mine --ported
 rig plan
-...
-create  owned  claude  ~/.claude/skills/notes/SKILL.md                                 mine/notes
-34 changes, 0 blocks
 ```
+
+```text
+...
+create  owned  claude  ~/.claude/skills/notes/SKILL.md                                                           mine/notes
+<n> changes, 0 blocks
+```
+
+After each edit of the pack, run `rig pin set mine --ported` again. It hashes the folder from disk and needs no network.
 
 Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --root <dir> --path . --into overlay` ([Add packs and seal core](./04-packs-and-pins.md)).
 
@@ -75,8 +84,8 @@ To use your own version of a pack unit, declare `replaces` in your pack's `pack.
 ```text
 rig plan
 ...
-create  owned  claude  ~/.claude/skills/office-hours/SKILL.md                  mine/office-hours
-24 changes, 0 blocks
+create  owned  claude  ~/.claude/skills/office-hours/SKILL.md                                                    mine/office-hours
+<n> changes, 0 blocks
 ```
 
 The count includes the `notes` skill from above. The replaced unit leaves the stack on every harness. Your unit installs where its own pack entry allows, here Claude Code only. Two units that replace one target fail with `E_CLASH`. A `replaces` that names a unit that does not exist is `E_UNKNOWN_UNIT`.
@@ -97,7 +106,7 @@ A harness whose format fits no value that the schema knows, for example a new ag
 The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md`), the alias template and `terms.json`. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).
 
 - `disable` and `replaces` cannot name a core unit. Both fail with `E_SCHEMA`, for example `disable[0]: core units are sealed and cannot be named here`.
-- A pack unit with a core name fails with `E_CORE_SHADOW`. With `"aliases": {"pm": "oh"}` in `rig.json`, a pack command `pm` gives `mine/pm uses the core name pm (core/pm)`.
+- A pack unit with a core name fails with `E_CORE_SHADOW`. With `"aliases": {"pm": "tidy"}` in `rig.json`, a pack command `pm` gives `mine/pm uses the core name pm (core/pm)`.
 - An overlay `packs/core/` directory fails with `E_OVERLAY_CONFLICT`.
 
 The frame's text is fixed. Its one per-harness line, `Models:`, comes from the `models` field of each target record.

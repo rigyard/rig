@@ -15,6 +15,8 @@ import { patch } from "../lib/targets.ts";
 import { treeHash } from "../lib/tree.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { CANARY } from "./metrics.helpers.ts";
+import { stubPstack } from "./pstack.helpers.ts";
+import { authoredEntry } from "./world.helpers.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BIN = join(ROOT, "bin/rig.ts");
@@ -219,21 +221,21 @@ function filesUnder(dir, rel = "") {
 const TRANSCRIPTS = { claude: [".claude/projects", "claude/projects"], codex: [".codex/sessions", "codex/sessions"], omp: [".omp/agent/sessions", "omp/sessions"], cursor: [".cursor/projects", "cursor/projects"] };
 
 /**
- * A fixture HOME with a sealed repo root at ~/rig: this repo's data, core and every pack its rig.json lists. `rig`
+ * A fixture HOME with a sealed repo root at ~/rig: this repo's models, targets and core, and the stub pstack pack. `rig`
  * overrides keys of rig.json. `pack` replaces the packs with one repo pack `own` holding one skill `idle`, so a
  * proposal names only that skill. `transcripts` lists the harnesses whose fixture transcripts land at their record's root.
  */
 function setup({ rig: rigCfg = {}, pack = false, transcripts = [], home = {} } = {}) {
-  const cfg = JSON.parse(readFileSync(join(ROOT, "rig.json"), "utf8"));
-  const final = { ...cfg, ...rigCfg, ...(pack ? { packs: { own: {} } } : {}) };
-  const spec = { "rig/rig.json": canon(final) };
-  const packs = Object.keys(final.packs).filter((name) => name !== "own").map((name) => `packs/${name}`);
-  for (const dir of ["models", "targets", "packs/core", ...packs]) {
+  const stub = stubPstack();
+  const final = { ...stub.rig, ...rigCfg, ...(pack ? { packs: { own: {} } } : {}) };
+  const spec = { "rig/rig.json": canon(final), ...(pack ? {} : stub.spec) };
+  for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
+  const own = { "skills/idle/SKILL.md": "---\nname: idle\ndescription: A skill that no session loads.\n---\nDo nothing.\n" };
   if (pack) {
     spec["rig/packs/own/pack.json"] = canon({ schema: 2, name: "own", license: "MIT" });
-    spec["rig/packs/own/skills/idle/SKILL.md"] = "---\nname: idle\ndescription: A skill that no session loads.\n---\nDo nothing.\n";
+    spec["rig/packs/own/skills/idle/SKILL.md"] = own["skills/idle/SKILL.md"];
   }
   for (const h of transcripts) {
     const [to, from] = TRANSCRIPTS[h];
@@ -241,7 +243,7 @@ function setup({ rig: rigCfg = {}, pack = false, transcripts = [], home = {} } =
   }
   const fx = makeFixtureHome({ ...spec, ...home });
   const root = fx.path("rig");
-  const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
+  const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: pack ? { own: authoredEntry("own", own) } : stub.lock };
   writeFileSync(join(root, "rig.lock.json"), canon(lock));
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW };
   const rig = (args, input = "") => {

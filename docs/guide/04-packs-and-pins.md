@@ -15,11 +15,22 @@ An optional `pack.json` holds the license, the scopes the pack supports, and exc
 
 ## Meet the shipped packs
 
-The checkout ships two packs.
+The checkout ships five packs. Four of them make up the seeded default.
 
-`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json` and the alias template. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
+`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json`, the alias template, the domain table and the shell of the `craft` mode skill. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
 
-`packs/product` holds the `/oh` command and the `office-hours` skill. It is a port of the gstack office-hours skill at commit `b244e6d`. `NOTICE.md` lists each derived file, and `licenses/MIT-gstack.txt` holds the MIT license text. The pack is MIT and supports the scopes `machine-hidden`, `project` and `hybrid`. The checkout enables it with `"product": {}` in `rig.json`. The pack is part of v0 by [decision 0026](../decisions/0026-product-pack-in-v0.md). Open points are in [the open questions](../assumptions-and-open-questions.md#open-questions-for-the-user).
+| Pack | Source | What it holds |
+|---|---|---|
+| `pstack` | `pstack/` of `https://github.com/cursor/plugins` at `2776ddd`, minus 12 excludes | 52 skills, the agents `poteto-agent` and `comment-sicko`, and the hub and 23 playbooks that install as `craft/hub.md` and `craft/playbooks/` |
+| `cursor-team-kit` | `cursor-team-kit/` of the same repo and commit | the skills `deslop`, `control-cli` and `control-ui` |
+| `cli-for-agent` | `cli-for-agent/` of the same repo and commit | the skill `cli-for-agents` |
+| `product` | a port of gstack `office-hours` at `b244e6d`, pinned at `b406820` | the `office-hours` skill |
+
+rig vendored the first three with `rig pack add`. Their bytes are upstream bytes, and `rig.lock.json` records the repo, the commit, the root, the paths and the excludes. Each pack folder also holds a `pack.json` that rig wrote and that the lock tree leaves out. `packs/pstack/pack.json` holds the pstack model surfaces and the mode data that [Run multi-step work with /craft](./06-craft.md) describes. `pstack` excludes the folders that hold scripts or that no harness loads. It also excludes `setup-pstack`, because rig writes the model rule itself, and `poteto-help`, whose links point at a skill dir that no harness gets.
+
+`packs/product` is a port that rig adopted with `rig pack add --port`. `NOTICE.md` lists each derived file, and `licenses/MIT-gstack.txt` holds the MIT license text. The pack is MIT and supports the scopes `machine-hidden`, `project` and `hybrid`. The pack is part of v0 by [decision 0026](../decisions/0026-product-pack-in-v0.md). Open points are in [the open questions](../assumptions-and-open-questions.md#open-questions-for-the-user).
+
+Every pack folder needs a lock entry. A pack folder with no entry blocks `rig plan` in the `pin` check. `rig pack add` writes the entry.
 
 ## Turn a pack on or off
 
@@ -27,20 +38,23 @@ The `packs` object in `rig.json` lists the packs to install. An empty object tak
 
 ```text
 "packs": {
-  "product": {}
+  "cli-for-agent": {},
+  "cursor-team-kit": {},
+  "product": {},
+  "pstack": {}
 }
 ```
 
-To turn a pack off, remove its key from the checkout `rig.json`. The overlay at `~/.config/rig/rig.json` only adds keys, so it cannot remove a repo pack. It can turn off single units with `disable`. This overlay file drops `/oh` from every harness:
+To turn a pack off, remove its key from the checkout `rig.json`. The overlay at `~/.config/rig/rig.json` only adds keys, so it cannot remove a repo pack. It can turn off single units with `disable`. This overlay file drops the `ketchup-video` skill from every harness:
 
 ```text
 {
   "schema": 2,
-  "disable": ["product/oh"]
+  "disable": ["pstack/ketchup-video"]
 }
 ```
 
-On a fresh temporary HOME, `rig plan` drops from 33 changes to 28: the four `/oh` command files are gone, and so is the Cursor plugin manifest, which only `/oh` needed. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
+On a fresh temporary HOME, `rig plan` drops from 305 changes to 302: the two copies of its `SKILL.md` and its Codex sidecar are gone. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
 
 ## Vendor a pack at a commit
 

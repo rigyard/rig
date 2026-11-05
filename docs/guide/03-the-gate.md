@@ -14,7 +14,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 
 | Check | Looks at | Result | Ackable |
 |---|---|---|---|
-| `pin` | Lock tree versus pack files, locked excludes, the port review (`E_PORT_STALE`), and the core seal. | block | never |
+| `pin` | Lock tree versus pack files, a pack with no lock entry, locked excludes, the port review (`E_PORT_STALE`), the core seal, and an install of a seeded upstream made outside rig (`E_FOREIGN_INSTALL`): a Claude Code, Cursor or omp plugin, a clone or link with the upstream name in a skill dir, or an unmanaged skill dir with a name that the pack leaves out. A disabled plugin, and a left-out name that the pack does not list in `foreign_block`, warn. | block | never |
 | `exec` | Pack sources: exec bit, shebang, script extension, executable or archive magic bytes, `hooks.json`, `.mcp.json`, `package.json` scripts, symlinks. | block | yes |
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |
@@ -29,20 +29,19 @@ Each harness also gets an `info budget` line with its always-on size in characte
 
 ## Read a blocked plan
 
-This run uses a temporary HOME. The overlay `~/.config/rig/rig.json` lists one pack, `demo`. The file `~/.config/rig/packs/demo/skills/hello/SKILL.md` has a zero-width space (U+200B) after the word "hello".
+This run uses a temporary HOME. The overlay `~/.config/rig/rig.json` lists one pack, `demo`. The file `~/.config/rig/packs/demo/skills/hello/SKILL.md` has a zero-width space (U+200B) after the word "hello". The pack has a lock entry from `rig pack add --port` and `rig pin set demo --ported`, as [Make it yours](./09-make-it-yours.md#add-a-pack) shows.
 
 ```text
 $ rig plan
 block unicode demo/skills/hello/SKILL.md: zero-width character U+200B x1 at line 8: Say hello<U+200B> to the user.
   ack: {"id":"158407a35ebe6adb","check":"unicode","pack":"demo","path":"skills/hello/SKILL.md","reason":"","expires":""}
-info budget */harness:claude: always-on: 717 characters, 180 tokens
 ...
-36 changes, 1 block
+<n> changes, 1 block
 $ echo $?
 1
 $ rig apply
 ...
-36 changes, 1 block
+<n> changes, 1 block
 blocked: nothing written
 ```
 
@@ -77,7 +76,7 @@ $ rig plan
 ...
 block unicode demo/skills/hello/SKILL.md: zero-width character U+200B x1 at line 8: Say hello<U+200B> to the user. (acked)
 ...
-36 changes, 0 blocks
+<n> changes, 0 blocks
 ```
 
 An ack holds through the end of its `expires` date in UTC. After that date, rig ignores it, and the finding blocks again. The `id` is a hash over the check, pack, path and evidence bytes. If the upstream file changes the offending line, the finding gets a new id and blocks again. The schema is in [section 2.9 of the architecture](../design/rig-architecture.md#29-auditallowjson).

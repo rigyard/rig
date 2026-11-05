@@ -4,13 +4,13 @@ In this page you start multi-step work with the mode skill `craft`. You see whic
 
 ## Type the mode skill
 
-Type `/craft` in Claude Code and `$craft` in Codex. Cursor and omp should take `/craft` too. The live lanes of `test/live/mode.test.ts` record the form that works. An optional first argument names a domain:
+Type `/craft` in Claude Code and Cursor, and `$craft` in Codex. The omp docs name `/skill:<name>` as the typed form of a skill, so `/skill:craft` there. The live lanes of `test/live/mode.test.ts` and `test/live/first-seed.test.ts` record the form that works. An optional first argument names a domain:
 
 ```text
 /craft eng: design the boundary between the parser and the renderer
 ```
 
-rig has four domains: business (`biz`), product (`prod`), engineering (`eng`) and upkeep (`upk`). `packs/core/domains.json` lists them with their stages. Without the argument, the model picks the domain from your task. The rig frame tells the model about `craft` in one line, in the typed form of each harness. The form comes from `skill_prefix` in `targets/<harness>.json`: `/craft` in Claude Code, Cursor and omp, `$craft` in Codex. In Claude Code the line reads ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.``, and in Codex it says `$craft` at both places.
+rig has four domains: business (`biz`), product (`prod`), engineering (`eng`) and upkeep (`upk`). `packs/core/domains.json` lists them with their stages. Without the argument, the model picks the domain from your task. The rig frame tells the model about `craft` in one line, in the typed form of each harness. The form comes from `skill_prefix` in `targets/<harness>.json`. It is `/craft` in Claude Code and Cursor, `$craft` in Codex, and `/skill:craft` in omp, because omp 18.16 runs a skill from a prompt only in the `/skill:<name>` form. In Claude Code the line reads ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.``. Codex says `$craft` and omp says `/skill:craft` at both places. The `craft` skill itself gives the domain argument as `eng: ...`, with no typed form, because every harness reads the same file.
 
 `craft` carries the hide switch of every harness, so the model never starts it on its own. You start it.
 
@@ -27,7 +27,9 @@ rig places a `craft/` dir in every skill dir that holds a vendored leaf, so the 
 | `craft/references/<domain>.md` | one file per domain, from `domains.json`, pack `mode` data and `rig.json` `fill` |
 | `craft/references/adapter.md` | one section per harness that reads the dir |
 
-The shell tells the model to read its adapter section first, then `hub.md` in full, then the domain file. Where a domain file and the hub name the same step, the domain file wins. A pack that adopts no `hub.md` gives a shell with no hub step.
+The shell tells the model to read its adapter section first, then `hub.md` in full, then the domain file. Hub triggers are keyed by situation, not by step. When a step's fill or pack hook restates a hub trigger, the domain file prints one line under that step, `Replaces the hub trigger: "<trigger text>"`, and the model runs the step in place of that trigger. The trigger text comes from `mode.hub_triggers` in the pack that ships the hub, keyed by step or hook address, verbatim from a `- ` line of `hub.md`. A text that is no such line fails with `E_MODE_REF`. The seeded pstack pack names four: `eng:ground` (`how`), `eng:design` (`architect`), `eng:review.before` (`no-comments`) and `eng:ship.before` (`deslop`). An address with no fill and no hook prints no line, so its hub trigger still applies.
+
+Each domain file says where to start. A domain with a playbook or an artifact tells the model to follow the playbook that the hub selects. If the hub selects no playbook, the model skips each step whose artifact for this task already exists and starts at the first step left. A domain with neither tells the model to start at the first step. A pack that adopts no `hub.md` gives a shell with no hub step.
 
 With a pack that ships a hub and one playbook, `rig plan` lists these files for Claude Code (`test/mode.test.ts`, "with the fixture pack, rig plan plans the shell, the hub, the playbook, one file per domain and the adapter"):
 
@@ -43,7 +45,33 @@ create  owned  claude  ~/.claude/skills/craft/playbooks/bug-fix.md              
 create  owned  claude  ~/.claude/skills/craft/references/bugbot-triage.md              core/craft
 ```
 
-The checkout enables no pack with a hub yet, so on main `rig plan` lists the shell, the four domain files and the adapter only.
+The checkout seeds pstack, so on main each `craft/` dir also holds pstack's hub, its 23 playbooks and `bugbot-triage.md`. rig writes one `craft/` dir in `~/.claude/skills`, for Claude Code and Cursor, and one in `~/.agents/skills`, for Codex, omp and Cursor. Cursor keeps the first copy of a name, so it reads one.
+
+## Know the seeded default
+
+The seed behaves as pstack does by default, because the model reads pstack's own hub. `rig.json` restates four step triggers of the hub as fills, so the domain file and the hub agree:
+
+| Hub trigger | Step | Unit | Set in |
+|---|---|---|---|
+| "Nontrivial change, architecture decision, or 'are we sure?'" | `eng:ground` | `pstack/how` | `rig.json` `fill` |
+| "Code crossing a function boundary" | `eng:design` | `pstack/architect` | `rig.json` `fill` |
+| "Before review" | `eng:review.before` | `pstack/no-comments` | `packs/pstack/pack.json` `mode.hooks` |
+| "Before commit" | `eng:ship.before` | `cursor-team-kit/deslop` | `rig.json` `fill` |
+
+`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` in your repository. The hub's other triggers stay in the hub. `auto` is empty, so every skill stays hidden until the hub, a domain file or you name it.
+
+Each pstack playbook carries a domain label in `packs/pstack/pack.json`. `worktree-cleanup` is upkeep, and the other 22 are engineering.
+
+pstack skills use Cursor tool names. `craft/references/adapter.md` maps them per harness:
+
+| Harness | Adapter source |
+|---|---|
+| Claude Code | a port of upstream `pstack/docs/harness/claude-code.md` to rig's layout, for example `Task` to `Agent` and `/pstack:<name>` to `/<name>` |
+| Codex | rig-authored from the Codex 0.166.0 tool names, for example `Task` to `spawn_agent` and a todolist to `update_plan` |
+| Cursor | rig-authored. The tool names stay. Only the install paths change. |
+| omp | rig-authored from the omp 18.16.0 tool names, for example `Task` to `task` and `AskQuestion` to `ask` |
+
+A pin move that changes `docs/harness/claude-code.md` upstream blocks `rig plan` with `E_PORT_STALE pstack` until a maintainer updates the Claude adapter and runs `rig pin set pstack --ported`.
 
 ## Supply mode data from a pack
 
@@ -114,7 +142,7 @@ block E_FILL_UNKNOWN eng:shipit: rig.json fill.eng:shipit is no step address of 
 An artifact that requires one that no pack writes:
 
 ```text
-block E_ARTIFACT_DANGLING prd: the artifact brief of pack fixture requires prd, which no artifact writes
+block E_ARTIFACT_DANGLING prd: the artifact sketch of pack fixture requires prd, which no artifact writes
 ```
 
 An adopted playbook with no domain label:

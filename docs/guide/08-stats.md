@@ -63,23 +63,25 @@ A store line holds counts, model names, tool names and dates. It holds no prompt
 ```text
 rig stats --suggest
 ...
+  skill cli-for-agent/cli-for-agents: no loads on claude, omp in 2 sessions: disable
+...
   skill product/office-hours: no loads on claude, omp in 2 sessions: disable
+...
   saved to proposals/2026-11-05.patch in the state root; apply it in the repo root with git apply, commit, then run rig apply
 diff --git a/rig.json b/rig.json
 --- a/rig.json
 +++ b/rig.json
-@@ -10,7 +10,9 @@
-     "product": {}
+@@ -29,7 +29,65 @@
+     ]
    },
-   "aliases": {},
+   "auto": [],
 -  "disable": [],
 +  "disable": [
-+    "product/office-hours"
-+  ],
-   "metrics": {
-     "session_hook": false
-   }
++    "cli-for-agent/cli-for-agents",
+...
 ```
+
+The fixture transcripts load no seeded skill, so this run proposes to disable all 57 of them. Read a proposal against your real sessions before you apply it.
 
 `--suggest` prints the report, then a section headed `suggestions (a proposed diff; rig applies nothing)` with the proposals, then a patch. It saves the patch under `~/.local/state/rig/proposals/` and changes nothing else. You decide: run `git apply` on the patch in the repo, commit it, then run `rig apply`.
 

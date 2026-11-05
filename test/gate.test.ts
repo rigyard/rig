@@ -345,14 +345,14 @@ test("pin: a lock tree that matches passes; one changed byte blocks and cannot b
   assert.throws(() => run(world({ packs: [p], locks, acks: [ack(f)] })), { code: "E_SCHEMA", message: /cannot be acked/ });
 });
 
-test("pin: a non-core pack with no lock entry warns, names the pack and does not block", () => {
+test("pin: a non-core pack with no lock entry blocks, names the pack and has no ack stanza", () => {
   const r = run(world({ packs: [goodPack("loose")], locks: lockWith() }));
   const [f] = of(r, "pin");
-  assert.equal(f.severity, "warn");
+  assert.equal(f.severity, "block");
   assert.equal(f.pack, "loose");
   assert.equal(f.stanza, null);
   assert.match(f.evidence, /^pack loose has no lock entry; rig pack add writes the entry$/);
-  assert.equal(r.blocked, false);
+  assert.equal(r.blocked, true);
 });
 
 test("pin: a file at or under a locked exclude blocks, even when the lock tree matches it", () => {

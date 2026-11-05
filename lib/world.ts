@@ -51,6 +51,8 @@ export type PackManifest = {
   mode?: Record<string, unknown>;
   model_surfaces?: ModelSurface[];
   telemetry?: {default_on: boolean, optout_env: string[]} | null;
+  /** Skill names that this pack leaves out and whose unmanaged copy in a read-set blocks rig plan (E_FOREIGN_INSTALL). */
+  foreign_block?: string[];
 };
 
 // schema: targets/<h>.json
@@ -64,7 +66,7 @@ export type TargetRecord = {
   hide: {method: "frontmatter-key"|"sidecar"|"none", key?: string, file?: string, value?: unknown};
   instructions: {path: string, mode: "whole-file"|"managed-block"};
   /** how the user types a skill by name in a prompt: `/craft` or `$craft` */
-  skill_prefix?: "/"|"$";
+  skill_prefix?: "/"|"$"|"/skill:";
   /** the frame's Models line: where model choices live */
   models?: {source: string, effort_table?: boolean};
   /** a rig-owned local plugin's manifest (Cursor, probe j) */

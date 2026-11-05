@@ -71,7 +71,19 @@ Put the render back from the diff, and make the change in the pack unit instead.
 
 **Acking a `pin` finding.** A `pin` block means a pack tree or the core tree differs from the lock, or a port is not reviewed (`E_PORT_STALE`). An ack for it fails the schema with exit 2. Restore the files, or, after a core change you meant, run `rig pin check core` and `rig pin set core`. For `E_PORT_STALE`, update the port, then run `rig pin set <pack> --ported`.
 
-**A hand-written command at a rendered path.** Your own `~/.claude/commands/oh.md` blocks the plan with `E_ADOPT_MISMATCH`, because the product pack renders `/oh` there. Rename your command, or disable `product/oh`.
+**pstack is already installed as a plugin.** The seed installs pstack, cursor-team-kit, cli-for-agent and gstack's `office-hours` as rig skills. A Claude Code or Cursor plugin install of the same upstream gives the model two copies, so `rig plan` blocks. The test "a Claude Code plugin record of pstack: rig plan prints E_FOREIGN_INSTALL pstack and exits 1, and apply keeps the record" prints:
+
+```text
+block pin */harness:claude: E_FOREIGN_INSTALL pstack: Claude Code has the plugin pstack@cursor-plugins installed (scope user), and pack pstack seeds the same upstream; rig never deletes what it does not own, so run claude plugin uninstall pstack@cursor-plugins --scope user
+```
+
+rig gives one finding per install entry of `installed_plugins.json`. A project install names its scope and project path, so run the uninstall command in that project. An install that `enabledPlugins` in the settings of its scope sets to `false` warns instead of blocking. For a Cursor plugin, the finding names the folder under `~/.cursor/plugins/`. `cursor-agent` has no command that uninstalls a plugin, so uninstall it in Cursor, or delete the folder by hand. For omp, the finding names the package in `~/.omp/plugins/omp-plugins.lock.json`, such as `@casualjim/pi-pstack`, and the command `omp plugin uninstall <package>`. A disabled omp plugin warns.
+
+A skill dir that rig does not manage can also hold a seeded upstream. `~/.claude/skills/gstack`, a gstack clone or link, blocks. So does a skill dir with a name that a pack excludes as `skills/<x>` or adopts, when the pack lists the name in `foreign_block`. pstack lists `poteto-mode`, a second hub, and `setup-pstack`, which rewrites the pstack model rule that rig owns. The other left-out pstack names (`statechart`, `make-bot-ui`, `poteto-help`, `create-formal-verification-skill`) warn. You remove each of these once per machine. The finding is a `pin` block, so you cannot ack it.
+
+**A hand-written file at a rendered path.** Your own `~/.agents/skills/architect/SKILL.md` blocks the plan with `E_ADOPT_MISMATCH`, because the pstack pack renders the `architect` skill there. rig never deletes a file that it does not own. Move your skill away, or disable `pstack/architect`.
+
+**A symlinked dir inside a harness dir.** rig writes no file through a symlink. When a dir below the first folder of a rendered path is a link, such as `~/.claude/skills/how` pointing to `~/mine/how`, `rig plan` blocks that path with `E_CONTAINMENT` and names the link and its target, and `rig apply` writes nothing. Replace the link with a real dir, or move it away. A link at the first folder, such as `~/.codex` pointing to a dotfiles checkout, still works.
 
 **`models set` with an overlay `tiers.json`.** The command refuses with exit 2, because it would copy your overlay rows into the repo file. Edit the overlay by hand and run `rig apply`.
 

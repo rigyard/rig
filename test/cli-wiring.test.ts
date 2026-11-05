@@ -12,7 +12,7 @@ import { treeHash } from "../lib/tree.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { makeStubs } from "./helpers/stubs.ts";
 import { cleanup as rmScratch, makeRepo, MIT_TEXT, scratch } from "./lock.helpers.ts";
-import { PSTACK_PACK } from "./pstack.helpers.ts";
+import { authoredEntry, repoLockPacks } from "./world.helpers.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BIN = join(ROOT, "bin/rig.ts");
@@ -42,16 +42,15 @@ function repoSpec() {
 }
 
 /**
- * A fixture HOME with a repo root at ~/rig. `sealed` writes a rig.lock.json whose core seal matches the copied core.
+ * A fixture HOME with a repo root at ~/rig and a rig.lock.json with the repo's pack entries. `sealed` gives the lock a
+ * core seal that matches the copied core.
  * @param {{home?: Record<string, any>, sealed?: boolean, edit?: (root: string) => void}} [opts]
  */
 function setup({ home = {}, sealed = true, edit } = {}) {
   const fx = makeFixtureHome({ ...repoSpec(), ...home });
   const root = fx.path("rig");
-  if (sealed) {
-    const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
-    writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
-  }
+  const core = sealed ? { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null } : null;
+  writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ schema: 2, core, packs: repoLockPacks() }, null, 2)}\n`);
   edit?.(root);
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW };
   /** @param {string[]} args @param {{env?: Record<string, string>, input?: string}} [o] */
@@ -80,12 +79,20 @@ const editRig = (root, change) => {
 
 describe("rig doctor", () => {
   test("a sealed fixture HOME: exit 0, the /pm reminder, and nothing written, not even a log line", (t) => {
-    const s = setup({ edit: (root) => editRig(root, (c) => ({ ...c, aliases: { pm: "oh" } })) });
+    const own = { "commands/tidy.md": "---\ndescription: Tidy the notes.\n---\nTidy the notes.\n" };
+    const s = setup({
+      home: { "rig/packs/own/pack.json": `${JSON.stringify({ schema: 2, name: "own", license: "MIT" })}\n`, "rig/packs/own/commands/tidy.md": own["commands/tidy.md"] },
+      edit: (root) => {
+        editRig(root, (c) => ({ ...c, packs: { ...c.packs, own: {} }, aliases: { pm: "tidy" } }));
+        const lock = JSON.parse(readFileSync(join(root, "rig.lock.json"), "utf8"));
+        writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ ...lock, packs: { ...lock.packs, own: authoredEntry("own", own) } }, null, 2)}\n`);
+      },
+    });
     t.after(() => s.fx.cleanup());
     const before = s.fx.snapshot();
     const r = s.rig(["doctor"]);
     assert.equal(r.code, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^info +alias +\/pm is an alias of \/oh/m);
+    assert.match(r.stdout, /^info +alias +\/pm is an alias of \/tidy/m);
     assert.match(r.stdout, /^0 errors, \d+ warnings$/m);
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
   });
@@ -195,10 +202,7 @@ describe("rig models", () => {
   });
 
   test("set changes exactly one value in models/tiers.json of the fixture root, and nothing else", (t) => {
-    const s = setup({
-      home: { "rig/packs/pstack/pack.json": `${JSON.stringify(PSTACK_PACK, null, 2)}\n` },
-      edit: (root) => editRig(root, (c) => ({ ...c, packs: { ...c.packs, pstack: {} } })),
-    });
+    const s = setup();
     t.after(() => s.fx.cleanup());
     const file = join(s.root, "models/tiers.json");
     const beforeText = readFileSync(file, "utf8");
@@ -279,7 +283,7 @@ describe("rig pack add", () => {
 
     // The lock it wrote loads, and its tree equals the files on disk once the pack is listed.
     const rigJson = JSON.parse(readFileSync(join(s.root, "rig.json"), "utf8"));
-    writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...rigJson, packs: { kit: {} } }, null, 2)}\n`);
+    writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...rigJson, packs: { kit: {} }, fill: {} }, null, 2)}\n`);
     const d = s.rig(["doctor"]);
     assert.equal(d.code, 0, d.stdout + d.stderr);
     assert.doesNotMatch(d.stdout, /^error/m);
@@ -293,18 +297,18 @@ describe("rig pack add", () => {
       rmScratch(base);
     });
     const repo = makeRepo(base, [{
-      "pstack/LICENSE": MIT_TEXT,
-      "pstack/skills/how/SKILL.md": "---\nname: how\ndescription: How.\n---\nExplain how.\n",
-      "pstack/skills/statechart/SKILL.md": "---\nname: statechart\ndescription: S.\n---\nRun it.\n",
-      "pstack/skills/statechart/scripts/run.sh": { content: "#!/bin/sh\necho statechart\n", mode: 0o755 },
+      "toolkit/LICENSE": MIT_TEXT,
+      "toolkit/skills/how/SKILL.md": "---\nname: how\ndescription: How.\n---\nExplain how.\n",
+      "toolkit/skills/statechart/SKILL.md": "---\nname: statechart\ndescription: S.\n---\nRun it.\n",
+      "toolkit/skills/statechart/scripts/run.sh": { content: "#!/bin/sh\necho statechart\n", mode: 0o755 },
       "other/SKILL.md": "not under the root\n",
     }]);
-    const r = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "pstack", "--path", ".", "--exclude", "skills/statechart"]);
+    const r = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "toolkit", "--path", ".", "--exclude", "skills/statechart"]);
     assert.equal(r.code, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^vendored pstack into packs\/pstack\/ /m);
+    assert.match(r.stdout, /^vendored toolkit into packs\/toolkit\/ /m);
     assert.match(r.stdout, /^kept 2 files, excluded \d+ bytes$/m);
     assert.match(r.stdout, /^0 findings, 0 blocks$/m);
-    assert.deepEqual(filesUnder(join(s.root, "packs/pstack")).map((f: {path: string}) => f.path).sort(), ["LICENSE", "pack.json", "skills/how/SKILL.md"]);
+    assert.deepEqual(filesUnder(join(s.root, "packs/toolkit")).map((f: {path: string}) => f.path).sort(), ["LICENSE", "pack.json", "skills/how/SKILL.md"]);
   });
 
   test("pack add with neither --path nor --port exits 2 with E_USAGE", (t) => {

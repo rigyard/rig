@@ -60,7 +60,8 @@ Exit codes: `0` done, `1` blocked or failed, `2` usage or config error.
 | Path | Content |
 |---|---|
 | `packs/core` | The sealed core: the frame that every harness loads, the per-harness terms, and the alias template. |
-| `packs/product` | `/oh`, an office-hours product review, ported from gstack under its MIT license (see `packs/product/NOTICE.md`). |
+| `packs/pstack`, `packs/cursor-team-kit`, `packs/cli-for-agent` | Upstream bytes of pstack, three cursor-team-kit skills and `cli-for-agents`, vendored from `https://github.com/cursor/plugins` at `2776ddd`. pstack's hub and playbooks install inside the `craft` mode skill. |
+| `packs/product` | The `office-hours` skill, a product review ported from gstack under its MIT license (see `packs/product/NOTICE.md`). |
 | `targets/` | One record per harness: where it reads, where rig writes, and which files carry model values. |
 | `models/` | `roles.json` maps roles to four tiers. `tiers.json` maps each tier to a model per harness. |
 
@@ -81,4 +82,4 @@ Tests build a temporary HOME and never touch yours. Tests that run real harness 
 
 Design, decisions and research live in [docs/](./docs/README.md).
 
-rig v1 is in progress. rig renders its own mode skill, `craft` (`/craft`), around the hub of a pack ([Run multi-step work with /craft](./docs/guide/06-craft.md)). Seeding pstack and gstack from pinned upstream commits comes next. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI. v1 features arrive PR by PR.
+rig v1 is in progress. The checkout seeds the first default config: pstack, cursor-team-kit and cli-for-agent from `https://github.com/cursor/plugins` at `2776ddd`, and the gstack `office-hours` port pinned at `b406820`. The mode skill `craft` (`/craft`) routes multi-step work through pstack's hub ([Run multi-step work with /craft](./docs/guide/06-craft.md)). When a plugin, a harness or a model changes, `rig pin check`, `rig pin set` and `rig plan` show in one place whether anything clashes. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI.

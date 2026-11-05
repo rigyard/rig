@@ -45,14 +45,14 @@ export function modelsHome(opts: {files?: Record<string, string | null>, tiers?:
   return s;
 }
 
-/** Model op lines of a plan report: [op, kind, path], for the paths of FILES and the Codex agent TOML files. */
+/** Model op lines of a plan report: [op, kind, path], for the paths of FILES and the Codex agent TOML files of the model table. */
 export function modelOps(stdout: string): string[][] {
   const out: string[][] = [];
   for (const line of stdout.split("\n")) {
-    const m = line.match(/^(\S+) +(owned|cells|block|json-element) +\S* +(~\/\S+)/);
+    const m = line.match(/^(\S+) +(owned|cells|block|json-element) +\S* +(~\/\S+) *(\S*)/);
     if (!m) continue;
     const rel = m[3].slice(2);
-    if (rel in FILES || /^\.codex\/agents\/[^/]+\.toml$/.test(rel)) out.push([m[1], m[2], m[3]]);
+    if (rel in FILES || (/^\.codex\/agents\/[^/]+\.toml$/.test(rel) && m[4] === "models/codex")) out.push([m[1], m[2], m[3]]);
   }
   return out.sort((a, b) => a[2].localeCompare(b[2]));
 }

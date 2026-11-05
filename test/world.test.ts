@@ -29,7 +29,7 @@ describe("loadWorld on the repo's own data", () => {
       const w = fx.load();
       assert.deepEqual(w.config.harnesses, ["claude", "codex", "omp", "cursor"]);
       assert.deepEqual(w.config.aliases, {});
-      assert.deepEqual([...w.packs.keys()], ["core", "product"]);
+      assert.deepEqual([...w.packs.keys()], ["core", "cli-for-agent", "cursor-team-kit", "product", "pstack"]);
       assert.deepEqual([...w.targets.keys()], ["claude", "codex", "omp", "cursor"]);
       assert.deepEqual(Object.keys(w.terms), ["ask-user", "subagent"]);
       assert.equal(w.now.toISOString(), NOW);

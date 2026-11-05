@@ -111,6 +111,7 @@ export const PACK = schema2(S.rec(
     mode: S.fn((v, fail) => (v !== null && typeof v === "object" && !Array.isArray(v) ? v : fail("expected an object"))),
     model_surfaces: S.arr(modelSurface),
     telemetry: S.nul(S.rec({ default_on: S.bool(), optout_env: S.arr(text()) }, ["default_on", "optout_env"])),
+    foreign_block: S.arr(id(), { unique: true }),
   },
   ["schema", "name"],
 ));
@@ -138,7 +139,7 @@ export const TARGET = S.rec(
     }),
     hide: S.rec({ method: S.enum(["frontmatter-key", "sidecar", "none"]), key: text(), file: text(), value: S.any() }, ["method"]),
     instructions: S.rec({ path: text(), mode: S.enum(["whole-file", "managed-block"]) }, ["path", "mode"]),
-    skill_prefix: S.enum(["/", "$"]),
+    skill_prefix: S.enum(["/", "$", "/skill:"]),
     // the manifest of a rig-owned local plugin; rendered when any file lands under its plugin root (probe j)
     plugin_manifest: S.rec({ path: text(), value: S.any() }, ["path", "value"]),
     effort_syntax: S.enum(["separate-key", "colon-suffix", "dash-fused", "bracket"]),

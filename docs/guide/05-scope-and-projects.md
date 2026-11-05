@@ -37,14 +37,12 @@ info scope cursor product: project part absent: commit its files (doctor --proje
 ...
 create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/skills/office-hours/SKILL.md                          product/office-hours
 ...
-create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/commands/oh.md                                        product/oh
-...
 create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/.claude-plugin/plugin.json                            product/plugin
 create  owned  claude  ~/.local/share/rig/marketplace/.claude-plugin/marketplace.json                                       core/marketplace
-25 changes, 0 blocks
+<n> changes, 0 blocks
 ```
 
-rig renders the plugin under its data root, in a marketplace named `rig-local`. The pack gets no copy in `~/.claude/skills`. The plugin version is a hash of the plugin files, for example `0.0.0-ac3a624d57fe`, so a changed pack gets a new version.
+rig renders the plugin under its data root, in a marketplace named `rig-local`. The pack gets no copy in `~/.claude/skills`, so the `craft` domain file names `office-hours` with no link. The plugin version is a hash of the plugin files, for example `0.0.0-ac3a624d57fe`, so a changed pack gets a new version.
 
 ## Register the plugin and enable it per project
 
@@ -52,7 +50,7 @@ rig renders the plugin under its data root, in a marketplace named `rig-local`. 
 
 ```text
 ...
-run 20261105T055333.405Z-1: 25 ops applied
+run 20261105T205235.622Z-1: <n> ops applied
 register claude: run once; it installs each project pack and disables it at user scope:
   claude plugin marketplace add ~/.local/share/rig/marketplace
   claude plugin install product@rig-local
@@ -67,7 +65,7 @@ One part is not verified end to end. Probe (k) did not check that Claude Code lo
 
 ## Commit files where no project channel exists
 
-Codex, omp and Cursor have no known per-project channel that stays out of the repository. On those harnesses the project part of a pack stays absent until you commit its files. `rig doctor --project` prints the paths: `.agents/skills/<name>/` for Codex, `.omp/skills/<name>/` for omp and `.cursor/skills/<name>/` for Cursor. Only skills have a known project path. A command such as `product/oh` gets a "no known project path" line. On Claude Code a rule unit has no plugin component, so `plan` prints an `absent` info line for it.
+Codex, omp and Cursor have no known per-project channel that stays out of the repository. On those harnesses the project part of a pack stays absent until you commit its files. `rig doctor --project` prints the paths: `.agents/skills/<name>/` for Codex, `.omp/skills/<name>/` for omp and `.cursor/skills/<name>/` for Cursor. Only skills have a known project path. A command unit gets a "no known project path" line. On Claude Code a rule unit has no plugin component, so `plan` prints an `absent` info line for it.
 
 ## Check a project with rig doctor --project
 
@@ -78,7 +76,7 @@ $ rig doctor --project ~/src/app
 info  drift managed files match installed.json and the render
 warn  scope claude pack product is declared for this project but not enabled: paste {"enabledPlugins": {"product@rig-local": true}} into ~/src/app/.claude/settings.local.json
 info  scope codex pack product: commit .agents/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
-info  scope codex pack product: product/oh has no known project path on codex
+info  scope omp pack product: commit .omp/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
 ...
 0 errors, 1 warnings
 ```

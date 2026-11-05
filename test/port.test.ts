@@ -13,6 +13,7 @@ import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { makeStubs } from "./helpers/stubs.ts";
 import { cleanup, GPL_TEXT, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
 import { filesUnder, json, repoJson, ROOT } from "./pstack.helpers.ts";
+import { repoLockPacks } from "./world.helpers.ts";
 
 const BIN = join(ROOT, "bin/rig.ts");
 const lockOf = (root: string) => JSON.parse(readFileSync(join(root, "rig.lock.json"), "utf8"));
@@ -44,7 +45,7 @@ function cli(t: {after: (fn: () => void) => void}, extraEnv: Record<string, stri
   });
   const root = fx.path("rig");
   const core = { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null };
-  writeFileSync(join(root, "rig.lock.json"), json({ schema: 2, core, packs: {} }));
+  writeFileSync(join(root, "rig.lock.json"), json({ schema: 2, core, packs: repoLockPacks() }));
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: "2026-11-05T12:00:00.000Z" };
   const rig = (...args: string[]) => {
     const r = spawnSync(process.execPath, [BIN, ...args], { env: { ...env, ...extraEnv }, cwd: fx.home, encoding: "utf8" });

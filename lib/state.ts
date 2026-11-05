@@ -123,7 +123,7 @@ function planOwned(e, o, ent, patch) {
   }
   if (!ent) {
     const why = cur.sha === want.sha ? `mode ${cur.mode.toString(8)} differs from ${mode.toString(8)}` : "bytes differ";
-    return blockOp("owned", o, e, ent, err("E_ADOPT_MISMATCH", `${o.tilde} exists and is not managed: ${why}`, o.tilde), unifiedDiff(o.tilde, o.bytes, bytes));
+    return blockOp("owned", o, e, ent, err("E_ADOPT_MISMATCH", `${o.tilde} exists and is not managed: ${why}; rig never deletes what it does not own, so move or delete it by hand`, o.tilde), unifiedDiff(o.tilde, o.bytes, bytes));
   }
   if (!sameSig(cur, recorded)) {
     return blockOp("owned", o, e, ent, err("E_DRIFT", `${o.tilde} changed since rig wrote it`, o.tilde), unifiedDiff(o.tilde, o.bytes, bytes));

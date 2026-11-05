@@ -7,5 +7,15 @@
     "hybrid"
   ],
   "license": "MIT",
-  "units": {}
+  "units": {},
+  "mode": {
+    "artifacts": {
+      "brief": {
+        "generates": "docs/designs/<slug>.md",
+        "write_at": "prod:discover",
+        "instruction": "Write the design doc from the office-hours session.",
+        "requires": []
+      }
+    }
+  }
 }

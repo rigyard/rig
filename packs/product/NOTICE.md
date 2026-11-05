@@ -7,6 +7,7 @@ The product pack is a port of material from gstack. gstack is MIT licensed. The 
 - Source: https://github.com/garrytan/gstack
 - Commit: b244e6d11a6466650c5147cd7dc023859968c4b5
 - License: `licenses/MIT-gstack.txt`, an unmodified copy of the gstack `LICENSE` file at that commit.
+- Pinned at: b4068209809315ab1578c78e33e73512b29749ca. `rig pin check` found the port sources (`LICENSE`, `office-hours/SKILL.md`, `office-hours/sections`) unchanged since the port commit, so the port carries over with no edit.
 
 Derived and modified:
 
@@ -15,4 +16,3 @@ Derived and modified:
 - `skills/office-hours/references/startup-diagnostic.md`: from `office-hours/sections/phase-2a-startup-diagnostic.md.tmpl`.
 - `skills/office-hours/references/builder-brainstorm.md`: from `office-hours/sections/phase-2b-builder-brainstorm.md.tmpl`.
 - `skills/office-hours/references/design-doc.md`: from `office-hours/sections/design-and-handoff.md.tmpl`. The design doc goes to `docs/designs/<slug>.md` in the user's repository. The closing ends with the design doc path.
-- `commands/oh.md`: new, the `/oh` entry for the skill.

@@ -13,6 +13,7 @@ import { treeHash } from "../lib/tree.ts";
 import { loadWorld } from "../lib/world.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { makeStubs } from "./helpers/stubs.ts";
+import { json, stubPstack } from "./pstack.helpers.ts";
 import { cleanup as rmScratch, makeRepo, MIT_TEXT, scratch } from "./lock.helpers.ts";
 import { makeWorld, tmpDir } from "./state.helpers.ts";
 
@@ -33,12 +34,11 @@ function filesUnder(dir, rel = "") {
   return out;
 }
 
-/** The repo data as fixture entries under `rig/`: core and every pack rig.json lists. `coreMode` overrides the mode of every core file. */
+/** The repo data as fixture entries under `rig/`: models, targets, core and the stub pstack pack. `coreMode` overrides the mode of every core file. */
 function repoSpec(coreMode) {
-  const rig = readFileSync(join(ROOT, "rig.json"));
-  const spec = { "rig/rig.json": rig };
-  const packs = Object.keys(JSON.parse(rig.toString("utf8")).packs).map((name) => `packs/${name}`);
-  for (const dir of ["models", "targets", "packs/core", ...packs]) {
+  const stub = stubPstack();
+  const spec = { "rig/rig.json": json(stub.rig), ...stub.spec };
+  for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) {
       spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: dir === "packs/core" && coreMode ? coreMode : f.mode };
     }
@@ -53,7 +53,7 @@ function repoSpec(coreMode) {
 function setup({ home = {}, coreMode, lock } = {}) {
   const fx = makeFixtureHome({ ...repoSpec(coreMode), ...home });
   const root = fx.path("rig");
-  const text = lock ?? `${JSON.stringify({ schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} }, null, 2)}\n`;
+  const text = lock ?? `${JSON.stringify({ schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: stubPstack().lock }, null, 2)}\n`;
   writeFileSync(join(root, "rig.lock.json"), text);
   const stubs = makeStubs([...HARNESS_CLIS, "git"]);
   const env = { HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW, ...stubs.env };
@@ -122,7 +122,7 @@ describe("rig plan", () => {
   });
 
   test("a checkout under umask 002 (core files 0664) keeps this repo's core seal", (t) => {
-    const s = setup({ coreMode: 0o664, lock: readFileSync(join(ROOT, "rig.lock.json"), "utf8") });
+    const s = setup({ coreMode: 0o664, lock: json({ ...JSON.parse(readFileSync(join(ROOT, "rig.lock.json"), "utf8")), packs: stubPstack().lock }) });
     t.after(s.cleanup);
     assert.equal(statSync(join(s.root, "packs/core/frame.md")).mode & 0o777, 0o664);
     const r = s.rig(["plan"]);

@@ -17,7 +17,7 @@ const MDC_HEAD = "---\nalwaysApply: true\n---\n";
 const FRAME_PATHS = { claude: "~/.claude/rules/rig-frame.md", codex: "~/.codex/AGENTS.md", omp: "~/.omp/agent/AGENTS.md", cursor: "~/.cursor/rules/rig-frame.mdc" };
 /** The frame variables whose lines differ per harness. Every other line is byte-identical across harnesses. */
 const PER_HARNESS = ["craft", "models"];
-const CRAFT: Record<string, string> = { claude: "/craft", codex: "$craft", cursor: "/craft", omp: "/craft" };
+const CRAFT: Record<string, string> = { claude: "/craft", codex: "$craft", cursor: "/craft", omp: "/skill:craft" };
 
 /** The real target records, which declare the frame paths (the world fixtures do not). */
 const realTargets = () => Object.fromEntries(HARNESSES.map((h) => [`targets/${h}.json`, readFileSync(join(ROOT, `targets/${h}.json`), "utf8")]));
