@@ -2,11 +2,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LockError } from "./errors.ts";
+import { SCHEMA_1_MESSAGE } from "../world.ts";
 
 export const LOCK_FILE = "rig.lock.json";
 
 /** No core seal yet: core is null until the first `rig pin check core`, and core.tree null until `rig pin set core`. */
-export const emptyLock = () => ({ schema: 1, core: null, packs: {}, pins: {} });
+export const emptyLock = () => ({ schema: 2, core: null, packs: {} });
 
 /** Read the lock of a config root; a missing file is an empty lock. The file must round-trip in canonical form. */
 export function readLock(rootDir) {
@@ -26,13 +27,14 @@ export function readLock(rootDir) {
   if (JSON.stringify(v, null, 2) + "\n" !== text) {
     throw new LockError("E_JSON_ROUNDTRIP", `${LOCK_FILE} does not round-trip in canonical form; fix the formatting by hand`, LOCK_FILE);
   }
-  return { schema: 1, core: v.core ?? null, packs: v.packs ?? {}, pins: v.pins ?? {} };
+  if (v?.schema !== 2) throw new LockError("E_SCHEMA", v?.schema === 1 ? SCHEMA_1_MESSAGE : `${LOCK_FILE} must carry schema 2`, LOCK_FILE);
+  return { schema: 2, core: v.core ?? null, packs: v.packs ?? {} };
 }
 
 const sorted = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
 
-/** Canonical bytes: fixed top-level order, pack and pin names sorted. */
+/** Canonical bytes: fixed top-level order, pack names sorted. */
 export function encodeLock(lock): Uint8Array {
-  const v = { schema: 1, core: lock.core, packs: sorted(lock.packs), pins: sorted(lock.pins) };
+  const v = { schema: 2, core: lock.core, packs: sorted(lock.packs) };
   return Buffer.from(JSON.stringify(v, null, 2) + "\n", "utf8");
 }

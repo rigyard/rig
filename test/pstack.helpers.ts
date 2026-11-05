@@ -1,5 +1,6 @@
-// Fixtures for the pstack tests: a fixture HOME whose repo root (~/rig) is a temp copy of this repo's data, with a
-// sealed core and an optional pstack lock entry, and a runner for bin/rig.ts with HOME set to it.
+// Fixtures for the pstack model rules tests: a fixture HOME whose repo root (~/rig) is a temp copy of this repo's
+// data plus a `pstack` pack that declares the pstack model rules in pack.json `model_surfaces`, with a sealed core,
+// and a runner for bin/rig.ts with HOME set to it.
 
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -11,9 +12,16 @@ import { makeFixtureHome } from "./helpers/fixture-home.ts";
 export const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BIN = join(ROOT, "bin/rig.ts");
 const NOW = "2026-11-05T12:00:00.000Z";
-export const PLUGIN = "pstack@cursor-plugins";
-export const VERSION = "9.8.7";
-export const SHA = "0123456789abcdef0123456789abcdef01234567";
+
+export const PSTACK_PACK = {
+  schema: 2,
+  name: "pstack",
+  license: "MIT",
+  model_surfaces: [
+    { path: "~/.claude/rules/pstack-models.md", harness: "claude", consumer: "pstack", kind: "whole", keep_header: true, grammar: "{model} {effort}" },
+    { path: "~/.cursor/rules/pstack-models.mdc", harness: "cursor", consumer: "pstack", kind: "whole", keep_header: true, grammar: "{model_effort}", effort_syntax: "dash-fused" },
+  ],
+};
 
 export function filesUnder(dir: string, rel = ""): {path: string, mode: number, bytes: Buffer}[] {
   const out = [];
@@ -29,26 +37,20 @@ export const repoJson = (rel) => JSON.parse(readFileSync(join(ROOT, rel), "utf8"
 export const json = (v) => `${JSON.stringify(v, null, 2)}\n`;
 
 /**
- * A fixture HOME with a sealed repo root at ~/rig. `pin` writes a pstack lock entry with that current version and
- * commit; null leaves the lock without one. `pins` sets rig.json pins.
- * @param {{home?: Record<string, any>, pin?: {version: string, sha: string} | null, pins?: string[]}} [opts]
+ * A fixture HOME with a sealed repo root at ~/rig whose rig.json lists the fixture pstack pack.
+ * @param {{home?: Record<string, any>}} [opts]
  */
-export function setup({ home = {}, pin = { version: VERSION, sha: SHA }, pins } = {}) {
-  const spec = { "rig/rig.json": readFileSync(join(ROOT, "rig.json")) };
-  const packs = Object.keys(repoJson("rig.json").packs).map((name) => `packs/${name}`);
-  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
+export function setup({ home = {} } = {}) {
+  const cfg = repoJson("rig.json");
+  const spec = { "rig/rig.json": json({ ...cfg, packs: { ...cfg.packs, pstack: {} } }), "rig/packs/pstack/pack.json": json(PSTACK_PACK) };
+  const packs = Object.keys(cfg.packs).map((name) => `packs/${name}`);
+  for (const dir of ["models", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
   const fx = makeFixtureHome({ ...spec, ...home });
   const root = fx.path("rig");
-  const lock = {
-    schema: 1,
-    core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null },
-    packs: {},
-    pins: pin ? { pstack: { plugin: PLUGIN, current: { ...pin, tree: "sha256:00" }, candidate: null } } : {},
-  };
+  const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
   writeFileSync(join(root, "rig.lock.json"), json(lock));
-  if (pins) writeFileSync(join(root, "rig.json"), json({ ...repoJson("rig.json"), pins }));
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW };
   /** @param {string[]} args */
   const rig = (args) => {

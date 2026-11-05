@@ -242,13 +242,16 @@ test("license: a license finding can be acked", () => {
 });
 
 const pinFixture = () => {
-  const p = goodPack("vendored", {}, { source: { repo: "https://example.invalid/r", sha: "abc1234", paths: ["skills"] } });
+  const p = goodPack("vendored");
   return { p, tree: treeHash(p.files) };
 };
 
+const SHA = "0123456789abcdef0123456789abcdef01234567";
+const packLock = (tree) => ({ repo: "x", sha: SHA, root: ".", paths: [], exclude: [], license: "MIT", tree, port: null, candidate: null });
+
 test("pin: a lock tree that matches passes; one changed byte blocks and cannot be acked", () => {
   const { p, tree } = pinFixture();
-  const locks = lockWith({ packs: { vendored: { repo: "x", sha: "abc1234", paths: [], license: "MIT", tree } } });
+  const locks = lockWith({ packs: { vendored: packLock(tree) } });
   assert.deepEqual(of(run(world({ packs: [p], locks })), "pin"), []);
 
   p.files.get("skills/hello/SKILL.md").bytes = Buffer.from("# Hello\n\nSay hellp.\n");
@@ -261,10 +264,14 @@ test("pin: a lock tree that matches passes; one changed byte blocks and cannot b
   assert.throws(() => run(world({ packs: [p], locks, acks: [ack(f)] })), { code: "E_SCHEMA", message: /cannot be acked/ });
 });
 
-test("pin: a vendored pack with no lock entry blocks; an own pack does not need one", () => {
-  const { p } = pinFixture();
-  assert.equal(of(run(world({ packs: [p] })), "pin").length, 1);
-  assert.deepEqual(of(run(world({ packs: [goodPack("own")] })), "pin"), []);
+test("pin: a non-core pack with no lock entry warns, names the pack and does not block", () => {
+  const r = run(world({ packs: [goodPack("loose")], locks: lockWith() }));
+  const [f] = of(r, "pin");
+  assert.equal(f.severity, "warn");
+  assert.equal(f.pack, "loose");
+  assert.equal(f.stanza, null);
+  assert.match(f.evidence, /^pack loose has no lock entry; rig pack add writes the entry$/);
+  assert.equal(r.blocked, false);
 });
 
 test("pin: a changed byte under core breaks the seal", () => {
@@ -278,72 +285,36 @@ test("pin: a changed byte under core breaks the seal", () => {
   assert.deepEqual(of(r, "license"), []);
 });
 
-const pinWorld = (installed, marketplaces = {}) => {
-  const target = { facts: { installed_plugins: "~/.claude/plugins/installed_plugins.json", marketplaces: "~/.claude/plugins/known_marketplaces.json" } };
-  return world({
-    pins: ["pstack"],
-    targets: { claude: target },
-    locks: lockWith({ pins: { pstack: { plugin: "pstack@mkt", current: { version: "1.0.0", sha: "abcdef1234", tree: "sha256:x" }, candidate: null } } }),
-    facts: {
-      "~/.claude/plugins/installed_plugins.json": { version: 2, plugins: { "pstack@mkt": [installed] } },
-      "~/.claude/plugins/known_marketplaces.json": marketplaces,
-    },
-  });
-};
+const tracked = (telemetry) => goodPack("tool", {}, { telemetry });
+const spec = { default_on: true, optout_env: ["TOOL_TELEMETRY=0", "DO_NOT_TRACK=1"] };
 
-test("pin: an installed plugin commit that differs from current blocks", () => {
-  assert.deepEqual(of(run(pinWorld({ version: "1.0.0", gitCommitSha: "abcdef1234" })), "pin"), []);
-  const r = run(pinWorld({ version: "1.0.1", gitCommitSha: "ffffff9999" }));
-  assert.equal(of(r, "pin")[0].severity, "block");
-  assert.equal(r.blocked, true);
-});
-
-test("pin: a marketplace with auto-update on that serves a pinned plugin warns", () => {
-  const r = run(pinWorld({ version: "1.0.0", gitCommitSha: "abcdef1234" }, { mkt: { autoUpdate: true } }));
-  const [f] = of(r, "pin");
-  assert.equal(f.severity, "warn");
-  assert.equal(r.blocked, false);
-  assert.equal(f.stanza, null);
-});
-
-test("pin: a listed pin without a locked current version blocks", () => {
-  const r = run(world({ pins: ["pstack"] }));
-  assert.equal(of(r, "pin")[0].severity, "block");
-});
-
-const openspec = { schema: 1, name: "openspec", kind: "workflow", telemetry: { default_on: true, optout_env: ["OPENSPEC_TELEMETRY=0", "DO_NOT_TRACK=1"] } };
-
-test("telemetry: warns without an opt-out variable and prints the export line", () => {
-  const r = run(world({ vars: {} }), desired(), stack({ providers: [openspec] }));
+test("telemetry: a pack.json with telemetry on warns without an opt-out variable and prints the export line", () => {
+  const r = run(world({ packs: [tracked(spec)], vars: {} }));
   const [f] = of(r, "telemetry");
   assert.equal(f.severity, "warn");
+  assert.equal(f.pack, "tool");
+  assert.equal(f.path, "pack.json");
   assert.match(f.evidence, /export DO_NOT_TRACK=1/);
   assert.equal(f.stanza, null);
   assert.equal(r.blocked, false);
 });
 
 test("telemetry: passes when a listed variable is set, each variable on its own", () => {
-  for (const vars of [{ DO_NOT_TRACK: "1" }, { OPENSPEC_TELEMETRY: "0" }]) {
-    assert.deepEqual(of(run(world({ vars }), desired(), stack({ providers: [openspec] })), "telemetry"), [], JSON.stringify(vars));
+  for (const vars of [{ DO_NOT_TRACK: "1" }, { TOOL_TELEMETRY: "0" }]) {
+    assert.deepEqual(of(run(world({ packs: [tracked(spec)], vars })), "telemetry"), [], JSON.stringify(vars));
   }
 });
 
 test("telemetry: a variable with the wrong value does not count", () => {
-  const r = run(world({ vars: { DO_NOT_TRACK: "0" } }), desired(), stack({ providers: [openspec] }));
+  const r = run(world({ packs: [tracked(spec)], vars: { DO_NOT_TRACK: "0" } }));
   assert.equal(of(r, "telemetry").length, 1);
 });
 
-test("telemetry: prints the tool's own variable when DO_NOT_TRACK is not listed; default_on false and null stay quiet", () => {
-  const own = { name: "tool", kind: "workflow", telemetry: { default_on: true, optout_env: ["TOOL_NO_TELEMETRY=1"] } };
-  const [f] = of(run(world(), desired(), stack({ providers: [own] })), "telemetry");
+test("telemetry: prints the pack's own variable when DO_NOT_TRACK is not listed; default_on false and no telemetry stay quiet", () => {
+  const [f] = of(run(world({ packs: [tracked({ default_on: true, optout_env: ["TOOL_NO_TELEMETRY=1"] })] })), "telemetry");
   assert.match(f.evidence, /export TOOL_NO_TELEMETRY=1/);
-  const quiet = [{ name: "a", kind: "headless", telemetry: null }, { name: "b", kind: "workflow", telemetry: { default_on: false, optout_env: [] } }];
-  assert.deepEqual(of(run(world(), desired(), stack({ providers: quiet })), "telemetry"), []);
-});
-
-test("telemetry: a pin record counts even when the stack does not list it", () => {
-  const w = world({ pins: ["openspec"], providers: { openspec }, locks: lockWith({ pins: { openspec: { plugin: "openspec@x", current: { version: "1", sha: "a", tree: "t" }, candidate: null } } }) });
-  assert.equal(of(run(w), "telemetry").length, 1);
+  const quiet = [goodPack("a"), goodPack("b", {}, { telemetry: { default_on: false, optout_env: [] } })];
+  assert.deepEqual(of(run(world({ packs: quiet })), "telemetry"), []);
 });
 
 test("gate is deterministic and does not change its inputs", () => {

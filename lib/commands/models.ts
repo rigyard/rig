@@ -20,13 +20,13 @@ const shown = (v) => (typeof v === "string" ? v : v && typeof v === "object" && 
 
 /**
  * The model-bearing filter of models set: a desired entry whose path is a declared model surface of a target
- * record, a provider record or the overlay rig.json. A `{role}` in a surface path expands over the roles of the
+ * record, a pack.json or the overlay rig.json. A `{role}` in a surface path expands over the roles of the
  * surface's consumer in roles.json, so a pack agent file of another name in the same dir stays out.
  */
 export function modelBearing(world: object): (e: {path: string}) => boolean {
   const surfaces = [
     ...[...world.targets.values()].flatMap((t) => t.model_surfaces ?? []),
-    ...[...world.providers.values()].flatMap((p) => p.model_surfaces ?? []),
+    ...[...world.packs.values()].flatMap((p) => p.manifest.model_surfaces ?? []),
     ...(world.config.model_surfaces ?? []),
   ];
   const paths = new Set();

@@ -131,7 +131,7 @@
   {
     "probe": "i-claude-headless-flags",
     "verdict": "PASS",
-    "sets": "argv template of the claude-cli headless provider record",
+    "sets": "argv template of the claude headless run",
     "evidence": {
       "exists": {
         "-p": true,
@@ -207,25 +207,6 @@
         "cliRejectsUnknownFlags": true
       },
       "note": "--max-turns is absent from --help in this version but the CLI accepts it; plugin-dir behaviour is covered by probe k"
-    }
-  },
-  {
-    "probe": "craft-claude-project-units",
-    "verdict": "PASS",
-    "sets": "claude /craft entry path (project command and skill units)",
-    "evidence": {
-      "command": {
-        "invocation": "/rigprobe-cmd",
-        "exit": 0,
-        "timedOut": false,
-        "sawMarker": true
-      },
-      "skillWithDisableModelInvocation": {
-        "invocation": "/rigprobe-skill",
-        "exit": 0,
-        "timedOut": false,
-        "sawMarker": true
-      }
     }
   }
 ]

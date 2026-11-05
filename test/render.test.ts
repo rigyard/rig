@@ -20,8 +20,8 @@ function ownerOf(path, recs) {
 const EXPECTED = {
   claude: [
     "~/.claude/rules/rig-frame.md",
-    "~/.claude/commands/craft.md",
-    "~/.claude/skills/rig-doc-review/SKILL.md",
+    "~/.claude/commands/brief.md",
+    "~/.claude/skills/rig-notes/SKILL.md",
     "~/.claude/skills/explain/SKILL.md",
     "~/.claude/commands/review.md",
     "~/.claude/agents/helper.md",
@@ -31,18 +31,18 @@ const EXPECTED = {
   // ~/.agents/skills belongs to the Codex record and also serves omp and Cursor
   codex: [
     "~/.codex/AGENTS.md",
-    "~/.codex/prompts/craft.md",
-    "~/.agents/skills/rig-doc-review/SKILL.md",
+    "~/.codex/prompts/brief.md",
+    "~/.agents/skills/rig-notes/SKILL.md",
     "~/.agents/skills/explain/SKILL.md",
     "~/.agents/skills/explain/agents/openai.yaml",
     "~/.codex/prompts/review.md",
     "~/.codex/agents/helper.toml",
     "~/.codex/prompts/pm.md",
   ],
-  omp: ["~/.omp/agent/AGENTS.md", "~/.omp/agent/commands/craft.md", "~/.omp/agent/commands/review.md", "~/.omp/agent/commands/pm.md"],
+  omp: ["~/.omp/agent/AGENTS.md", "~/.omp/agent/commands/brief.md", "~/.omp/agent/commands/review.md", "~/.omp/agent/commands/pm.md"],
   cursor: [
     "~/.cursor/rules/rig-frame.mdc",
-    "~/.cursor/plugins/local/rig/skills/craft/SKILL.md",
+    "~/.cursor/plugins/local/rig/skills/brief/SKILL.md",
     "~/.cursor/plugins/local/rig/skills/review/SKILL.md",
     "~/.cursor/agents/helper.md",
     "~/.cursor/rules/style.mdc",
@@ -68,7 +68,7 @@ test("each harness gets exactly the expected file set for the fixture stack", ()
     const dirs = recs.get(h).reads.skills.map((e) => e.path);
     const seen = [...byRel(d).keys()].filter((p) => p.endsWith("/SKILL.md") && dirs.some((dir) => p.startsWith(`${dir}/`)));
     const names = new Set(seen.map((p) => p.split("/").at(-2)));
-    for (const name of ["rig-doc-review", "explain"]) assert.ok(names.has(name), `${h} does not see ${name}`);
+    for (const name of ["rig-notes", "explain"]) assert.ok(names.has(name), `${h} does not see ${name}`);
   }
   // absent formats are info lines, not silence
   assert.deepEqual(d.info.sort(), [
@@ -97,10 +97,10 @@ test("a hidden skill carries the hide control of every harness that reads its di
   assert.match(agentsCopy, /^disable-model-invocation: true$/m);
   assert.equal(text(d.get("~/.agents/skills/explain/agents/openai.yaml")), "policy:\n  allow_implicit_invocation: false\n");
   // the core skill is visible
-  for (const p of ["~/.claude/skills/rig-doc-review/SKILL.md", "~/.agents/skills/rig-doc-review/SKILL.md"]) {
+  for (const p of ["~/.claude/skills/rig-notes/SKILL.md", "~/.agents/skills/rig-notes/SKILL.md"]) {
     assert.doesNotMatch(text(d.get(p)), /disable-model-invocation|^hide:/m, p);
   }
-  assert.ok(!d.has("~/.agents/skills/rig-doc-review/agents/openai.yaml"));
+  assert.ok(!d.has("~/.agents/skills/rig-notes/agents/openai.yaml"));
 });
 
 test("a hidden skill keeps a sidecar it already ships and adds the policy key line-level", () => {
@@ -118,9 +118,9 @@ test("a hidden skill keeps a sidecar it already ships and adds the policy key li
   assert.equal(text(d.get("~/.codex/skills/fmt/agents/openai.yaml")), "interface:\n  display_name: Fmt\npolicy:\n  allow_implicit_invocation: false\n");
 });
 
-test("/craft and the pm alias land at the per-harness paths; on Cursor as hidden skills in the local plugin", () => {
+test("/brief and the pm alias land at the per-harness paths; on Cursor as hidden skills in the local plugin", () => {
   const d = byRel(render(fixtureStack(), world()));
-  for (const name of ["craft", "pm"]) {
+  for (const name of ["brief", "pm"]) {
     for (const p of [`~/.claude/commands/${name}.md`, `~/.codex/prompts/${name}.md`, `~/.omp/agent/commands/${name}.md`]) {
       assert.equal(d.get(p)?.kind, "owned", p);
     }
@@ -129,8 +129,8 @@ test("/craft and the pm alias land at the per-harness paths; on Cursor as hidden
     assert.match(cursor, /^disable-model-invocation: true$/m);
   }
   // the alias names its target through the harness's invocation term
-  assert.equal(text(d.get("~/.codex/prompts/pm.md")), "Run /prompts:craft with the same arguments.\n");
-  assert.equal(text(d.get("~/.claude/commands/pm.md")), "---\ndescription: Alias of /craft.\n---\nRun /craft with the same arguments.\n");
+  assert.equal(text(d.get("~/.codex/prompts/pm.md")), "Run /prompts:brief with the same arguments.\n");
+  assert.equal(text(d.get("~/.claude/commands/pm.md")), "---\ndescription: Alias of /brief.\n---\nRun /brief with the same arguments.\n");
   // the local plugin gets its manifest once anything lands in it
   assert.deepEqual(JSON.parse(text(d.get("~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json"))), { name: "rig", skills: "./skills/" });
 });
@@ -228,7 +228,7 @@ test("nothing renders under a never_write glob; the error names the glob", () =>
   const d = render(fixtureStack(), world({ targets: recs }));
   assert.ok(![...byRel(d).keys()].some((p) => p.startsWith("~/.claude/commands/")));
   const errs = d.errors.filter((e) => e.code === "E_CONTAINMENT");
-  assert.deepEqual(errs.map((e) => e.path).sort(), ["~/.claude/commands/craft.md", "~/.claude/commands/pm.md", "~/.claude/commands/review.md"]);
+  assert.deepEqual(errs.map((e) => e.path).sort(), ["~/.claude/commands/brief.md", "~/.claude/commands/pm.md", "~/.claude/commands/review.md"]);
   for (const e of errs) assert.match(e.message, /~\/\.claude\/commands\/\*\*/);
   // every rendered path of every record stays clear of every never_write glob
   for (const p of byRel(d).keys()) assert.ok(!p.startsWith("~/.claude/plugins/") && !p.startsWith("~/.cursor/skills-cursor/"), p);
@@ -277,9 +277,6 @@ test("placement failures and unbuilt channels are errors, never silent drops", (
   const c = render(chan, world({ aliases: {} }));
   assert.equal(c.errors[0].code, "E_INTERNAL");
   assert.match(c.errors[0].message, /plugin channel render is not implemented/);
-  // a slot stub with no SKILL.md cannot carry its filler body
-  const stub = { units: [unit({ id: "core/rig-second-opinion", type: "slot-stub", files: { "README.md": "x" } })] };
-  assert.equal(render(stub, world({ aliases: {} })).errors[0].code, "E_INTERNAL");
 });
 
 test("leaks are info lines naming the harness", () => {
@@ -300,21 +297,19 @@ test("a project-scope pack renders no machine copy and says so per harness", () 
 
 test("the alias unit fills {{target}} from rig.json aliases; without an aliases entry the text stays as written", () => {
   const stack = { units: [unit({ id: "core/go", type: "command", harnesses: ["claude"], files: { "go.md": "Run /{{target}}.\n" } })] };
-  assert.equal(text(byRel(render(stack, world({ aliases: { go: "craft" } }))).get("~/.claude/commands/go.md")), "Run /craft.\n");
+  assert.equal(text(byRel(render(stack, world({ aliases: { go: "brief" } }))).get("~/.claude/commands/go.md")), "Run /brief.\n");
   assert.equal(text(byRel(render(stack, world({ aliases: {} }))).get("~/.claude/commands/go.md")), "Run /{{target}}.\n");
   // a pack command with an alias name is not the alias template
   const pack = { units: [unit({ id: "own/go", type: "command", harnesses: ["claude"], files: { "go.md": "Run /{{target}}.\n" } })] };
-  assert.equal(text(byRel(render(pack, world({ aliases: { go: "craft" } }))).get("~/.claude/commands/go.md")), "Run /{{target}}.\n");
+  assert.equal(text(byRel(render(pack, world({ aliases: { go: "brief" } }))).get("~/.claude/commands/go.md")), "Run /{{target}}.\n");
 });
 
-test("the frame renders frame.md only; principles.md does not render", () => {
-  const d = byRel(render(fixtureStack(), world()));
-  assert.ok(![...d.values()].some((e) => text(e).includes("# Principles")));
-  const noFrame = { units: [unit({ id: "core/rig-frame", type: "frame", files: { "principles.md": "x\n" } })] };
+test("a frame unit with no frame.md is E_INTERNAL", () => {
+  const noFrame = { units: [unit({ id: "core/rig-frame", type: "frame", files: { "notes.md": "x\n" } })] };
   assert.equal(render(noFrame, world({ aliases: {} })).errors[0].code, "E_INTERNAL");
 });
 
-test("the repo's own data: loadWorld, compose and render agree on /craft, the pm alias and the frame", () => {
+test("the repo's own data: loadWorld, compose and render agree on the frame", () => {
   const fx = makeFixtureHome({});
   try {
     const w = loadWorld({ HOME: fx.home });
@@ -323,12 +318,6 @@ test("the repo's own data: loadWorld, compose and render agree on /craft, the pm
     const d = render(stack, w);
     assert.deepEqual(d.errors, []);
     const at = new Map([...d.entries].map(([abs, e]) => [`~/${abs.slice(fx.home.length + 1)}`, e]));
-    for (const name of ["craft", "pm"]) {
-      for (const p of [`~/.claude/commands/${name}.md`, `~/.codex/prompts/${name}.md`, `~/.omp/agent/commands/${name}.md`,
-        `~/.cursor/plugins/local/rig/skills/${name}/SKILL.md`]) assert.ok(at.has(p), p);
-    }
-    assert.ok(!text(at.get("~/.claude/commands/pm.md")).includes("{{target}}"));
-    assert.match(text(at.get("~/.claude/commands/pm.md")), /\/craft\b/);
     for (const p of ["~/.claude/rules/rig-frame.md", "~/.omp/agent/AGENTS.md", "~/.cursor/rules/rig-frame.mdc"]) assert.equal(at.get(p)?.kind, "owned", p);
     assert.equal(at.get("~/.codex/AGENTS.md")?.kind, "block");
   } finally {
@@ -396,20 +385,3 @@ test("targets.patch: the rendered frame block appends, then converges; a locator
   assert.throws(() => patch(user, null), TypeError);
 });
 
-test("{{rig:intake}} lists each workflow provider with an intake on the dir's format owner, in rig.json order", () => {
-  const stack = {
-    ...fixtureStack(),
-    units: [unit({ id: "own/handoff", type: "skill", files: { "SKILL.md": "---\nname: handoff\ndescription: Fixture.\n---\n{{rig:intake}}\n" } })],
-    providers: [
-      { schema: 1, name: "beta", kind: "workflow", intake: { claude: "/beta <design-doc>", codex: null }, telemetry: null },
-      { schema: 1, name: "cli-judge", kind: "headless", telemetry: null },
-      { schema: 1, name: "alpha", kind: "workflow", intake: { claude: "/alpha <slug>, then /alpha-go <design-doc>" }, telemetry: null },
-      { schema: 1, name: "gamma", kind: "workflow", telemetry: null },
-    ],
-  };
-  const d = render(stack, world());
-  assert.deepEqual(d.errors, []);
-  const body = (p) => text(byRel(d).get(p)).split("---\n")[2];
-  assert.equal(body("~/.claude/skills/handoff/SKILL.md"), "- beta: Next: /beta <design-doc>\n- alpha: Next: /alpha <slug>, then /alpha-go <design-doc>\n");
-  assert.equal(body("~/.agents/skills/handoff/SKILL.md"), "- none: no workflow provider has an intake on this harness.\n");
-});

@@ -4,60 +4,56 @@ In this page you change the stack without forking it. You put your additions in 
 
 ## Use the overlay
 
-The overlay lives at `~/.config/rig` (or `$XDG_CONFIG_HOME/rig`). It has the same layout as the repo: `rig.json`, `packs/`, `providers/`, `models/`, `rig.lock.json` and `audit.allow.json`. Keep it in its own git repository. Then the repo stays generic, and your private packs, providers and model ids stay in the overlay ([decision 0002](../decisions/0002-generic-repo-private-overlay.md)).
+The overlay lives at `~/.config/rig` (or `$XDG_CONFIG_HOME/rig`). It has the same layout as the repo: `rig.json`, `packs/`, `models/`, `rig.lock.json` and `audit.allow.json`. Keep it in its own git repository. Then the repo stays generic, and your private packs and model ids stay in the overlay ([decision 0002](../decisions/0002-generic-repo-private-overlay.md)).
 
-The overlay only adds. It can add packs, providers, list entries, tier cells, roles and slot fillers. It cannot change a value that the repo sets:
+The overlay only adds. It can add packs, list entries, tier cells and roles. It cannot change a value that the repo sets:
 
 ```text
 mkdir -p ~/.config/rig
-echo '{"schema": 1, "default_provider": "openspec"}' > ~/.config/rig/rig.json
+echo '{"schema": 2, "metrics": {"session_hook": true}}' > ~/.config/rig/rig.json
 rig plan
 ```
 
-That plan exits 2 with `rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: default_provider: the repo already sets this value; the overlay only adds`. A list entry that the repo already has, a tier cell, a role and a provider record in both roots fail the same way (tests under `overlay merge adds only` in `test/world.test.ts`).
+That plan exits 2 with `rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: metrics.session_hook: the repo already sets this value; the overlay only adds`. A list entry that the repo already has, a tier cell and a role fail the same way (tests under `overlay merge adds only` in `test/world.test.ts`).
 
 ## Disable a default unit
 
 Add the unit id, `<pack>/<unit>`, to `disable` in the overlay `rig.json`:
 
 ```text
-{"schema": 1, "disable": ["product/office-hours"]}
+{"schema": 2, "disable": ["product/office-hours"]}
 ```
 
 ```text
 rig plan
 ...
-22 changes, 0 blocks
+9 changes, 0 blocks
 ```
 
-The same plan without the entry has 33 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
+The same plan without the entry has 20 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
 
 ```text
 block E_UNKNOWN_UNIT disable names product/nothing, which no listed pack contains
 ```
-
-## Fill a slot
-
-The repo leaves both slots, `doc-review` and `second-opinion`, empty (`null`). The overlay fills one with a provider that it lists. [Pick and swap models](./07-models.md#fill-the-second-opinion-slot) shows a full `second-opinion` example. A slot takes one filler. When the repo already fills a slot, an overlay filler fails with `E_SLOT_TWICE` (test `a second filler is E_SLOT_TWICE` in `test/world.test.ts`). The overlay cannot empty a filled slot either.
 
 ## Add a pack
 
 Put the pack under `~/.config/rig/packs/<name>/` and list it in the overlay `rig.json`. A pack holds `pack.json` plus units by layout: `skills/<name>/SKILL.md`, `commands/<name>.md`, `agents/<name>.md` and `rules/<name>.md`.
 
 ```text
-~/.config/rig/packs/mine/pack.json          {"schema": 1, "name": "mine", "license": "MIT"}
+~/.config/rig/packs/mine/pack.json          {"schema": 2, "name": "mine", "license": "MIT"}
 ~/.config/rig/packs/mine/skills/notes/SKILL.md
-~/.config/rig/rig.json                      {"schema": 1, "packs": {"mine": {"harnesses": ["claude"]}}}
+~/.config/rig/rig.json                      {"schema": 2, "packs": {"mine": {"harnesses": ["claude"]}}}
 ```
 
 ```text
 rig plan
 ...
 create  owned  claude  ~/.claude/skills/notes/SKILL.md                                 mine/notes
-34 changes, 0 blocks
+21 changes, 0 blocks
 ```
 
-Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --path <path> --into overlay` ([Add packs and pin plugins](./04-packs-and-pins.md)).
+Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --path <path> --into overlay` ([Add packs and seal core](./04-packs-and-pins.md)).
 
 Two units may not install one name. When `mine` adds a skill named `office-hours`, the plan blocks:
 
@@ -72,7 +68,7 @@ Skills and commands share one name space, because Claude Code runs both as `/nam
 To use your own version of a pack unit, declare `replaces` in your pack's `pack.json`:
 
 ```text
-{"schema": 1, "name": "mine", "license": "MIT",
+{"schema": 2, "name": "mine", "license": "MIT",
  "units": {"office-hours": {"replaces": "product/office-hours"}}}
 ```
 
@@ -80,7 +76,7 @@ To use your own version of a pack unit, declare `replaces` in your pack's `pack.
 rig plan
 ...
 create  owned  claude  ~/.claude/skills/office-hours/SKILL.md                  mine/office-hours
-24 changes, 0 blocks
+11 changes, 0 blocks
 ```
 
 The count includes the `notes` skill from above. The replaced unit leaves the stack on every harness. Your unit installs where its own pack entry allows, here Claude Code only. Two units that replace one target fail with `E_CLASH`. A `replaces` that names a unit that does not exist is `E_UNKNOWN_UNIT`.
@@ -98,12 +94,12 @@ A harness whose format fits no value that the schema knows, for example a new ag
 
 ## Know what stays sealed
 
-The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md` with the principles index `principles.md`), `/craft`, the alias template, the two slot stubs and `terms.json`. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).
+The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md`), the alias template and `terms.json`. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).
 
 - `disable` and `replaces` cannot name a core unit. Both fail with `E_SCHEMA`, for example `disable[0]: core units are sealed and cannot be named here`.
-- A pack unit with a core name fails with `E_CORE_SHADOW`, for example `mine/craft uses the core name craft (core/craft)`.
+- A pack unit with a core name fails with `E_CORE_SHADOW`. With `"aliases": {"pm": "oh"}` in `rig.json`, a pack command `pm` gives `mine/pm uses the core name pm (core/pm)`.
 - An overlay `packs/core/` directory fails with `E_OVERLAY_CONFLICT`.
 
-The frame's text is fixed, but you control what it renders. Its lines take `default_provider`, `providers`, `slots` and the model table from your configuration. The principles index points at the principle leaves of the pinned pstack plugin. On main, pstack has no locked version in `rig.lock.json` yet, so `rig plan` warns `pin pstack/rig.lock.json`. That is an open decision ([assumptions and open questions](../assumptions-and-open-questions.md)).
+The frame's text is fixed. Its one per-harness line, `Models:`, comes from the `models` field of each target record.
 
 Next: [Recipes and pitfalls](./10-recipes-and-pitfalls.md).

@@ -41,17 +41,17 @@ export function setup({ entry = {}, scopes = ["machine-hidden", "project", "hybr
   const cfg = JSON.parse(readFileSync(join(ROOT, "rig.json"), "utf8"));
   const final = { ...cfg, ...rigCfg, packs: { notes: entry } };
   const spec: Record<string, string | {content: Uint8Array, mode: number}> = { "rig/rig.json": canon(final) };
-  for (const dir of ["models", "providers", "targets", "packs/core"]) {
+  for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
-  spec["rig/packs/notes/pack.json"] = canon({ schema: 1, name: "notes", scopes, license: "MIT" });
+  spec["rig/packs/notes/pack.json"] = canon({ schema: 2, name: "notes", scopes, license: "MIT" });
   spec["rig/packs/notes/skills/notes/SKILL.md"] = skill;
   spec["rig/packs/notes/commands/tidy.md"] = tidy;
   spec["rig/packs/notes/rules/style.md"] = STYLE_RULE;
   spec[`${APP}/README.md`] = "# app\n";
   const fx = makeFixtureHome({ ...spec, ...home });
   const root = fx.path("rig");
-  const lock = { schema: 1, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {}, pins: {} };
+  const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
   writeFileSync(join(root, "rig.lock.json"), canon(lock));
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW };
   const rig = (args: string[]) => {

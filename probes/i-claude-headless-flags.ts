@@ -3,7 +3,7 @@
 import { finish, freshDir, parseOut, run } from "./_lib.ts";
 
 const probe = "i-claude-headless-flags";
-const sets = "argv template of the claude-cli headless provider record";
+const sets = "argv template of the claude headless run";
 const out = parseOut(process.argv);
 
 const help = run("claude", ["--help"], { timeoutMs: 30000 }).stdout;

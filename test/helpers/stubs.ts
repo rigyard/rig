@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 
 /** Names a stub may take. "git" records, then runs the real git with the same argv. */
-export const STUB_NAMES = ["claude", "codex", "omp", "cursor-agent", "openspec", "osv-scanner", "git"];
+export const STUB_NAMES = ["claude", "codex", "omp", "cursor-agent", "osv-scanner", "git"];
 
 /** Env keys a stub records. The allowlist keeps secret values out of the log. */
 const ENV_KEY = /^(HOME|DO_NOT_TRACK|XDG_.*|RIG_.*)$/;

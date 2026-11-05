@@ -53,8 +53,8 @@ const COMMANDS: Command[] = [
     run: packAddCmd,
     help: "vendor a pack at a commit, gate it, print ack stanzas",
   },
-  { name: "pin", sub: "check", args: ["name"], flags: { "--sha": { value: true, arg: "sha" } }, run: pinCmd, help: "gate a native plugin tree at a commit, record a candidate" },
-  { name: "pin", sub: "set", args: ["name"], flags: {}, run: pinCmd, help: "promote the candidate when the installed commit matches" },
+  { name: "pin", sub: "check", args: ["name"], flags: { "--sha": { value: true, arg: "sha" } }, run: pinCmd, help: "gate the core tree, record a candidate seal" },
+  { name: "pin", sub: "set", args: ["name"], flags: {}, run: pinCmd, help: "promote the candidate seal" },
 ];
 
 const NAMES = [...new Set(COMMANDS.map((c) => c.name))];

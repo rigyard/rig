@@ -15,7 +15,7 @@ import { runUnicode } from "./unicode.ts";
 export type CheckRow = {
   id: string;
   runsOn: string;
-  inputs: ("lock"|"sources"|"rendered"|"facts"|"records")[];
+  inputs: ("lock"|"sources"|"rendered"|"records")[];
   finds: string;
   severity: string;
   ackable: boolean;
@@ -26,8 +26,8 @@ export type CheckRow = {
 /** @type {readonly CheckRow[]} */
 export const REGISTRY = Object.freeze([
   {
-    id: "pin", runsOn: "lock, sources, facts, records", inputs: ["lock", "sources", "facts", "records"],
-    finds: "lock tree mismatch, core seal mismatch, installed plugin commit differs from `current`. Auto-update on for a marketplace that serves a pinned plugin (warn). A provider entry that reads the plugin cache with no locked version (warn)",
+    id: "pin", runsOn: "lock, sources", inputs: ["lock", "sources"],
+    finds: "lock tree mismatch, core seal mismatch",
     severity: "block", ackable: false, ackNote: "never", run: runPin,
   },
   {
@@ -56,7 +56,7 @@ export const REGISTRY = Object.freeze([
     severity: "block", ackable: true, ackNote: "yes", run: runCve,
   },
   {
-    id: "telemetry", runsOn: "provider and pin records", inputs: ["records"],
+    id: "telemetry", runsOn: "pack.json", inputs: ["records"],
     finds: "`default_on` and neither `DO_NOT_TRACK` nor a listed opt-out var set",
     severity: "warn", ackable: false, ackNote: "no: set the var", run: runTelemetry,
   },

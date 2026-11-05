@@ -2,12 +2,11 @@
 
 import type { World } from "./world.ts";
 import type { Scope } from "./world.ts";
-import type { ProviderRecord } from "./world.ts";
 
 export type Unit = {
   /** "<pack>/<name>" */
   id: string;
-  type: "skill"|"command"|"agent"|"rule"|"frame"|"slot-stub";
+  type: "skill"|"command"|"agent"|"rule"|"frame";
   /** installed name */
   name: string;
   scope: Scope;
@@ -18,10 +17,10 @@ export type Unit = {
   /** source files, relative to the unit */
   files: Map<string, {bytes: Uint8Array, mode: number}>;
 };
-export type Stack = {units: Unit[], slots: Record<string, ProviderRecord | null>, providers: ProviderRecord[], errors: RigError[]};
+export type Stack = {units: Unit[], errors: RigError[]};
 export type RigError = {code: string, message: string, path?: string, harness?: string};
 
-/** Core seal, packs, scope, disable, replace, slots, clash rules. Pure. */
+/** Core seal, packs, scope, disable, replace, clash rules. Pure. */
 export function compose(world: World): Stack {
   /** @type {RigError[]} */
   const errors = [];
@@ -29,13 +28,11 @@ export function compose(world: World): Stack {
   const H = world.config.harnesses;
   const narrow = (...lists) => H.filter((h) => lists.every((l) => !l || l.includes(h)));
 
-  // Core: always in the stack, never listed in packs. Slot stubs render where their filler's harnesses say.
   const core = world.packs.get("core");
   const coreUnits = [];
   for (const d of discover(core, true)) {
     if (d.type === "command" && d.name === "alias") continue; // the alias template, rendered once per alias below
-    const harnesses = d.type === "slot-stub" ? narrow(world.config.slots[slotOf(d.name)]?.harnesses) : [...H];
-    coreUnits.push(makeUnit("core", d, { scope: "machine-hidden", projects: [], harnesses, channel: {} }));
+    coreUnits.push(makeUnit("core", d, { scope: "machine-hidden", projects: [], harnesses: [...H], channel: {} }));
   }
   const aliasTemplate = core.files.get("commands/alias.md");
   for (const alias of Object.keys(world.config.aliases)) {
@@ -120,31 +117,15 @@ export function compose(world: World): Stack {
     }
   }
 
-  // Slots: one filler each (world rejects a second). A headless filler that forbids its own family must
-  // leave its own harness out of the slot's harnesses.
-  const slots = {};
-  for (const u of coreUnits.filter((x) => x.type === "slot-stub")) {
-    const slot = slotOf(u.name);
-    const filler = world.config.slots[slot] ?? null;
-    const p = filler ? world.providers.get(filler.provider) ?? null : null;
-    slots[slot] = p;
-    if (p?.forbid_same_family && p.model_harness && u.harnesses.includes(p.model_harness)) {
-      err("E_SAME_FAMILY", `${p.name} runs the ${p.model_harness} family; leave ${p.model_harness} out of slots.${slot}.harnesses`, `slots.${slot}`, p.model_harness);
-    }
-  }
-
-  const providers = world.config.providers.map((n) => world.providers.get(n));
-  return { units, slots, providers, errors };
+  return { units, errors };
 }
 
 /** Installed-name namespaces. Skills and commands share one: Claude Code invokes both as /name, Cursor renders commands as skills. */
-const NAMESPACE = { skill: "slash", command: "slash", "slot-stub": "slash", agent: "agent", rule: "rule", frame: "frame" };
-
-const slotOf = (name) => name.slice("rig-".length);
+const NAMESPACE = { skill: "slash", command: "slash", agent: "agent", rule: "rule", frame: "frame" };
 
 /**
  * Units by directory layout: skills/<name>/SKILL.md (the whole dir), commands/<name>.md, agents/<name>.md,
- * rules/<name>.md. In core also frame.md (with principles.md) as the frame, and skills/rig-<slot>/ as slot stubs.
+ * rules/<name>.md. In core also frame.md as the frame.
  * @param {import("./world.ts").Pack} pack @param {boolean} isCore
  * @returns {{type: Unit["type"], name: string, files: Map<string, {bytes: Uint8Array, mode: number}>}[]}
  */
@@ -162,14 +143,12 @@ function discover(pack, isCore) {
   }
   for (const [name, files] of skills) {
     if (!files.has("SKILL.md")) continue;
-    out.push({ type: isCore && name.startsWith("rig-") ? "slot-stub" : "skill", name, files });
+    out.push({ type: "skill", name, files });
   }
   if (isCore && pack.files.has("frame.md")) {
-    const files = new Map([["frame.md", pack.files.get("frame.md")]]);
-    if (pack.files.has("principles.md")) files.set("principles.md", pack.files.get("principles.md"));
-    out.push({ type: "frame", name: "rig-frame", files });
+    out.push({ type: "frame", name: "rig-frame", files: new Map([["frame.md", pack.files.get("frame.md")]]) });
   }
-  const rank = { frame: 0, "slot-stub": 1, skill: 2, command: 3, agent: 4, rule: 5 };
+  const rank = { frame: 0, skill: 1, command: 2, agent: 3, rule: 4 };
   return out.sort((a, b) => rank[a.type] - rank[b.type] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 

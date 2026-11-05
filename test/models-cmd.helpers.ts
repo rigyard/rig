@@ -25,7 +25,7 @@ export const FILES: Record<string, string> = {
 };
 
 /** The overlay rig.json: the fleet rules file with its roster and effort tables as cells surfaces. */
-export const OVERLAY = { schema: 1, model_surfaces: [SURFACES.roster, SURFACES.efforts] };
+export const OVERLAY = { schema: 2, model_surfaces: [SURFACES.roster, SURFACES.efforts] };
 
 /**
  * A fixture HOME with the model fixtures in place. `files` overrides or drops (null) a fixture by home path;

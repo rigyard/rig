@@ -1,6 +1,6 @@
 # Pick and swap models
 
-In this page you read the model table that rig renders into each harness, swap the model of one tier, pin a Claude tier to a full model id, and fill the `second-opinion` slot with a model from another family. You get one place to change a model after a vendor release, and a guarantee that rig changes only the model and effort cells of your files.
+In this page you read the model table that rig renders into each harness, swap the model of one tier, and pin a Claude tier to a full model id. You get one place to change a model after a vendor release, and a guarantee that rig changes only the model and effort cells of your files.
 
 ## Know the two files
 
@@ -58,11 +58,9 @@ A file whose cells equal the render is adopted, and rig records it. A file that 
 ```text
 rig models set strong acme-strong-2 --harness claude
 models/tiers.json: tiers.strong.claude: opus -> acme-strong-2
-...
-update       owned  claude  ~/.claude/rules/pstack-models.md  pstack/models
-patch-cells  cells  claude  ~/.claude/agents/reviewer.md      models/claude
-2 changes, 0 blocks
-run 20261105T055313.336Z-2: 2 ops applied
+patch-cells  cells  claude  ~/.claude/agents/reviewer.md  models/claude
+1 change, 0 blocks
+run 20261105T055313.336Z-2: 1 ops applied
 ```
 
 `rig models set` runs one journaled apply on the model files only, then writes `models/tiers.json`. You do not need a separate `rig apply`. The next `rig apply` prints `0 changes, 0 blocks`. If the plan blocks, for example because you hand-edited a cell, rig writes nothing, and `tiers.json` keeps its bytes. Commit `models/tiers.json` after the swap.
@@ -112,22 +110,5 @@ The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo doe
 `rig models` then shows four `codex` rows, and `rig plan` adds `create block codex ~/.codex/config.toml models/codex`. That block sits between `rig:models` markers. Whether markers stay limited to inserted blocks like this one is an open decision ([assumptions and open questions](../assumptions-and-open-questions.md)).
 
 The overlay can only add. A cell that the repo already sets fails with `E_OVERLAY_CONFLICT`. With an overlay `tiers.json` present, `rig models set` refuses with exit 2, because it would copy your overlay values into the repo file. Edit the overlay file by hand and run `rig apply`. That path uses the same writer. The same add-only rule holds for an overlay `models/roles.json`.
-
-## Fill the second-opinion slot
-
-The `second-opinion` slot gets an independent verdict from another model family. In v0 only a headless provider fills it. Put a provider record in `~/.config/rig/providers/claude-cli.json` with `"kind": "headless"`, `"argv": ["claude", "-p", "--output-format", "json", "--model", "{model}", "{prompt}"]`, `"model_harness": "claude"` and `"forbid_same_family": true`. Then list it in `~/.config/rig/rig.json`:
-
-```text
-{"schema": 1, "providers": ["claude-cli"],
- "slots": {"second-opinion": {"provider": "claude-cli", "tier": "strong", "harnesses": ["codex", "omp", "cursor"]}}}
-```
-
-rig renders the `rig-second-opinion` skill with the model of the `strong` tier:
-
-```text
-Provider: claude-cli. Run `claude -p --output-format json --model opus "<prompt>"`, where <prompt> is the input above. Its output is the output above.
-```
-
-Leave the provider's own harness out of `harnesses`. Otherwise the plan blocks with `E_SAME_FAMILY claude-cli runs the claude family; leave claude out of slots.second-opinion.harnesses`. A CLI provider spends tokens in its own harness, and they show up in that harness's transcripts.
 
 Next: [Read your usage](./08-stats.md).

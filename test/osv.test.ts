@@ -1,5 +1,5 @@
-// refreshOsv and the OSV cache: lockfile parsing, severity mapping, the cache shape the cve check reads, and the two
-// commands that may use the network. Every request goes through an injected fetchFn, so nothing here reaches OSV.
+// refreshOsv and the OSV cache: lockfile parsing, severity mapping, the cache shape the cve check reads, and the
+// command that may use the network. Every request goes through an injected fetchFn, so nothing here reaches OSV.
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -16,7 +16,7 @@ import { cvss3Score, parseNpmLock, severityOf } from "../lib/gate/osv.ts";
 import type { Deps } from "../lib/commands/shared.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { cleanup as rmScratch, makeRepo, MIT_TEXT, scratch } from "./lock.helpers.ts";
-import { filesUnder, json, PLUGIN, ROOT, setup, VERSION } from "./pstack.helpers.ts";
+import { json, ROOT, setup } from "./pstack.helpers.ts";
 
 const STATE = ".local/state/rig";
 const CACHE = `${STATE}/cache/osv/npm.json`;
@@ -378,61 +378,20 @@ describe("rig pack add refreshes the OSV cache", () => {
   });
 });
 
-describe("rig pin check refreshes the OSV cache", () => {
-  const MARKET = join(ROOT, "test/fixtures/pstack/marketplace");
-  const LOCK = lockText([["lodash", "4.17.15"]]);
-  const pinArgs = (name: string, sha: string | null): ParsedArgs => ({ cmd: "pin", sub: "check", args: { name }, flags: sha ? { sha } : {} });
-
-  function pluginSetup(t: TestContext, lock: string | null) {
-    const base = scratch();
-    t.after(() => rmScratch(base));
-    const files = Object.fromEntries(filesUnder(MARKET).map((f) => [f.path, f.bytes.toString("utf8")]));
-    const repo = makeRepo(base, [lock === null ? files : { ...files, "pstack/package-lock.json": lock }]);
-    const markets = { "cursor-plugins": { source: { source: "git", url: repo.url } } };
-    const installed = { version: 2, plugins: { [PLUGIN]: [{ scope: "user", version: VERSION, gitCommitSha: repo.shas[0] }] } };
-    const s = setup({ home: { ".claude/plugins/known_marketplaces.json": json(markets), ".claude/plugins/installed_plugins.json": json(installed) } });
-    t.after(() => s.fx.cleanup());
-    return { s, sha: repo.shas[0] };
-  }
-
-  test("a vulnerable plugin lockfile blocks the candidate: the cache is written and the lock records nothing", async (t) => {
-    const { s, sha } = pluginSetup(t, LOCK);
-    const before = readFileSync(join(s.root, "rig.lock.json"));
-    const stub = osvStub({ "lodash@4.17.15": ["GHSA-aaaa-bbbb-cccc"] }, { "GHSA-aaaa-bbbb-cccc": HIGH });
-    const r = await run(pinCmd, pinArgs("pstack", sha), s.env, stub.fetchFn);
-    assert.equal(r.code, 1, r.out);
-    assert.match(r.out, /^block cve pstack\/package-lock\.json: GHSA-aaaa-bbbb-cccc: high advisory/m);
-    assert.deepEqual(JSON.parse(s.read(CACHE)).results[sha256(LOCK)].advisories, [{ id: "GHSA-aaaa-bbbb-cccc", severity: "high" }]);
-    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
-  });
-
-  test("a plugin without a lockfile makes no request and records the candidate", async (t) => {
-    const { s, sha } = pluginSetup(t, null);
-    const stub = osvStub({}, {});
-    const r = await run(pinCmd, pinArgs("pstack", sha), s.env, stub.fetchFn);
-    assert.equal(r.code, 0, r.out);
-    assert.deepEqual(stub.calls, []);
-  });
-
-  test("a network failure blocks the candidate on the missing cache", async (t) => {
-    const { s, sha } = pluginSetup(t, LOCK);
-    const r = await run(pinCmd, pinArgs("pstack", sha), s.env, failing().fetchFn);
-    assert.equal(r.code, 1, r.out);
-    assert.match(r.out, /^warn cve pstack\/package-lock\.json: OSV refresh failed/m);
-    assert.match(r.out, /^block cve pstack\/package-lock\.json: no cached OSV result/m);
-  });
+describe("rig pin check core", () => {
+  const pinArgs = (name: string): ParsedArgs => ({ cmd: "pin", sub: "check", args: { name }, flags: {} });
 
   test("pin check core makes no request", async (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
     const stub = osvStub({}, {});
-    const r = await run(pinCmd, pinArgs("core", null), s.env, stub.fetchFn);
+    const r = await run(pinCmd, pinArgs("core"), s.env, stub.fetchFn);
     assert.equal(r.code, 0, r.out);
     assert.deepEqual(stub.calls, []);
   });
 });
 
-describe("the network stays in two commands", () => {
+describe("the network stays in rig pack add", () => {
   test("osvFetch refuses a URL outside api.osv.dev before any request", async () => {
     await assert.rejects(() => osvFetch("https://example.com/v1/querybatch", "{}"), /not an OSV URL/);
     await assert.rejects(() => osvFetch("https://api.osv.dev.evil.test/v1/querybatch", "{}"), /not an OSV URL/);

@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "harnesses": [
     "claude",
     "codex",
@@ -9,19 +9,7 @@
   "packs": {
     "product": {}
   },
-  "pins": [],
-  "providers": [
-    "pstack",
-    "openspec"
-  ],
-  "default_provider": "pstack",
-  "aliases": {
-    "pm": "craft"
-  },
-  "slots": {
-    "doc-review": null,
-    "second-opinion": null
-  },
+  "aliases": {},
   "disable": [],
   "metrics": {
     "session_hook": false

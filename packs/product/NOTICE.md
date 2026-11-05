@@ -14,7 +14,5 @@ Derived and modified:
 - `skills/office-hours/references/product-core.md`: from the preamble pieces in `scripts/resolvers/preamble.ts` (ask-user format, completeness, confusion protocol, claims need evidence, search before building, voice, writing style, completion status), condensed.
 - `skills/office-hours/references/startup-diagnostic.md`: from `office-hours/sections/phase-2a-startup-diagnostic.md.tmpl`.
 - `skills/office-hours/references/builder-brainstorm.md`: from `office-hours/sections/phase-2b-builder-brainstorm.md.tmpl`.
-- `skills/office-hours/references/design-doc.md`: from `office-hours/sections/design-and-handoff.md.tmpl`. The design doc goes to `docs/designs/<slug>.md` in the user's repository. The closing hands off to the active rig workflow provider.
+- `skills/office-hours/references/design-doc.md`: from `office-hours/sections/design-and-handoff.md.tmpl`. The design doc goes to `docs/designs/<slug>.md` in the user's repository. The closing ends with the design doc path.
 - `commands/oh.md`: new, the `/oh` entry for the skill.
-
-`pack.json` records the same source and commit in `ported_from`.

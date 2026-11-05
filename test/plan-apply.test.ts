@@ -38,7 +38,7 @@ function repoSpec(coreMode) {
   const rig = readFileSync(join(ROOT, "rig.json"));
   const spec = { "rig/rig.json": rig };
   const packs = Object.keys(JSON.parse(rig.toString("utf8")).packs).map((name) => `packs/${name}`);
-  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
+  for (const dir of ["models", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) {
       spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: dir === "packs/core" && coreMode ? coreMode : f.mode };
     }
@@ -53,7 +53,7 @@ function repoSpec(coreMode) {
 function setup({ home = {}, coreMode, lock } = {}) {
   const fx = makeFixtureHome({ ...repoSpec(coreMode), ...home });
   const root = fx.path("rig");
-  const text = lock ?? `${JSON.stringify({ schema: 1, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {}, pins: {} }, null, 2)}\n`;
+  const text = lock ?? `${JSON.stringify({ schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} }, null, 2)}\n`;
   writeFileSync(join(root, "rig.lock.json"), text);
   const stubs = makeStubs([...HARNESS_CLIS, "git"]);
   const env = { HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW, ...stubs.env };
@@ -98,10 +98,18 @@ describe("rig plan", () => {
     assert.equal(r.code, 0, r.all);
     const ops = creates(r.stdout);
     assert.deepEqual([...new Set(ops.map(([h]) => h))].sort(), ["claude", "codex", "cursor", "omp"]);
-    assert.ok(ops.some(([h, p]) => h === "claude" && p === "~/.claude/commands/craft.md"), r.stdout);
+    assert.ok(ops.some(([h, p]) => h === "claude" && p === "~/.claude/rules/rig-frame.md"), r.stdout);
     assert.match(r.stdout, new RegExp(`^${ops.length} changes, 0 blocks$`, "m"));
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
     assert.deepEqual(s.harnessCalls(), [], "plan spawns no harness CLI");
+  });
+
+  test("a malformed ~/.claude/plugins/installed_plugins.json leaves plan at exit 0", (t) => {
+    const s = setup({ home: { ".claude/plugins/installed_plugins.json": "{not json" } });
+    t.after(s.cleanup);
+    const r = s.rig(["plan"]);
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.stdout, /^\d+ changes, 0 blocks$/m);
   });
 
   test("over this repo's own data and rig.lock.json: no pin block, exit 0", (t) => {
@@ -123,14 +131,14 @@ describe("rig plan", () => {
   });
 
   test("an unmanaged file at a rendered path blocks with E_ADOPT_MISMATCH and a diff; apply writes nothing", (t) => {
-    const s = setup({ home: { ".claude/commands/pm.md": "my own pm\n" } });
+    const s = setup({ home: { ".claude/rules/rig-frame.md": "my own frame\n" } });
     t.after(s.cleanup);
     const before = s.fx.snapshot();
     const r = s.rig(["plan"]);
     assert.equal(r.code, 1, r.all);
-    assert.match(r.stdout, /^block +owned +claude +~\/\.claude\/commands\/pm\.md +E_ADOPT_MISMATCH .*\(diff below\)$/m);
-    assert.match(r.stdout, /^--- ~\/\.claude\/commands\/pm\.md \(current\)\n\+\+\+ ~\/\.claude\/commands\/pm\.md \(desired\)\n/m);
-    assert.match(r.stdout, /^-my own pm$/m);
+    assert.match(r.stdout, /^block +owned +claude +~\/\.claude\/rules\/rig-frame\.md +E_ADOPT_MISMATCH .*\(diff below\)$/m);
+    assert.match(r.stdout, /^--- ~\/\.claude\/rules\/rig-frame\.md \(current\)\n\+\+\+ ~\/\.claude\/rules\/rig-frame\.md \(desired\)\n/m);
+    assert.match(r.stdout, /^-my own frame$/m);
     assert.match(r.stdout, /, 1 block$/m);
     const a = s.rig(["apply"]);
     assert.equal(a.code, 1, a.all);
@@ -140,9 +148,9 @@ describe("rig plan", () => {
 });
 
 describe("rig apply", () => {
-  test("a render error (an unknown term in a core command) blocks: plan exits 1, apply writes nothing", (t) => {
-    const craft = readFileSync(join(ROOT, "packs/core/commands/craft.md"), "utf8");
-    const s = setup({ home: { "rig/packs/core/commands/craft.md": `${craft}{{rig:no-such-term}}\n` } });
+  test("a render error (an unknown term in the core frame) blocks: plan exits 1, apply writes nothing", (t) => {
+    const frame = readFileSync(join(ROOT, "packs/core/frame.md"), "utf8");
+    const s = setup({ home: { "rig/packs/core/frame.md": `${frame}{{rig:no-such-term}}\n` } });
     t.after(s.cleanup);
     const before = s.fx.snapshot();
     const p = s.rig(["plan"]);
@@ -182,18 +190,18 @@ describe("rig apply", () => {
     const s = setup();
     t.after(s.cleanup);
     assert.equal(s.rig(["apply"]).code, 0);
-    writeFileSync(s.fx.path(".claude/commands/craft.md"), "edited by hand\n");
+    writeFileSync(s.fx.path(".claude/rules/rig-frame.md"), "edited by hand\n");
     const p = s.rig(["plan"]);
     assert.equal(p.code, 1, p.all);
-    assert.match(p.stdout, /^block +owned +claude +~\/\.claude\/commands\/craft\.md +E_DRIFT /m);
+    assert.match(p.stdout, /^block +owned +claude +~\/\.claude\/rules\/rig-frame\.md +E_DRIFT /m);
     const before = s.fx.snapshot();
     const d = s.rig(["doctor"]);
     assert.equal(d.code, 1, d.all);
-    assert.match(d.stdout, /^error +drift +~\/\.claude\/commands\/craft\.md: E_DRIFT /m);
+    assert.match(d.stdout, /^error +drift +~\/\.claude\/rules\/rig-frame\.md: E_DRIFT /m);
     assert.deepEqual(changed(before, s.fx.snapshot()), [], "doctor writes nothing");
     const a = s.rig(["apply"]);
     assert.equal(a.code, 1, a.all);
-    assert.equal(s.fx.read(".claude/commands/craft.md"), "edited by hand\n", "apply never overwrites drift");
+    assert.equal(s.fx.read(".claude/rules/rig-frame.md"), "edited by hand\n", "apply never overwrites drift");
   });
 
   test("a gate block (a pack script with a shebang) makes apply exit 1 and write nothing", (t) => {
@@ -266,13 +274,13 @@ describe("rig apply --undo", () => {
     const s = setup();
     t.after(s.cleanup);
     const run = runOf(s.rig(["apply"]).stdout);
-    writeFileSync(s.fx.path(".claude/commands/craft.md"), "edit one\n");
-    writeFileSync(s.fx.path(".codex/prompts/pm.md"), "edit two\n");
+    writeFileSync(s.fx.path(".claude/rules/rig-frame.md"), "edit one\n");
+    writeFileSync(s.fx.path(".omp/agent/AGENTS.md"), "edit two\n");
     const before = s.fx.snapshot();
     const u = s.rig(["apply", "--undo", run]);
     assert.equal(u.code, 1, u.all);
-    assert.match(u.stdout, /^conflict E_UNDO_CONFLICT ~\/\.claude\/commands\/craft\.md: /m);
-    assert.match(u.stdout, /^conflict E_UNDO_CONFLICT ~\/\.codex\/prompts\/pm\.md: /m);
+    assert.match(u.stdout, /^conflict E_UNDO_CONFLICT ~\/\.claude\/rules\/rig-frame\.md: /m);
+    assert.match(u.stdout, /^conflict E_UNDO_CONFLICT ~\/\.omp\/agent\/AGENTS\.md: /m);
     assert.match(u.stdout, /^2 conflicts: nothing restored$/m);
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
   });
@@ -308,9 +316,9 @@ describe("rig models set through the apply pipeline", () => {
     t.after(s.cleanup);
     const world = loadWorld({ HOME: s.fx.home, RIG_ROOT: s.root, RIG_NOW: NOW });
     const isModel = modelBearing(world);
-    assert.equal(isModel({ path: s.fx.path(".claude/rules/pstack-models.md") }), true);
-    assert.equal(isModel({ path: s.fx.path(".claude/commands/craft.md") }), false);
-    assert.equal(isModel({ path: s.fx.path(".claude/rules/pstack-models.md.bak") }), false);
+    assert.equal(isModel({ path: s.fx.path(".claude/agents/reviewer.md") }), true);
+    assert.equal(isModel({ path: s.fx.path(".claude/rules/rig-frame.md") }), false);
+    assert.equal(isModel({ path: s.fx.path(".claude/agents/reviewer.md.bak") }), false);
   });
 });
 

@@ -1,6 +1,0 @@
-{
-  "name": "cursor-plugins",
-  "plugins": [
-    { "name": "pstack", "source": "./pstack", "version": "9.8.7" }
-  ]
-}

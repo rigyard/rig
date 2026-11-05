@@ -1,5 +1,5 @@
 // lib/targets.ts — public: render, readSet, patch
-// internals: lib/targets/place.ts, cells.mjs, formats.mjs, terms.mjs, vars.mjs, providers.mjs (unreachable from outside, see boundary test)
+// internals: lib/targets/*.ts (unreachable from outside, see boundary test)
 
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,6 @@ import { readSet as readSetOf } from "./targets/readset.ts";
 import { patch as patchRegion } from "./targets/patch.ts";
 import { substitute, substituteBytes } from "./targets/terms.ts";
 import { fill } from "./targets/vars.ts";
-import { entryLines, intakeLines, modelsLine, providerLines, slotBody, slotLines } from "./targets/providers.ts";
 import { codexAgent, cursorAgent, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
 import { absentLine, delivery, manifests, marketplaceOf, packOf, pluginDir, pluginPath } from "./targets/scope.ts";
 import type { Delivery, Plugin } from "./targets/scope.ts";
@@ -46,13 +45,13 @@ const FRAME_FILE = "frame.md";
 
 /**
  * Render every unit for every harness. Pure: reads nothing from disk; input bytes come through stack and world.
- * Owned units in this version: skills, commands, agents, rules, the frame, the slot stubs, the alias commands
+ * Owned units in this version: skills, commands, agents, rules, the frame, the alias commands
  * that compose emits, the plugin manifest of a harness whose local plugin received files, the `whole` model
- * surfaces (the pstack model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
+ * surfaces (a pack's model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
  * `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. The other model
  * surfaces render as cells entries (frontmatter, cells, keys) and one block (the Codex [agents] table). Core
- * templates fill a closed set of {{name}} variables from the provider records, the target records, the slot
- * fillers and the lock; a name outside that set is E_TERM_UNKNOWN.
+ * templates fill a closed set of {{name}} variables from the target records; a name outside that set is
+ * E_TERM_UNKNOWN.
  * A render error lands in `errors` and its entry is left out. A malformed World (an installed harness with no
  * target record) still throws, because loadWorld rules it out.
  */
@@ -61,17 +60,10 @@ export function render(stack: Stack, world: World): Desired {
     home: world.env.home,
     installed: world.config.harnesses,
     targets: world.targets,
-    // {{rig:intake}} is the one term derived from records (provider intake), not read from terms.json
-    terms: { ...(world.terms ?? {}), intake: Object.fromEntries(world.config.harnesses.map((h) => [h, intakeLines(stack.providers ?? [], h)])) },
+    terms: world.terms ?? {},
     aliases: world.config.aliases ?? {},
-    providers: stack.providers ?? [],
-    defaultProvider: world.config.default_provider,
-    stubs: stack.units.filter((u) => u.type === "slot-stub"),
-    slots: stack.slots ?? {},
-    fillers: world.config.slots ?? {},
     tiers: world.tiers,
     world,
-    locks: world.locks,
     sessionHook: world.config.metrics?.session_hook === true,
     never: neverWriteGlobs(world),
     entries: new Map(),
@@ -104,7 +96,6 @@ function renderUnit(ctx, unit) {
   // Decision 0017 has no machine-visible scope: every pack copy is hidden. Core units are rig's own and stay visible.
   const hidden = !isCore(unit);
   if (unit.type === "skill") renderSkill(ctx, unit, hidden);
-  else if (unit.type === "slot-stub") renderSlotStub(ctx, unit);
   else if (unit.type === "frame") renderFrame(ctx, unit);
   else if (unit.type === "command" || unit.type === "agent" || unit.type === "rule") renderSingle(ctx, unit, unit.type);
   else ctx.errors.push({ code: "E_INTERNAL", message: `unit ${unit.id}: unknown unit type "${unit.type}"` });
@@ -192,27 +183,6 @@ function renderSkill(ctx, unit, hidden) {
   }
 }
 
-// ---- slot stubs
-
-/** A slot stub is a core skill whose SKILL.md body comes from the slot's filler (draft section 8). */
-function renderSlotStub(ctx, unit) {
-  const slot = unit.name.slice("rig-".length);
-  const src = unit.files.get("SKILL.md");
-  if (!src) {
-    ctx.errors.push({ code: "E_INTERNAL", message: `unit ${unit.id}: a slot stub has no SKILL.md` });
-    return;
-  }
-  const vars = { slot_body: () => slotBody(slot, ctx.slots[slot] ?? null, ctx.fillers[slot] ?? null, ctx.tiers) };
-  const r = fill(decoder.decode(src.bytes), vars);
-  if (r.errors.length) {
-    for (const e of r.errors) ctx.errors.push(termError(e, unit, "SKILL.md"));
-    return;
-  }
-  const files = new Map(unit.files);
-  files.set("SKILL.md", { mode: src.mode, bytes: encoder.encode(r.text) });
-  renderSkill(ctx, { ...unit, files }, false);
-}
-
 // ---- commands, agents, rules
 
 /** The format table: unit kind -> format -> [file under the dir, text transform]. */
@@ -264,7 +234,7 @@ function renderSingle(ctx, unit, kind) {
       ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: unknown ${kind} format "${spec.format}"` });
       continue;
     }
-    const text = isCore(unit) ? coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), commandVars(ctx, h), [ALIAS_NAME]) : terms(ctx, unit, src, h);
+    const text = isCore(unit) ? coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), {}, [ALIAS_NAME]) : terms(ctx, unit, src, h);
     if (text === null) continue;
     const [file, transform] = format;
     emit(ctx, `${spec.dir}/${file(unit.name)}`, { kind: "owned", bytes: encoder.encode(transform(text, unit.name)), mode: FILE_MODE, unit: unit.id });
@@ -273,7 +243,6 @@ function renderSingle(ctx, unit, kind) {
 
 // ---- the frame
 
-/** The frame renders from frame.md. Its other files (compose adds principles.md) do not render in this version. */
 function renderFrame(ctx, unit) {
   const file = unit.files.get(FRAME_FILE);
   if (!file) {
@@ -303,28 +272,16 @@ function renderFrame(ctx, unit) {
 
 // ---- template variables of core templates
 
-/** The variables of a core command: /craft fills {{entries}} and {{default_provider}}. */
-function commandVars(ctx, h) {
-  const target = ctx.targets.get(h);
-  return {
-    entries: () => entryLines(ctx.providers, h, target, ctx.locks),
-    default_provider: () => defaultProvider(ctx),
-  };
-}
-
-/** The variables of the frame. {{providers}}, {{slots}} and {{models}} are its per-harness lines. */
 function frameVars(ctx, h) {
-  const target = ctx.targets.get(h);
-  return {
-    providers: () => providerLines(ctx.providers, h, target, ctx.locks),
-    default_provider: () => defaultProvider(ctx),
-    slots: () => slotLines(ctx.stubs, ctx.slots, h),
-    models: () => modelsLine(target),
-  };
+  return { models: () => modelsLine(ctx.targets.get(h)) };
 }
 
-const defaultProvider = (ctx) =>
-  ctx.defaultProvider ?? { error: { code: "E_INTERNAL", message: "rig.json names no default_provider" } };
+function modelsLine(target) {
+  const m = target.models;
+  const where = m?.source ?? "the session model";
+  const raise = m?.effort_table ? "Raise effort per the effort-table conditions or after a verified failure." : "Raise effort after a verified failure.";
+  return `${where}. ${raise} Change the model only for a new dispatch.`;
+}
 
 /** Fill core template variables into text that terms() returned. Null when terms or a variable failed. */
 function coreVars(ctx, unit, rel, text, vars, keep = []) {
@@ -340,7 +297,7 @@ function coreVars(ctx, unit, rel, text, vars, keep = []) {
 // ---- model surfaces (lib/targets/models-render.ts)
 
 function renderModels(ctx) {
-  const r = renderModelSurfaces({ installed: ctx.installed, targets: ctx.targets, providers: ctx.providers, tiers: ctx.tiers, world: ctx.world });
+  const r = renderModelSurfaces({ installed: ctx.installed, targets: ctx.targets, packs: [...(ctx.world.packs?.values() ?? [])], tiers: ctx.tiers, world: ctx.world });
   ctx.errors.push(...r.errors);
   ctx.info.push(...r.info);
   for (const { rel, entry } of r.entries) emit(ctx, rel, entry);

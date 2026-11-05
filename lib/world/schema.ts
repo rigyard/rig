@@ -14,7 +14,7 @@ export const S = {
   enum: (vs) => ({ t: "enum", vs }),
   arr: (item, o = {}) => ({ t: "arr", item, ...o }), // o.union: overlay entries append; o.unique; o.nonEmpty
   rec: (fields, req = []) => ({ t: "rec", fields, req }),
-  map: (val, o = {}) => ({ t: "map", val, ...o }),   // o.key: Spec for keys; o.ordered: keep insertion order; o.slot
+  map: (val, o = {}) => ({ t: "map", val, ...o }),   // o.key: Spec for keys; o.ordered: keep insertion order
   nul: (spec) => ({ t: "nul", spec }),
   any: () => ({ t: "any" }),
   /** Discriminated union: the first variant whose key is present on the object. */

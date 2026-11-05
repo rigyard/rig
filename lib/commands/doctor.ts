@@ -60,43 +60,12 @@ function errorLines(composeErrors: RigError[], renderErrors: RigError[]): Line[]
   return [...composeErrors.map(line("compose")), ...renderErrors.map(line("render"))];
 }
 
-/** Pin facts (lock tree, core seal, installed plugins, auto-update) and telemetry env, from the gate. @returns {Line[]} */
+/** @returns {Line[]} */
 function gateLines(findings) {
   return findings
     .filter((f) => f.check === "pin" || f.check === "telemetry")
     // Neither check is ackable, so a block is always an error.
     .map((f) => ({ level: f.severity === "block" ? "error" : f.severity, topic: f.check, text: `${f.pack}/${f.path}: ${f.evidence}` }));
-}
-
-/** A parsed facts file that a target record declares, by its name in `facts`. */
-function factOf(world, name) {
-  for (const t of world.targets.values()) {
-    const path = t.facts?.[name];
-    if (path && world.facts.has(path)) return world.facts.get(path);
-  }
-  return null;
-}
-
-const commitOf = (sha) => (typeof sha === "string" ? sha.slice(0, 7) : "unknown commit");
-
-/**
- * One info line per rig.json pin: the locked version and commit, and each installed record of the plugin. A
- * mismatch or a missing lock entry is an error line of the gate's pin check, so these lines stay info.
- * @returns {Line[]}
- */
-function pinLines(world) {
-  const installed = factOf(world, "installed_plugins");
-  return (world.config.pins ?? []).map((name) => {
-    const lock = world.locks?.repo?.pins?.[name] ?? world.locks?.overlay?.pins?.[name];
-    const plugin = lock?.plugin ?? world.providers.get(name)?.pin?.plugin ?? name;
-    const cur = lock?.current;
-    const locked = cur ? `locked ${cur.version} (${commitOf(cur.sha)})` : "no locked version";
-    const records = installed?.plugins?.[plugin];
-    const seen = Array.isArray(records) && records.length
-      ? records.map((r) => `installed ${r?.version ?? "unknown version"} (${commitOf(r?.gitCommitSha)}, ${r?.scope ?? "unknown scope"})`).join(", ")
-      : "not installed";
-    return { level: "info", topic: "pin", text: `${name} ${plugin}: ${locked}; ${seen}` };
-  });
 }
 
 /** @returns {Line[]} */
@@ -115,23 +84,14 @@ function aliasLines(world) {
 }
 
 /**
- * The --project lines: the provider declaration, footprints, and per scope pack declared for this dir whether its
- * Claude plugin is enabled here (local beats project beats user) or the repository paths that would deliver it on a
- * harness with no project channel. Read only.
+ * The --project lines: per scope pack declared for this dir whether its Claude plugin is enabled here (local beats
+ * project beats user) or the repository paths that would deliver it on a harness with no project channel. Read only.
  */
 function projectLines(world, dir: string, deliveries: Delivery[]): Line[] {
   const abs = resolve(dir);
   if (!existsSync(abs) || !statSync(abs).isDirectory()) throw usage(`--project ${dir} is not a directory`);
   const d = projectDeclaration(world, abs);
-  const out: Line[] = [{ level: "info", topic: "project", text: `provider ${d.provider} source ${d.source}${d.line ? ` (${d.line})` : ""}` }];
-  if (!world.providers.has(d.provider)) out.push({ level: "error", topic: "project", text: `provider ${d.provider} is not in rig.json providers` });
-  if (d.overlay !== null) {
-    // A warning, not an error: the line alone selects (decision 0008), so the map is a stale record, not a broken run.
-    out.push(d.agrees
-      ? { level: "info", topic: "project", text: `the overlay projects map agrees: ${d.overlay}` }
-      : { level: "warn", topic: "project", text: `the overlay projects map says ${d.overlay}, the project declares ${d.provider} (${d.source})` });
-  }
-  for (const fp of d.footprints) out.push({ level: "info", topic: "footprint", text: `${fp} (info only: footprints never select a provider)` });
+  const out: Line[] = [];
   const here = deliveries.filter((x) => x.projects.includes(abs));
   for (const p of d.packs) {
     const plugin = here.find((x) => x.pack === p.name && x.plugin)?.plugin;
@@ -159,7 +119,6 @@ export async function doctorCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<
     ...stateLines(p.planned),
     ...duplicates(world, p.planned.installed),
     ...gateLines(p.findings),
-    ...pinLines(world),
     ...modelLines(world),
     ...aliasLines(world),
   ];

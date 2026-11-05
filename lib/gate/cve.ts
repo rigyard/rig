@@ -39,7 +39,7 @@ export function runCve(ctx: object) {
       const why = ctx.world.osv?.has(eco) ? `no cached OSV result for these bytes in cache/osv/${eco}.json` : `no cached OSV result: cache/osv/${eco}.json is absent`;
       out.push({
         severity: "block", pack: s.pack, path: s.path,
-        evidence: `${why}. Run rig pack add or rig pin check to refresh it (${OPEN_QUESTION})`,
+        evidence: `${why}. Run rig pack add to refresh it (${OPEN_QUESTION})`,
         idBytes: `${eco}\0${digest}\0no cache`,
       });
       continue;

@@ -6,13 +6,13 @@
 //   frontmatter  one cells entry per {role} file: Claude model, effort and display token; Cursor <slug>[effort=<e>]
 //   cells        one cells entry per path, every surface of that path in it (the user's fleet rules file)
 //   keys         one cells entry: the omp modelRoles values
-//   whole        pstack model rules (owned, keep_header), or a Codex agent TOML per {role} from its text_from file
+//   whole        a pack's model rules (owned, keep_header), or a Codex agent TOML per {role} from its text_from file
 //   block        the Codex [agents] table between rig:models markers
 
 import { cellValues } from "../models.ts";
 import { codexAgent, mdc } from "./formats.ts";
 import type { CellValue, DesiredEntry } from "../targets.ts";
-import type { ModelSurface, ProviderRecord, TargetRecord, Tiers, World } from "../world.ts";
+import type { ModelSurface, Pack, TargetRecord, Tiers, World } from "../world.ts";
 import type { RigError } from "../stack.ts";
 
 /** A DesiredEntry before emit sets its absolute path. */
@@ -20,8 +20,8 @@ export type ModelEntry = DesiredEntry extends infer E ? (E extends DesiredEntry 
 export type ModelRenderInput = {
   installed: string[];
   targets: Map<string, TargetRecord>;
-  /** the active providers of the stack */
-  providers: ProviderRecord[];
+  /** the packs of the world; pack.json `model_surfaces` name their harness */
+  packs: Pick<Pack, "name" | "manifest">[];
   tiers: Tiers | undefined;
   world: World;
 };
@@ -36,14 +36,14 @@ type Source = {surface: ModelSurface, harness: string | undefined, unit: string}
 type Cells = {surfaces: ModelSurface[], values: CellValue[], unit: string};
 
 /**
- * Every model surface on an installed harness: the target records' surfaces (harness: the record), the active
- * providers' surfaces and the overlay rig.json `model_surfaces` (both name their harness). A harness that tiers.json
+ * Every model surface on an installed harness: the target records' surfaces (harness: the record), the packs'
+ * surfaces and the overlay rig.json `model_surfaces` (both name their harness). A harness that tiers.json
  * names in no tier renders no surface, with an info line. Any other cell error is a render error of that surface.
  */
 export function renderModelSurfaces(input: ModelRenderInput): Out {
   const out: Out = { entries: [], errors: [], info: [] };
   const sources: Source[] = [
-    ...input.providers.flatMap((p) => (p.model_surfaces ?? []).map((s) => ({ surface: s, harness: s.harness, unit: `${p.name}/models` }))),
+    ...input.packs.flatMap((p) => (p.manifest.model_surfaces ?? []).map((s) => ({ surface: s, harness: s.harness, unit: `${p.name}/models` }))),
     ...input.installed.flatMap((h) =>
       (input.targets.get(h)?.model_surfaces ?? []).map((s) => ({ surface: s, harness: s.harness ?? h, unit: `models/${s.harness ?? h}` })),
     ),

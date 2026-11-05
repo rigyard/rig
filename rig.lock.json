@@ -1,9 +1,8 @@
 {
-  "schema": 1,
+  "schema": 2,
   "core": {
-    "tree": "sha256:34ce10a4c2250abfcb12ca4f4ff4df239ba54357bb69bc97215b978d30490dac",
+    "tree": "sha256:02e383d3d5ec0414909820e019bb1483ef91f264821ccfe81e6abb3148394bce",
     "candidate": null
   },
-  "packs": {},
-  "pins": {}
+  "packs": {}
 }

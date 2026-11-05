@@ -98,21 +98,21 @@ Ask the user to confirm. If they disagree with a premise, revise your understand
 
 ## Phase 3.5: Second opinion (optional)
 
-Ask: "Want a second opinion from an independent model? It reviews a structured summary of your problem statement, key answers, premises and landscape findings, without seeing this conversation. Usually 2-5 minutes." A) Yes, get a second opinion. B) No, go on to alternatives.
+Ask: "Want a second opinion from a fresh subagent? It reviews a structured summary of your problem statement, key answers, premises and landscape findings, without seeing this conversation. Usually 2-5 minutes." A) Yes, get a second opinion. B) No, go on to alternatives.
 
 On B, skip this phase and remember that the second opinion did NOT run. The design doc and Phase 4 depend on that.
 
 On A:
 
 1. Build a context block from Phases 1 to 3: the mode, the problem statement, the key answers (each in 1-2 sentences, with verbatim user quotes), the landscape findings if the search ran, the agreed premises, and the codebase context (project name, languages, recent activity).
-2. Use the rig-second-opinion skill with that block and the mode's question:
+2. Send that block and the mode's question to {{rig:subagent}} with a fresh context:
    - **Startup mode:** "You are an independent technical advisor reading a summary of a startup brainstorming session. 1) What is the STRONGEST version of what this person is trying to build? Steelman it in 2-3 sentences. 2) What is the ONE thing in their answers that reveals the most about what they should actually build? Quote it and explain why. 3) Name ONE agreed premise you think is wrong, and the evidence that would prove you right. 4) With 48 hours and one engineer for a prototype, what would you build? Be specific: stack, features, what you would skip. Be direct and terse."
    - **Builder mode:** "You are an independent technical advisor reading a summary of a builder brainstorming session. 1) What is the COOLEST version of this they haven't considered? 2) What is the ONE thing in their answers that reveals what excites them most? Quote it. 3) What existing open source project or tool gets them 50% of the way there, and what is the 50% they would need to build? 4) With one weekend, what would you build first? Be specific and direct."
-3. Show the answer verbatim under a `SECOND OPINION:` header. Do not cut or summarize it.
+3. Show the answer verbatim under a `SECOND OPINION (same-model subagent):` header. Do not cut or summarize it. It has no conversation bias, but it is the same model family.
 4. Synthesize in 3-5 bullets: where you agree, where you disagree and why, and whether a challenged premise changes your recommendation.
 5. If it challenged an agreed premise, ask: "The second opinion challenged premise #{N}: '{premise}'. Its argument: '{reasoning}'." A) Revise this premise. B) Keep the original premise. On A, revise the premise and note it. On B, note that the user defended the premise. If they give reasons, that is a founder signal.
 
-If the slot says that no second opinion is configured, or the call fails, send the same block and question to {{rig:subagent}} with a fresh context, and show its answer under a `SECOND OPINION (same-model subagent):` header. It has no conversation bias, but it is the same model family. If that also fails, say "Second opinion unavailable. Continuing to Phase 4." and continue as on B.
+If the call fails, say "Second opinion unavailable. Continuing to Phase 4." and continue as on B.
 
 ## Phase 4: Alternatives
 
@@ -167,7 +167,7 @@ Count the signals. Phase 6 names them.
 
 ## Phases 5 and 6: Design doc and handoff
 
-Read [references/design-doc.md](references/design-doc.md) and follow it: write the doc, review it, get approval, then close with the provider's intake line.
+Read [references/design-doc.md](references/design-doc.md) and follow it: write the doc, get approval, then close with the next step.
 
 ## Self-check before you finish
 

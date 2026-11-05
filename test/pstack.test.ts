@@ -1,6 +1,5 @@
-// pstack, rig's default workflow provider: /craft at the locked plugin-cache path, the frame line, the pstack model
-// rules as `whole` files, and pin check, pin set and doctor against installed_plugins.json.
-// Done-checks of docs/plan/v0-slices.md: S2.11 (the lock path), S3.3 (the header lines), S4.3 and S4.11.
+// The pstack model rules as `whole` files with keep_header, declared in a pack.json `model_surfaces`.
+// Done-check of docs/plan/v0-slices.md S3.3 (the header lines).
 // Each test runs bin/rig.ts on a fixture HOME whose repo root (~/rig) is a temp copy of this repo's data.
 
 import assert from "node:assert/strict";
@@ -11,14 +10,10 @@ import { describe, test } from "node:test";
 import { compose } from "../lib/stack.ts";
 import { patch, render } from "../lib/targets.ts";
 import { loadWorld } from "../lib/world.ts";
-import { cleanup as rmScratch, makeRepo, scratch } from "./lock.helpers.ts";
-import { filesUnder, json, PLUGIN, repoJson, ROOT, setup, SHA, VERSION } from "./pstack.helpers.ts";
+import { json, repoJson, ROOT, setup } from "./pstack.helpers.ts";
 
 const FIXTURES = join(ROOT, "test/fixtures/pstack");
-const LOCKED = `~/.claude/plugins/cache/cursor-plugins/pstack/${VERSION}/skills/poteto-mode/SKILL.md`;
 const RULES = ".claude/rules/pstack-models.md";
-const INSTALLED = ".claude/plugins/installed_plugins.json";
-const MARKETS = ".claude/plugins/known_marketplaces.json";
 const HEADER = readFileSync(join(FIXTURES, "pstack-models-header.md"), "utf8");
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 
@@ -40,46 +35,6 @@ function changedLines(a, b) {
   assert.equal(x.length, y.length);
   return x.flatMap((l, i) => (l === y[i] ? [] : [[l, y[i]]]));
 }
-
-describe("pstack /craft and the frame (S2.11)", () => {
-  test("plan creates /craft and the model rules; /craft names the locked cache path with no sort or tail", (t) => {
-    const s = setup();
-    t.after(() => s.fx.cleanup());
-    const p = s.rig(["plan"]);
-    assert.equal(p.code, 0, p.stdout + p.stderr);
-    assert.match(p.stdout, /^create +owned +claude +~\/\.claude\/commands\/craft\.md +core\/craft$/m);
-    assert.match(p.stdout, /^create +owned +claude +~\/\.claude\/rules\/pstack-models\.md +pstack\/models$/m);
-    const a = s.rig(["apply"]);
-    assert.equal(a.code, 0, a.stdout + a.stderr);
-
-    const craft = s.read(".claude/commands/craft.md");
-    assert.ok(craft.includes(`If it names pstack: read ${LOCKED} and follow it.`), craft);
-    assert.doesNotMatch(craft, /\b(sort|tail)\b/);
-    assert.match(craft, /^If no line exists: act as if it names pstack\.$/m);
-    assert.match(s.read(".claude/commands/pm.md"), /^Run \/craft with the same arguments\.$/m);
-    assert.ok(s.read(".cursor/plugins/local/rig/skills/craft/SKILL.md").includes("If it names pstack: read ~/.cursor/plugins/local/pstack/skills/poteto-mode/SKILL.md and follow it."));
-  });
-
-  test("Codex and omp have a null pstack entry: /craft says it is not available there, and their frames omit it", (t) => {
-    const s = setup();
-    t.after(() => s.fx.cleanup());
-    assert.equal(s.rig(["apply"]).code, 0);
-    for (const [craft, frame] of [[".codex/prompts/craft.md", ".codex/AGENTS.md"], [".omp/agent/commands/craft.md", ".omp/agent/AGENTS.md"]]) {
-      assert.match(s.read(craft), /^If it names pstack: pstack is not available on this harness\. Say so in your first message, then follow the frame\.$/m, craft);
-      assert.doesNotMatch(s.read(frame), /^- pstack:/m, frame);
-    }
-  });
-
-  test("the frame names pstack as the default provider and states the rig-project rule", (t) => {
-    const s = setup();
-    t.after(() => s.fx.cleanup());
-    assert.equal(s.rig(["apply"]).code, 0);
-    const frame = s.read(".claude/rules/rig-frame.md");
-    assert.match(frame, /^Active workflow provider: the one that a "rig-project: <provider>" line in the project instructions names\.$/m);
-    assert.match(frame, /^No such line: pstack\. Files, directories and plugins in the project never select a provider\.$/m);
-    assert.match(frame, /^- pstack: enter with \/craft\. Phases: plan, build, verify, review\.$/m);
-  });
-});
 
 describe("pstack model rules, a whole file with keep_header (S3.3)", () => {
   test("on an empty HOME the Claude file is the budget line and one line per roles.json label, in order", (t) => {
@@ -157,92 +112,5 @@ describe("pstack model rules, a whole file with keep_header (S3.3)", () => {
     const next = new TextDecoder().decode(patch(new TextEncoder().encode(current), entry).next);
     assert.ok(next.startsWith("---\ndescription: pstack model roles\nalwaysApply: true\n---\n# budget: medium (high)\n"), next);
     assert.equal(next.match(/^---$/gm).length, 2);
-  });
-});
-
-/** A local marketplace repo with the fixture pstack plugin; `edit` changes its files first. */
-function marketplace(t, edit = (files) => files) {
-  const base = scratch();
-  t.after(() => rmScratch(base));
-  const dir = join(FIXTURES, "marketplace");
-  const files = edit(Object.fromEntries(filesUnder(dir).map((f) => [f.path, f.bytes.toString("utf8")])));
-  return makeRepo(base, [files]);
-}
-
-const installedAt = (sha, version = VERSION) => json({ version: 2, plugins: { [PLUGIN]: [{ scope: "user", version, gitCommitSha: sha }] } });
-const marketsAt = (url, extra = {}) => json({ "cursor-plugins": { source: { source: "git", url }, ...extra } });
-
-describe("rig pin for pstack (S4.3)", () => {
-  test("pin check prints the candidate version, commit and tree; pin set promotes it when the installed commit is equal", (t) => {
-    const repo = marketplace(t);
-    const [commit] = repo.shas;
-    const s = setup({ pin: null, home: { [MARKETS]: marketsAt(repo.url), [INSTALLED]: installedAt(commit) } });
-    t.after(() => s.fx.cleanup());
-    const c = s.rig(["pin", "check", "pstack", "--sha", commit]);
-    assert.equal(c.code, 0, c.stdout + c.stderr);
-    const m = new RegExp(`^recorded pstack candidate ${VERSION} \\(${commit}\\) (sha256:[0-9a-f]{64}); run rig pin set pstack$`, "m").exec(c.stdout);
-    assert.ok(m, c.stdout);
-    assert.match(c.stdout, /, 0 blocks$/m);
-    const p = s.rig(["pin", "set", "pstack"]);
-    assert.equal(p.code, 0, p.stdout + p.stderr);
-    const pin = JSON.parse(s.read("rig/rig.lock.json")).pins.pstack;
-    assert.deepEqual(pin, { plugin: PLUGIN, current: { version: VERSION, sha: commit, tree: m[1] }, candidate: null });
-  });
-
-  test("pin set refuses another installed commit: exit 1, and rig.lock.json keeps its bytes", (t) => {
-    const repo = marketplace(t);
-    const [commit] = repo.shas;
-    const s = setup({ pin: null, home: { [MARKETS]: marketsAt(repo.url), [INSTALLED]: installedAt(SHA) } });
-    t.after(() => s.fx.cleanup());
-    assert.equal(s.rig(["pin", "check", "pstack", "--sha", commit]).code, 0);
-    const before = readFileSync(join(s.root, "rig.lock.json"));
-    const p = s.rig(["pin", "set", "pstack"]);
-    assert.equal(p.code, 1);
-    assert.match(p.stderr, new RegExp(`E_PIN_UNCHECKED installed ${PLUGIN} is at ${SHA}, not the checked ${commit}`));
-    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
-  });
-
-  test("a plugin manifest with no license blocks the candidate, and the lock records nothing", (t) => {
-    const repo = marketplace(t, (files) => ({ ...files, "pstack/.claude-plugin/plugin.json": json({ name: "pstack", version: VERSION }) }));
-    const s = setup({ pin: null, home: { [MARKETS]: marketsAt(repo.url), [INSTALLED]: installedAt(repo.shas[0]) } });
-    t.after(() => s.fx.cleanup());
-    const before = readFileSync(join(s.root, "rig.lock.json"));
-    const c = s.rig(["pin", "check", "pstack", "--sha", repo.shas[0]]);
-    assert.equal(c.code, 1, c.stdout);
-    assert.match(c.stdout, /^block license pstack\/pack\.json: license missing$/m);
-    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
-  });
-});
-
-describe("rig doctor for the pstack pin (S4.11)", () => {
-  test("an installed commit equal to the lock: exit 0 and an info line with both versions", (t) => {
-    const s = setup({ pins: ["pstack"], home: { [INSTALLED]: installedAt(SHA) } });
-    t.after(() => s.fx.cleanup());
-    const d = s.rig(["doctor"]);
-    assert.equal(d.code, 0, d.stdout + d.stderr);
-    assert.match(d.stdout, new RegExp(`^info +pin +pstack ${PLUGIN}: locked ${VERSION} \\(0123456\\); installed ${VERSION} \\(0123456, user\\)$`, "m"));
-  });
-
-  test("another installed commit: exit 1, names pstack, both commits and both versions", (t) => {
-    const other = "fedcba9876543210fedcba9876543210fedcba98";
-    const s = setup({ pins: ["pstack"], home: { [INSTALLED]: installedAt(other, "9.9.0") } });
-    t.after(() => s.fx.cleanup());
-    const d = s.rig(["doctor"]);
-    assert.equal(d.code, 1, d.stdout + d.stderr);
-    assert.match(d.stdout, new RegExp(`^error +pin +pstack/~/\\.claude/plugins/installed_plugins\\.json: installed ${PLUGIN} ${other} differs from locked ${SHA}$`, "m"));
-    assert.match(d.stdout, new RegExp(`^info +pin +pstack ${PLUGIN}: locked ${VERSION} \\(0123456\\); installed 9\\.9\\.0 \\(fedcba9, user\\)$`, "m"));
-  });
-
-  test("a marketplace with autoUpdate on that serves pstack is named", (t) => {
-    const s = setup({ pins: ["pstack"], home: { [INSTALLED]: installedAt(SHA), [MARKETS]: marketsAt("https://example.invalid/m.git", { autoUpdate: true }) } });
-    t.after(() => s.fx.cleanup());
-    const d = s.rig(["doctor"]);
-    assert.match(d.stdout, new RegExp(`^warn +pin +pstack/~/\\.claude/plugins/known_marketplaces\\.json: marketplace cursor-plugins has auto-update on and serves pinned plugin ${PLUGIN}$`, "m"));
-  });
-
-  test("with no installed record, the info line says so", (t) => {
-    const s = setup({ pins: ["pstack"] });
-    t.after(() => s.fx.cleanup());
-    assert.match(s.rig(["doctor"]).stdout, new RegExp(`^info +pin +pstack ${PLUGIN}: locked ${VERSION} \\(0123456\\); not installed$`, "m"));
   });
 });

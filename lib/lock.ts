@@ -1,11 +1,10 @@
-// lib/lock.ts: the lock per config root, vendoring, pin check and pin set. The only module that spawns git.
+// lib/lock.ts: the lock per config root, vendoring, pin check and pin set of core. The only module that spawns git.
 // Everything fetched is read from git's object store as bytes. Nothing from a fetched tree is run.
 import { basename, join, posix } from "node:path";
 import { writeConfig as fsWriteConfig } from "./fs.ts";
 import { treeHash } from "./tree.ts";
 import { LockError } from "./lock/errors.ts";
 import { readBlobs, withClone } from "./lock/git.ts";
-import { fact } from "./lock/facts.ts";
 import { readTreeFromDisk } from "./lock/disk.ts";
 import { readLock, encodeLock, LOCK_FILE } from "./lock/lockfile.ts";
 import { NO_LICENSE, isLicenseFile, licenseFromPackageJson, licenseFromText } from "./lock/license.ts";
@@ -140,31 +139,18 @@ export async function vendor(world: object, args: {repo: string, sha: string, pa
     throw new LockError("E_PACK_JSON_CONFLICT", "the vendored paths already contain a pack.json at the pack root", "pack.json");
   }
   const tree = treeHash(files);
-  const manifest = {
-    schema: 1, name, scopes: ["machine-hidden"], license,
-    source: { repo: args.repo, sha: commit, paths }, units: {},
-  };
+  const manifest = { schema: 2, name, scopes: ["machine-hidden"], license, units: {} };
   const manifestBytes = canonicalJson(manifest);
 
   for (const f of files) await write(root, `${packRel}/${f.path}`, f.bytes, f.mode);
   await write(root, `${packRel}/pack.json`, manifestBytes, 0o644);
-  lock.packs[name] = { repo: args.repo, sha: commit, paths, license, tree };
+  lock.packs[name] = { repo: args.repo, sha: commit, root: ".", paths, exclude: [], license, tree, port: null, candidate: null };
   await write(root, LOCK_FILE, encodeLock(lock));
   return { pack: name, root: into, tree, files: [...files, { path: "pack.json", mode: 0o644, bytes: manifestBytes }], noop: false };
 }
 
-const lockRootOf = (world, name) => ROOTS.find((r) => world.roots?.[r] && readLock(world.roots[r]).pins[name]) ?? "repo";
-
-function pluginOf(world, name, lock) {
-  return lock.pins[name]?.plugin ?? world.providers?.get(name)?.pin?.plugin ?? null;
-}
-
-function marketplaceUrl(world, market) {
-  const src = fact(world, "marketplaces")?.[market]?.source;
-  if (typeof src === "string") return src;
-  if (src?.url) return src.url;
-  if (src?.repo) return `https://github.com/${src.repo}.git`;
-  return null;
+function coreOnly(verb, name) {
+  if (name !== "core") throw new LockError("E_USAGE", `rig pin ${verb} works on core only in this version, not on ${name}`);
 }
 
 /** The caller's gate over the candidate files. Without one, every candidate counts as clean (module tests). */
@@ -174,110 +160,44 @@ async function gateOf(opts, files) {
 }
 
 /**
- * rig pin check. For a native plugin: fetch its marketplace repo at `sha`, hash the plugin's tree, record
- * `candidate` in the lock. For `core`: hash `packs/core/` on disk, no network. `opts.gate` runs over the candidate
- * files before the lock write: a blocked candidate is not recorded, so `pin set` cannot promote it.
- * @param name  a pin name or "core"
+ * rig pin check core: hash `packs/core/` on disk, no network, and record the candidate seal. `opts.gate` runs over
+ * the candidate files before the lock write: a blocked candidate is not recorded, so `pin set` cannot promote it.
  */
-export async function pinCheck(world: object, name: string, sha: string | null, opts: {gate?: (files: {path: string, mode: number, bytes: Uint8Array}[]) => {findings: object[], blocked: boolean} | Promise<{findings: object[], blocked: boolean}>} = {}): Promise<{candidate: {version?: string, sha?: string, tree: string, checked: string}, files: {path: string, mode: number, bytes: Uint8Array}[], findings: object[], blocked: boolean}> {
+export async function pinCheck(world: object, name: string, sha: string | null, opts: {gate?: (files: {path: string, mode: number, bytes: Uint8Array}[]) => {findings: object[], blocked: boolean} | Promise<{findings: object[], blocked: boolean}>} = {}): Promise<{candidate: {tree: string, checked: string}, files: {path: string, mode: number, bytes: Uint8Array}[], findings: object[], blocked: boolean}> {
+  coreOnly("check", name);
   const checked = (world.now ?? new Date()).toISOString().slice(0, 10);
-  if (name === "core") {
-    const root = rootDir(world, "repo");
-    const files = readTreeFromDisk(join(root, "packs", "core"));
-    if (!files) throw new LockError("E_USAGE", "packs/core is absent");
-    const tree = treeHash(files, { core: true });
-    const gated = await gateOf(opts, files);
-    if (!gated.blocked) {
-      const lock = readLock(root);
-      lock.core = { tree: lock.core?.tree ?? null, candidate: tree };
-      await writerOf(world)(root, LOCK_FILE, encodeLock(lock));
-    }
-    return { candidate: { tree, checked }, files, ...gated };
-  }
-
-  if (typeof sha !== "string") throw new LockError("E_USAGE", `pin check ${name} needs --sha`);
-  const into = lockRootOf(world, name);
-  const root = rootDir(world, into);
-  const lock = readLock(root);
-  const plugin = pluginOf(world, name, lock);
-  if (!plugin) throw new LockError("E_PIN_UNKNOWN", `${name} has no pinned plugin in the lock or in a provider record`);
-  const market = plugin.includes("@") ? plugin.slice(plugin.lastIndexOf("@") + 1) : null;
-  const pluginName = plugin.includes("@") ? plugin.slice(0, plugin.lastIndexOf("@")) : plugin;
-  const url = market && marketplaceUrl(world, market);
-  if (!url) throw new LockError("E_PIN_MARKETPLACE", `no marketplace repo is known for ${plugin}`);
-
-  const write = writerOf(world);
-  const { files, version, commit } = await withClone(url, sha, async ({ dir, commit, entries }) => {
-    const manifestEntry = entries.find((e) => e.path === ".claude-plugin/marketplace.json" && e.type === "blob");
-    if (!manifestEntry) throw new LockError("E_PIN_MARKETPLACE", `${url} has no .claude-plugin/marketplace.json at ${commit}`);
-    const [mBytes] = await readBlobs(dir, [manifestEntry.oid]);
-    let listed;
-    try {
-      listed = JSON.parse(mBytes.toString("utf8"))?.plugins?.find((p) => p?.name === pluginName);
-    } catch {
-      throw new LockError("E_PIN_MARKETPLACE", "marketplace.json is not valid JSON");
-    }
-    if (!listed) throw new LockError("E_PIN_MARKETPLACE", `plugin ${pluginName} is not listed in the marketplace at ${commit}`);
-    if (typeof listed.source !== "string") throw new LockError("E_PIN_MARKETPLACE", `plugin ${pluginName} has a non-path source; v0 handles only plugins inside the marketplace repo`);
-    const sub = normalizePath(listed.source);
-    const files = await collect(dir, select(entries, [sub]));
-    let version = typeof listed.version === "string" ? listed.version : null;
-    const pj = files.find((f) => f.path === ".claude-plugin/plugin.json");
-    try {
-      if (pj && typeof JSON.parse(pj.bytes.toString("utf8"))?.version === "string") version = JSON.parse(pj.bytes.toString("utf8")).version;
-    } catch { /* an unreadable plugin.json leaves the version from the marketplace entry */ }
-    return { files, version, commit };
-  });
-
-  // a plugin tree has no pack manifest, so every file counts
+  const root = rootDir(world, "repo");
+  const files = readTreeFromDisk(join(root, "packs", "core"));
+  if (!files) throw new LockError("E_USAGE", "packs/core is absent");
   const tree = treeHash(files, { core: true });
-  const candidate = { version: version ?? commit.slice(0, 7), sha: commit, tree, checked };
   const gated = await gateOf(opts, files);
   if (!gated.blocked) {
-    lock.pins[name] = { plugin, current: lock.pins[name]?.current ?? null, candidate };
-    await write(root, LOCK_FILE, encodeLock(lock));
+    const lock = readLock(root);
+    lock.core = { tree: lock.core?.tree ?? null, candidate: tree };
+    await writerOf(world)(root, LOCK_FILE, encodeLock(lock));
   }
-  return { candidate, files, ...gated };
+  return { candidate: { tree, checked }, files, ...gated };
 }
 
 const refuse = (message) => ({ promoted: false, error: { code: "E_PIN_UNCHECKED", message } });
 
 /**
- * rig pin set. Promote `candidate` to `current`. For a native plugin, refuse unless every installed record of the
- * plugin has a `gitCommitSha` equal to the candidate sha. `core` has no installed record.
+ * rig pin set core. Promote the candidate seal to `core.tree`.
  */
 export function pinSet(world: object, name: string): {promoted: boolean, error?: {code: string, message: string}} {
-  const write = writerOf(world);
-  if (name === "core") {
-    const root = rootDir(world, "repo");
-    const lock = readLock(root);
-    if (typeof lock.core?.candidate !== "string") return refuse("core has no candidate; run rig pin check core first");
-    lock.core = { tree: lock.core.candidate, candidate: null };
-    write(root, LOCK_FILE, encodeLock(lock));
-    return { promoted: true };
-  }
-  const into = lockRootOf(world, name);
-  const root = rootDir(world, into);
+  coreOnly("set", name);
+  const root = rootDir(world, "repo");
   const lock = readLock(root);
-  const pin = lock.pins[name];
-  if (!pin?.candidate) return refuse(`${name} has no candidate; run rig pin check ${name} --sha <sha> first`);
-  const records = fact(world, "installed_plugins")?.plugins?.[pin.plugin];
-  if (!Array.isArray(records) || records.length === 0) return refuse(`${pin.plugin} is not installed`);
-  for (const r of records) {
-    if (r?.gitCommitSha !== pin.candidate.sha) {
-      return refuse(`installed ${pin.plugin} is at ${r?.gitCommitSha ?? "an unknown commit"}, not the checked ${pin.candidate.sha}`);
-    }
-  }
-  const { checked: _checked, ...current } = pin.candidate;
-  lock.pins[name] = { plugin: pin.plugin, current, candidate: null };
-  write(root, LOCK_FILE, encodeLock(lock));
+  if (typeof lock.core?.candidate !== "string") return refuse("core has no candidate; run rig pin check core first");
+  lock.core = { tree: lock.core.candidate, candidate: null };
+  writerOf(world)(root, LOCK_FILE, encodeLock(lock));
   return { promoted: true };
 }
 
 const OSV_PREFIX = "https://api.osv.dev/";
 
 /**
- * The transport that rig pack add and rig pin check hand to refreshOsv: the only network call in rig besides git.
+ * The transport that rig pack add hands to refreshOsv: the only network call in rig besides git.
  * A body means POST of JSON, none means GET. Refuses any URL outside api.osv.dev, answers the text, throws on a
  * non-2xx status, a network error or a 30-second timeout.
  */

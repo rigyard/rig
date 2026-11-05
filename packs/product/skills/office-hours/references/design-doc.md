@@ -132,9 +132,8 @@ Supersedes: {prior path; omit this line for a first design}
 
 ### Review and approval
 
-1. **Doc review.** Use the rig-doc-review skill on `docs/designs/<slug>.md`. Work through each item it returns and update the doc. If the slot is empty, it asks the user to review the doc; continue with what they say.
-2. **Show the whole doc.** Print the complete doc as text in your own message: "Here is the design doc saved to docs/designs/<slug>.md. Please review it before you approve:", then the verbatim body. Do not ask the user to open the file, and do not rely on a tool call's output to show it. Tool output is often collapsed, and the user would approve a doc they cannot see.
-3. **Approval.** Ask:
+1. **Show the whole doc.** Print the complete doc as text in your own message: "Here is the design doc saved to docs/designs/<slug>.md. Please review it before you approve:", then the verbatim body. Do not ask the user to open the file, and do not rely on a tool call's output to show it. Tool output is often collapsed, and the user would approve a doc they cannot see.
+2. **Approval.** Ask:
    - A) Approve: set `Status: APPROVED` and go to the handoff
    - B) Revise: name the sections to change (loop back and revise them)
    - C) Start over: return to Phase 2
@@ -156,20 +155,8 @@ Show, don't tell:
 
 Then restate the assignment from the doc in one line.
 
-### Next step: the provider's intake line
+### Next step
 
-The design doc feeds the active workflow provider. Find it the way the rig frame does:
+End with the design doc path, `docs/designs/<slug>.md`, with the final slug.
 
-1. The project instructions (`CLAUDE.md`, `AGENTS.md` or the equivalent) hold a `rig-project: <provider>` line: that provider is active.
-2. No such line: the default provider that the rig frame names is active.
-3. If the declared provider is not available on this harness, the frame's default is active. Say so.
-
-Never infer the provider from files in the repository. An `openspec/` directory, a plugin, or a config file selects nothing.
-
-The intake line of each workflow provider:
-
-{{rig:intake}}
-
-End with the "Next:" line of the active provider. Replace `<design-doc>` with `docs/designs/<slug>.md` and `<slug>` with the final slug. If the list has no line for the active provider, end with the design doc path and name the provider.
-
-Do not start the provider's workflow yourself. The hard gate holds until the skill ends: the user runs the next command.
+Do not start the build yourself. The hard gate holds until the skill ends: the user runs the next command.

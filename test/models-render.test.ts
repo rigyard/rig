@@ -242,7 +242,7 @@ describe("drift by cell digest (S3.6)", () => {
 
 describe("models set writes tiers.json only after the plan that state.apply ran", () => {
   type Res = ReturnType<typeof applyThenWrite>;
-  const world = { targets: new Map(), providers: new Map(), config: {}, roles: { consumers: {} }, env: { home: "/h" } };
+  const world = { targets: new Map(), packs: new Map(), config: {}, roles: { consumers: {} }, env: { home: "/h" } };
   const cases: [string, Res["r"], boolean][] = [
     ["a fresh plan blocks after a stale one", null, false],
     ["the run did not start", { run: null, changed: 0, error: { code: "E_LOCKED", message: "held" } }, false],

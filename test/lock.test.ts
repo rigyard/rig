@@ -66,14 +66,14 @@ test("vendor copies only the named paths and locks the tree hash of the copied f
 
   const lock = readLockFile(world.roots.repo);
   const entry = lock.packs.kit;
-  assert.deepEqual(entry, { repo: repo.url, sha: repo.shas[0], paths: ["skills/kit"], license: "MIT", tree: treeHash(filesOnDisk(dir)) });
+  assert.deepEqual(entry, {
+    repo: repo.url, sha: repo.shas[0], root: ".", paths: ["skills/kit"], exclude: [], license: "MIT", tree: treeHash(filesOnDisk(dir)),
+    port: null, candidate: null,
+  });
   assert.equal(r.tree, entry.tree);
 
   const manifest = JSON.parse(readFileSync(join(dir, "pack.json"), "utf8"));
-  assert.deepEqual(manifest, {
-    schema: 1, name: "kit", scopes: ["machine-hidden"], license: "MIT",
-    source: { repo: repo.url, sha: repo.shas[0], paths: ["skills/kit"] }, units: {},
-  });
+  assert.deepEqual(manifest, { schema: 2, name: "kit", scopes: ["machine-hidden"], license: "MIT", units: {} });
   assert.equal(treeHash(r.files), entry.tree, "returned files, pack.json included, hash to the lock entry");
 });
 
@@ -177,99 +177,29 @@ test("the lock is written in canonical form with sorted names, and a non-canonic
   const text = readFileSync(join(world.roots.repo, "rig.lock.json"), "utf8");
   assert.equal(text, JSON.stringify(JSON.parse(text), null, 2) + "\n");
   assert.deepEqual(Object.keys(JSON.parse(text).packs), ["m", "z"]);
-  assert.deepEqual(Object.keys(JSON.parse(text)), ["schema", "core", "packs", "pins"]);
+  assert.deepEqual(Object.keys(JSON.parse(text)), ["schema", "core", "packs"]);
 
-  writeFileSync(join(world.roots.repo, "rig.lock.json"), '{"schema":1,"core":{"tree":"","candidate":null},"packs":{},"pins":{}}');
+  writeFileSync(join(world.roots.repo, "rig.lock.json"), '{"schema":2,"core":{"tree":"","candidate":null},"packs":{}}');
   await assert.rejects(vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["z"], into: "repo" }), { code: "E_JSON_ROUNDTRIP" });
 });
 
-const PLUGIN_FILES = {
-  ".claude-plugin/marketplace.json": JSON.stringify({ name: "mkt", plugins: [{ name: "demo", source: "./plugins/demo" }] }),
-  "plugins/demo/.claude-plugin/plugin.json": JSON.stringify({ name: "demo", version: "1.2.3" }),
-  "plugins/demo/skills/s/SKILL.md": "# s\n",
-  "plugins/demo/bin/tool": { content: "#!/bin/sh\n", mode: 0o755 },
-  "plugins/other/skills/o/SKILL.md": "# o\n",
-};
-
-function pinWorld(base, url, installedSha) {
-  const world = makeWorld(base, {
-    targets: new Map([["claude", { facts: { installed_plugins: "~/.claude/plugins/installed_plugins.json", marketplaces: "~/.claude/plugins/known_marketplaces.json" } }]]),
-    providers: new Map([["demo", { pin: { plugin: "demo@mkt" } }]]),
-    facts: new Map([[".claude/plugins/known_marketplaces.json", { mkt: { source: { source: "git", url } } }]]),
-  });
-  const setInstalled = (sha) => world.facts.set(".claude/plugins/installed_plugins.json", { version: 2, plugins: { "demo@mkt": [{ scope: "user", version: "1.2.3", gitCommitSha: sha }] } });
-  if (installedSha) setInstalled(installedSha);
-  return { world, setInstalled };
-}
-
-test("pinCheck hashes the plugin subtree at the commit and records a candidate", async (t) => {
+test("a schema 1 lock is refused on its version, before any fetch", async (t) => {
   const base = scratch();
   t.after(() => cleanup(base));
-  const repo = makeRepo(base, [PLUGIN_FILES]);
-  const { world } = pinWorld(base, repo.url);
-
-  const r = await pinCheck(world, "demo", repo.shas[0]);
-
-  const lock = readLockFile(world.roots.repo);
-  assert.equal(lock.pins.demo.plugin, "demo@mkt");
-  assert.equal(lock.pins.demo.current, null);
-  assert.deepEqual(lock.pins.demo.candidate, r.candidate);
-  assert.equal(r.candidate.version, "1.2.3");
-  assert.equal(r.candidate.sha, repo.shas[0]);
-  assert.match(r.candidate.checked, /^\d{4}-\d{2}-\d{2}$/);
-  assert.deepEqual(r.files.map((x) => x.path).sort(), [".claude-plugin/plugin.json", "bin/tool", "skills/s/SKILL.md"]);
-  assert.equal(r.candidate.tree, treeHash(r.files, { core: true }));
-  assert.equal(r.files.find((x) => x.path === "bin/tool").mode, 0o755);
+  const world = makeWorld(base);
+  const v0 = { schema: 1, core: null, packs: {}, pins: {} };
+  writeFileSync(join(world.roots.repo, "rig.lock.json"), `${JSON.stringify(v0, null, 2)}\n`);
+  await assert.rejects(vendor(world, { repo: "file:///nowhere", sha: "0".repeat(40), paths: ["z"] }), { code: "E_SCHEMA", message: /schema 1 is v0, see docs\/design\/rig-v1-first-seed\.md/ });
+  assert.throws(() => pinSet(world, "core"), { code: "E_SCHEMA" });
 });
 
-test("pinCheck needs a sha and a known marketplace", async (t) => {
+test("pinCheck and pinSet take core only until pack pins land", async (t) => {
   const base = scratch();
   t.after(() => cleanup(base));
-  const repo = makeRepo(base, [PLUGIN_FILES]);
-  const { world } = pinWorld(base, repo.url);
-  await assert.rejects(pinCheck(world, "demo", null), { code: "E_USAGE" });
-  await assert.rejects(pinCheck(world, "ghost", repo.shas[0]), { code: "E_PIN_UNKNOWN" });
-  world.facts.clear();
-  await assert.rejects(pinCheck(world, "demo", repo.shas[0]), { code: "E_PIN_MARKETPLACE" });
-});
-
-test("pinSet refuses when the installed commit is not the checked candidate, and promotes when it is", async (t) => {
-  const base = scratch();
-  t.after(() => cleanup(base));
-  const repo = makeRepo(base, [PLUGIN_FILES]);
-  const { world, setInstalled } = pinWorld(base, repo.url);
-
-  let r = pinSet(world, "demo");
-  assert.equal(r.promoted, false);
-  assert.equal(r.error.code, "E_PIN_UNCHECKED", "no candidate yet");
-
-  await pinCheck(world, "demo", repo.shas[0]);
-  const before = readFileSync(join(world.roots.repo, "rig.lock.json"));
-
-  r = pinSet(world, "demo");
-  assert.equal(r.error.code, "E_PIN_UNCHECKED", "plugin not installed");
-
-  const sha = repo.shas[0];
-  const flipped = sha.slice(0, -1) + (sha.endsWith("0") ? "1" : "0");
-  setInstalled(flipped);
-  r = pinSet(world, "demo");
-  assert.equal(r.promoted, false);
-  assert.equal(r.error.code, "E_PIN_UNCHECKED", "one changed byte");
-
-  setInstalled(sha.slice(0, 7));
-  assert.equal(pinSet(world, "demo").promoted, false, "an abbreviated installed sha is not equal");
-  assert.deepEqual(readFileSync(join(world.roots.repo, "rig.lock.json")), before, "refusals write nothing");
-
-  world.facts.set(".claude/plugins/installed_plugins.json", { plugins: { "demo@mkt": [{ gitCommitSha: sha }, { gitCommitSha: flipped }] } });
-  assert.equal(pinSet(world, "demo").promoted, false, "every installed record must match");
-
-  setInstalled(sha);
-  r = pinSet(world, "demo");
-  assert.deepEqual(r, { promoted: true });
-  const pin = readLockFile(world.roots.repo).pins.demo;
-  assert.deepEqual(pin.current, { version: "1.2.3", sha, tree: pin.current.tree });
-  assert.match(pin.current.tree, /^sha256:[0-9a-f]{64}$/);
-  assert.equal(pin.candidate, null);
+  const world = makeWorld(base);
+  await assert.rejects(pinCheck(world, "demo", "0".repeat(40)), { code: "E_USAGE", message: /core only/ });
+  assert.throws(() => pinSet(world, "demo"), { code: "E_USAGE", message: /core only/ });
+  assert.equal(existsSync(join(world.roots.repo, "rig.lock.json")), false);
 });
 
 test("core: pinCheck hashes packs/core with no network and pinSet seals it", async (t) => {

@@ -23,12 +23,12 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Read dirs: `~/.claude/skills` (writable, dedupe `none`) and `~/.claude/plugins/cache` (read-only, plugins, dedupe `none`).
 - Never write: `~/.claude/plugins/**`.
 - Skills: `~/.claude/skills/<name>/`. Hide: `disable-model-invocation: true` in the frontmatter.
-- Commands: `~/.claude/commands/<name>.md`, the source as is. `/craft` and `/pm` land here.
+- Commands: `~/.claude/commands/<name>.md`, the source as is. `/oh` lands here.
 - Agents: `~/.claude/agents/<name>.md`, the source as is.
 - Rules: `~/.claude/rules/<name>.md`.
 - Frame: `~/.claude/rules/rig-frame.md`, a whole file that rig owns.
 - Project packs: a local plugin in the `rig-local` marketplace at `$XDG_DATA_HOME/rig/marketplace`, by default `~/.local/share/rig/marketplace`. You enable it in a project's `.claude/settings.local.json`. See [Scope packs to projects](./guide/05-scope-and-projects.md).
-- Model surfaces: `~/.claude/agents/{role}.md`, kind `frontmatter`, keys `model` and `effort`, plus the model name in `description`. For the roles in `models/roles.json`, rig patches the agent files that you wrote and creates none. pstack adds `~/.claude/rules/pstack-models.md`, kind `whole`, which keeps its header lines.
+- Model surfaces: `~/.claude/agents/{role}.md`, kind `frontmatter`, keys `model` and `effort`, plus the model name in `description`. For the roles in `models/roles.json`, rig patches the agent files that you wrote and creates none. A pack can add its own surfaces in `pack.json` `model_surfaces`, for example a `whole` rules file that keeps its header lines.
 - Session hook: one `SessionEnd` element in `~/.claude/settings.json` at `/hooks/SessionEnd`, only when `rig.json` sets `metrics.session_hook` to `true`. The default is `false`. The element runs `rig stats --record` and keeps every hook entry that rig did not write (`test/scope.test.ts`, "a session-hook element whose command differs only in the node path").
 
 ## Codex
@@ -36,7 +36,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Read dirs: `~/.codex/skills` and `~/.agents/skills`, both writable, dedupe `none`. On a default install, `rig plan` places Codex copies in `~/.agents/skills`, which omp and Cursor also read.
 - Never write: none declared.
 - Skills: hide is the sidecar `agents/openai.yaml` with `policy.allow_implicit_invocation: false`. Codex ignores `disable-model-invocation` (probe (f)).
-- Commands: `~/.codex/prompts/<name>.md`, body only, frontmatter dropped. You type `/prompts:<name>`, for example `/prompts:craft`.
+- Commands: `~/.codex/prompts/<name>.md`, body only, frontmatter dropped. You type `/prompts:<name>`, for example `/prompts:oh`.
 - Agents: `~/.codex/agents/<name>.toml` with `name`, `description` and `developer_instructions`.
 - Rules: no rule format. `rig plan` prints an `absent` info line for a rule unit.
 - Frame: a managed block in `~/.codex/AGENTS.md`, between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->`. Your lines outside the markers keep their bytes (`test/render.test.ts`, "targets.patch: the rendered frame block appends, then converges").
@@ -65,7 +65,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Agents: `~/.cursor/agents/<name>.md` with `name`, `description` and the body. The Claude model keys stay out.
 - Rules: `~/.cursor/rules/<name>.mdc`, with `alwaysApply: true` added.
 - Frame: `~/.cursor/rules/rig-frame.mdc`, a whole file with `alwaysApply: true`. Whether Cursor loads user-level rules and local plugins is not verified (probe (j), assumption A24).
-- Model surfaces: `~/.cursor/agents/{role}.md`, kind `frontmatter`, `model: <slug>[effort=<e>]`. pstack adds `~/.cursor/rules/pstack-models.mdc`, kind `whole`.
+- Model surfaces: `~/.cursor/agents/{role}.md`, kind `frontmatter`, `model: <slug>[effort=<e>]`. A pack can add its own surfaces in `pack.json` `model_surfaces`.
 - Session hook: none. Cursor's `stop` event fires once per turn, so it cannot carry a per-session hook (architecture section 13).
 
 ## Harnesses after v0

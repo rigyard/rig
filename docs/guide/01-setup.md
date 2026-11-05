@@ -33,7 +33,7 @@ rig reads two config roots and keeps its own files in two more roots. Each root 
 
 | Root | Default path | What it holds | Written by |
 |---|---|---|---|
-| Repo config | your checkout (`RIG_ROOT` overrides it) | `rig.json`, `rig.lock.json`, `packs/`, `targets/`, `providers/`, `models/` | `rig models set` (`models/tiers.json`), `rig pack add`, `rig pin check`, `rig pin set`, and you |
+| Repo config | your checkout (`RIG_ROOT` overrides it) | `rig.json`, `rig.lock.json`, `packs/`, `targets/`, `models/` | `rig models set` (`models/tiers.json`), `rig pack add`, `rig pin check`, `rig pin set`, and you |
 | User overlay | `$XDG_CONFIG_HOME/rig`, else `~/.config/rig` | your own additions to the repo config | `rig pack add --into overlay`, and you |
 | State | `$XDG_STATE_HOME/rig`, else `~/.local/state/rig` | `installed.json`, `journal/`, `backups/`, `log/rig.log`, `metrics.jsonl`, `cache/` | `rig apply`, `rig stats --record` (`metrics.jsonl`), the network commands (`cache/osv/`) |
 | Data | `$XDG_DATA_HOME/rig`, else `~/.local/share/rig` | `marketplace/`, the local Claude Code marketplace for project packs | `rig apply` |
@@ -66,10 +66,10 @@ rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: harnesses[0]: the repo alre
 With `"harnesses": ["claude", "codex"]` in the checkout, the plan shrinks to the files of those two harnesses:
 
 ```text
-info budget */harness:claude: always-on: 2,475 characters, 619 tokens
-info budget */harness:codex: always-on: 1,782 characters, 446 tokens
+info budget */harness:claude: always-on: 636 characters, 159 tokens
+info budget */harness:codex: always-on: 573 characters, 144 tokens
 ...
-24 changes, 0 blocks
+15 changes, 0 blocks
 ```
 
 ## Run your first doctor
@@ -77,22 +77,14 @@ info budget */harness:codex: always-on: 1,782 characters, 446 tokens
 `rig doctor` reads your machine and your config. It writes nothing and logs nothing. On a fresh HOME with the repo defaults, it prints:
 
 ```text
-info  drift     33 changes pending; rig plan lists them
-warn  pin       pstack/rig.lock.json: /craft on claude reads pstack from the plugin cache, and pstack has no locked version: run rig pin check pstack
-warn  telemetry openspec/providers/openspec.json: openspec sends telemetry by default. Add to your shell profile: export DO_NOT_TRACK=1
-info  alias     /pm is an alias of /craft (rig.json aliases). A hand-written pm command at a rendered path blocks rig plan with E_ADOPT_MISMATCH.
-0 errors, 2 warnings
+info  drift 20 changes pending; rig plan lists them
+0 errors, 0 warnings
 ```
 
-Each line has a level, a topic and a text. Read them like this:
+Each line has a level, a topic and a text. `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. The number depends on your packs, your harnesses and the files already on disk.
 
-- `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. The number depends on your packs, your harnesses and the files already on disk.
-- `pin` says that `/craft` on Claude Code reads pstack from the plugin cache, and `rig.lock.json` has no pstack entry yet. This is the current state of the repo, not a settled policy. See [open questions](../assumptions-and-open-questions.md). [Packs and pins](./04-packs-and-pins.md) shows what `rig pin check` does.
-- `telemetry` names a provider that sends telemetry unless you opt out in your shell profile. rig does not change your shell profile.
-- `alias` reminds you that `/pm` renders as an alias of `/craft`. If you already keep a hand-written `pm` command, [Plan, apply, undo](./02-plan-and-apply.md) shows what happens.
+The last line counts errors and warnings. Doctor exits 1 when it prints an error, else 0.
 
-The last line counts errors and warnings. Doctor exits 1 when it prints an error, else 0. This run exits 0, because warnings do not block.
-
-After an apply, doctor can also report drift of managed files, duplicate skills per harness and the state of pinned plugins. Run `rig doctor --project <dir>` to see, for one project, which workflow provider and which project packs apply there. [Scope and projects](./05-scope-and-projects.md) covers that form.
+Doctor also reports a broken core seal (`pin`), a pack whose `pack.json` sends telemetry with no opt-out set (`telemetry`), each alias in `rig.json` (`alias`), and, after an apply, drift of managed files and duplicate skills per harness. Run `rig doctor --project <dir>` to see which project packs apply to one project. [Scope and projects](./05-scope-and-projects.md) covers that form.
 
 Next: [Plan, apply, undo](./02-plan-and-apply.md).

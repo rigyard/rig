@@ -68,14 +68,17 @@ rig stats --suggest
 diff --git a/rig.json b/rig.json
 --- a/rig.json
 +++ b/rig.json
-@@ -22,7 +22,9 @@
-     "doc-review": null,
-     "second-opinion": null
+@@ -10,7 +10,9 @@
+     "product": {}
    },
+   "aliases": {},
 -  "disable": [],
 +  "disable": [
 +    "product/office-hours"
 +  ],
+   "metrics": {
+     "session_hook": false
+   }
 ```
 
 `--suggest` prints the report, then a section headed `suggestions (a proposed diff; rig applies nothing)` with the proposals, then a patch. It saves the patch under `~/.local/state/rig/proposals/` and changes nothing else. You decide: run `git apply` on the patch in the repo, commit it, then run `rig apply`.

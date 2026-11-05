@@ -5,4 +5,4 @@ Invariants, in every task:
 1. State the goal and the smallest change that meets it.
 2. Verify on the real artifact.
 Models: {{rig:models-source}}.
-Doc review: use rig-doc-review.
+Notes: use rig-notes.

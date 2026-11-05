@@ -1,6 +1,6 @@
 # Scope packs to projects
 
-In this page you choose where each pack is active: on the whole machine, or only in the projects you list. You also learn how rig picks the workflow provider of one project, and how `rig doctor --project` checks both. rig infers nothing from a project. Every choice is a line that you write.
+In this page you choose where each pack is active: on the whole machine, or only in the projects you list. You also learn how `rig doctor --project` checks one project. rig infers nothing from a project. Every choice is a line that you write.
 
 ## Pick a scope mode per pack
 
@@ -16,7 +16,7 @@ This overlay puts the `product` pack in project mode for one project:
 
 ```json
 {
-  "schema": 1,
+  "schema": 2,
   "packs": {"product": {"scope": "project", "projects": ["~/src/app"]}}
 }
 ```
@@ -41,7 +41,7 @@ create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/commands/o
 ...
 create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/.claude-plugin/plugin.json                            product/plugin
 create  owned  claude  ~/.local/share/rig/marketplace/.claude-plugin/marketplace.json                                       core/marketplace
-26 changes, 0 blocks
+12 changes, 0 blocks
 ```
 
 rig renders the plugin under its data root, in a marketplace named `rig-local`. The pack gets no copy in `~/.claude/skills`. The plugin version is a hash of the plugin files, for example `0.0.0-ac3a624d57fe`, so a changed pack gets a new version.
@@ -52,7 +52,7 @@ rig renders the plugin under its data root, in a marketplace named `rig-local`. 
 
 ```text
 ...
-run 20261105T055333.405Z-1: 26 ops applied
+run 20261105T055333.405Z-1: 12 ops applied
 register claude: run once; it installs each project pack and disables it at user scope:
   claude plugin marketplace add ~/.local/share/rig/marketplace
   claude plugin install product@rig-local
@@ -69,49 +69,30 @@ One part is not verified end to end. Probe (k) did not check that Claude Code lo
 
 Codex, omp and Cursor have no known per-project channel that stays out of the repository. On those harnesses the project part of a pack stays absent until you commit its files. `rig doctor --project` prints the paths: `.agents/skills/<name>/` for Codex, `.omp/skills/<name>/` for omp and `.cursor/skills/<name>/` for Cursor. Only skills have a known project path. A command such as `product/oh` gets a "no known project path" line. On Claude Code a rule unit has no plugin component, so `plan` prints an `absent` info line for it.
 
-## Declare the workflow provider of a project
-
-Only a `rig-project: <provider>` line selects the provider of a project. Write it alone on one line in the project instructions:
-
-```text
-rig-project: openspec
-```
-
-rig reads these files in order, and the first one with the line wins: `CLAUDE.local.md`, `CLAUDE.md`, `AGENTS.md`, `.claude/rules/rig-project.md`, then `.cursor/rules/*.mdc` in name order. With no line, `default_provider` from `rig.json` applies, which is `pstack`.
-
-Two other inputs never select a provider ([decision 0008](../decisions/0008-per-project-provider-selection.md)):
-
-- The overlay `projects` map, for example `"projects": {"~/src/app": {"provider": "pstack"}}`, is a check. `doctor --project` warns when it disagrees with the line.
-- Footprints, such as an `openspec/` dir or `pstack@cursor-plugins` in the project's `enabledPlugins`, are info lines.
-
 ## Check a project with rig doctor --project
 
-Before you paste the snippet, the project has no line and the plugin is off:
+Before you paste the snippet, the plugin is off:
 
 ```text
 $ rig doctor --project ~/src/app
+info  drift managed files match installed.json and the render
+warn  scope claude pack product is declared for this project but not enabled: paste {"enabledPlugins": {"product@rig-local": true}} into ~/src/app/.claude/settings.local.json
+info  scope codex pack product: commit .agents/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
+info  scope codex pack product: product/oh has no known project path on codex
 ...
-info  project   provider pstack source default
-warn  scope     claude pack product is declared for this project but not enabled: paste {"enabledPlugins": {"product@rig-local": true}} into ~/src/app/.claude/settings.local.json
-info  scope     codex pack product: commit .agents/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
-info  scope     codex pack product: product/oh has no known project path on codex
-...
-0 errors, 3 warnings
+0 errors, 1 warnings
 ```
 
-Then add the snippet, put `rig-project: openspec` in `AGENTS.md`, create `openspec/`, and add a `projects` entry that says `pstack`:
+Then add the snippet:
 
 ```text
 $ rig doctor --project ~/src/app
+info  drift managed files match installed.json and the render
+info  scope claude pack product is enabled here (local)
 ...
-info  project   provider openspec source instructions (rig-project: openspec)
-warn  project   the overlay projects map says pstack, the project declares openspec (instructions)
-info  footprint openspec: dir:openspec/ (info only: footprints never select a provider)
-info  scope     claude pack product is enabled here (local)
-...
-0 errors, 3 warnings
+0 errors, 0 warnings
 ```
 
 `doctor` reads the project and writes nothing. For `enabledPlugins` it follows the precedence of Claude Code: local beats project, project beats user. The `(local)` tag names the file that decided.
 
-Next: [Start work with /craft](./06-craft.md).
+Next: [Pick and swap models](./07-models.md).

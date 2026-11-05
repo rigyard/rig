@@ -7,9 +7,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "node:test";
 import { compose } from "../../lib/stack.ts";
-import { liveTest, realHome, runHarness } from "../helpers/live.ts";
-import { harnessArgv, ompEnv, realBin, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
-import { baseJson, fixture, pack } from "../world.helpers.ts";
+import { liveTest, runHarness } from "../helpers/live.ts";
+import { ompEnv, realBin, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
+import { fixture, pack } from "../world.helpers.ts";
 
 const sha = (p) => (existsSync(p) ? createHash("sha256").update(readFileSync(p)).digest("hex") : null);
 const command = (tok) => `---\ndescription: rig seed command\n---\nReply with the word ${tok} and nothing else.\n`;
@@ -28,7 +28,7 @@ describe("world", () => {
     const replacing = sentinel();
     const { fx, dir } = seed(t, {
       overlay: {
-        "rig.json": { schema: 1, packs: { own: {}, fix: {} } },
+        "rig.json": { schema: 2, packs: { own: {}, fix: {} } },
         ...pack("own", { "commands/rigseed.md": command(replaced) }),
         ...pack("fix", { "commands/rigseed.md": command(replacing) }, { units: { rigseed: { replaces: "own/rigseed" } } }),
       },
@@ -56,37 +56,9 @@ describe("world", () => {
     assert.match(readFileSync(cfg, "utf8"), /^symbolPreset: ascii$/m);
     const before = [sha(cfg), sha(`${cfg}.lock`)];
 
-    // The omp target on trunk declares no facts files, and loadWorld parses facts as JSON, so config.yml is no
-    // facts file. This pins that loadWorld reads a HOME that omp wrote without a schema error and without touching it.
+    // This pins that loadWorld reads a HOME that omp wrote without a schema error and without touching it.
     const world = fx.load();
     assert.equal(world.targets.get("omp")?.name, "omp");
     assert.deepEqual([sha(cfg), sha(`${cfg}.lock`)], before);
-  });
-
-  liveTest("world reads claude plugin facts", async (t) => {
-    const real = join(realHome(), ".claude/plugins/installed_plugins.json");
-    if (!existsSync(real)) return t.skip("no installed_plugins.json in the real home");
-    const bytes = readFileSync(real);
-    const rel = "~/.claude/plugins/installed_plugins.json";
-    const claude = { ...baseJson("targets/claude.json"), facts: { installed_plugins: rel } };
-    const { fx, dir } = seed(t, { repo: { "targets/claude.json": claude }, home: { ".claude/plugins/installed_plugins.json": bytes } });
-
-    const facts = fx.load().facts.get(rel);
-    assert.deepEqual(facts, JSON.parse(bytes.toString("utf8")));
-
-    const { env } = harnessArgv("claude", "", { dir });
-    const l = await runHarness({ bin: realBin("claude", env.PATH), args: ["plugin", "list", "--json"], cwd: dir, env, timeoutMs: 60_000 });
-    assert.equal(l.code, 0, "claude plugin list failed");
-    assert.ok(Array.isArray(l.json), "claude plugin list --json is not an array");
-
-    // The listing carries no commit, so the installed version and install path stand in for it.
-    const key = (id, e) => JSON.stringify([id, e.scope, e.version, e.installPath]);
-    const listed = new Set(l.json.map((e) => key(e.id, e)));
-    const ids = Object.keys(facts.plugins);
-    assert.ok(ids.length > 0, "the facts list no plugin");
-    const missing = ids.filter((id) => facts.plugins[id].some((e) => !listed.has(key(id, e))));
-    assert.deepEqual(missing, [], "plugins whose facts entry differs from the listing");
-    const listedIds = new Set(l.json.map((e) => e.id));
-    assert.deepEqual(ids.filter((id) => !listedIds.has(id)), []);
   });
 });

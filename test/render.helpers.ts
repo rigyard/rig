@@ -29,10 +29,10 @@ export function unit({ id, type, harnesses = HARNESSES, scope = "machine-hidden"
  * A World with only the fields render reads. It has no tiers.json, so the records' model surfaces are dropped:
  * test/models-render.test.ts covers them on a loaded world.
  */
-export function world({ targets = records(), terms = fixtureTerms(), aliases = { pm: "craft" }, harnesses = HARNESSES } = {}) {
+export function world({ targets = records(), terms = fixtureTerms(), aliases = { pm: "brief" }, harnesses = HARNESSES } = {}) {
   return {
     env: { home: HOME, state: `${HOME}/.local/state/rig`, data: `${HOME}/.local/share/rig`, test: true },
-    config: { schema: 1, harnesses, aliases },
+    config: { schema: 2, harnesses, aliases },
     targets: new Map([...targets].map(([h, r]) => [h, { ...r, model_surfaces: [] }])),
     terms,
   };
@@ -42,24 +42,22 @@ export const fixtureTerms = () => JSON.parse(fixture("terms.json").toString("utf
 export const frameTemplate = () => fixture("core/frame.md").toString("utf8");
 
 /**
- * The fixture stack: one visible skill, one hidden skill, one command, one agent, one rule, the frame, /craft, and
- * the alias unit pm. The frame and alias units have the shape compose gives them: the frame carries principles.md
- * next to frame.md, and the alias is a core command holding the raw alias template.
+ * The fixture stack: one visible skill, one hidden skill, one command, one agent, one rule, the frame, /brief, and
+ * the alias unit pm. The frame and alias units have the shape compose gives them: the frame holds frame.md, and the
+ * alias is a core command holding the raw alias template.
  */
 export function fixtureStack() {
   return {
     units: [
-      unit({ id: "core/rig-frame", type: "frame", files: { "frame.md": fixture("core/frame.md"), "principles.md": "# Principles\n" } }),
-      unit({ id: "core/craft", type: "command", files: { "craft.md": fixture("core/commands/craft.md") } }),
-      unit({ id: "core/rig-doc-review", type: "skill", files: { "SKILL.md": fixture("core/skills/rig-doc-review/SKILL.md") } }),
+      unit({ id: "core/rig-frame", type: "frame", files: { "frame.md": fixture("core/frame.md") } }),
+      unit({ id: "core/brief", type: "command", files: { "brief.md": fixture("core/commands/brief.md") } }),
+      unit({ id: "core/rig-notes", type: "skill", files: { "SKILL.md": fixture("core/skills/rig-notes/SKILL.md") } }),
       unit({ id: "own/explain", type: "skill", files: { "SKILL.md": fixture("own/skills/explain/SKILL.md") } }),
       unit({ id: "own/review", type: "command", files: { "review.md": fixture("own/commands/review.md") } }),
       unit({ id: "own/helper", type: "agent", files: { "helper.md": fixture("own/agents/helper.md") } }),
       unit({ id: "own/style", type: "rule", files: { "style.md": fixture("own/rules/style.md") } }),
       unit({ id: "core/pm", type: "command", files: { "pm.md": fixture("core/commands/alias.md") } }),
     ],
-    slots: {},
-    providers: [],
     errors: [],
   };
 }

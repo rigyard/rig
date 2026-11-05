@@ -228,11 +228,11 @@ function setup({ rig: rigCfg = {}, pack = false, transcripts = [], home = {} } =
   const final = { ...cfg, ...rigCfg, ...(pack ? { packs: { own: {} } } : {}) };
   const spec = { "rig/rig.json": canon(final) };
   const packs = Object.keys(final.packs).filter((name) => name !== "own").map((name) => `packs/${name}`);
-  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
+  for (const dir of ["models", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
   if (pack) {
-    spec["rig/packs/own/pack.json"] = canon({ schema: 1, name: "own", license: "MIT" });
+    spec["rig/packs/own/pack.json"] = canon({ schema: 2, name: "own", license: "MIT" });
     spec["rig/packs/own/skills/idle/SKILL.md"] = "---\nname: idle\ndescription: A skill that no session loads.\n---\nDo nothing.\n";
   }
   for (const h of transcripts) {
@@ -241,7 +241,7 @@ function setup({ rig: rigCfg = {}, pack = false, transcripts = [], home = {} } =
   }
   const fx = makeFixtureHome({ ...spec, ...home });
   const root = fx.path("rig");
-  const lock = { schema: 1, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {}, pins: {} };
+  const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
   writeFileSync(join(root, "rig.lock.json"), canon(lock));
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: NOW };
   const rig = (args, input = "") => {

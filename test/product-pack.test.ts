@@ -16,8 +16,7 @@ import { ROOT, rigJson, withFixture } from "./world.helpers.ts";
 
 const PACK = join(ROOT, "packs/product");
 const SKILL = join(PACK, "skills/office-hours");
-// terms.json plus intake, the term that render derives from the provider records
-const TERMS = [...Object.keys(JSON.parse(readFileSync(join(ROOT, "packs/core/terms.json"), "utf8")).terms), "intake"];
+const TERMS = Object.keys(JSON.parse(readFileSync(join(ROOT, "packs/core/terms.json"), "utf8")).terms);
 
 /** Every file of the pack, as {rel, abs, text, mode}. */
 function packFiles() {
@@ -91,8 +90,7 @@ describe("product pack", () => {
       const pack = world.packs.get("product");
       assert.ok(pack, "world has the product pack");
       assert.equal(pack.manifest.license, "MIT");
-      assert.equal(pack.manifest.source, null);
-      assert.deepEqual(pack.manifest.ported_from, { source: "gstack", sha: "b244e6d11a6466650c5147cd7dc023859968c4b5" });
+      assert.equal(pack.manifest.schema, 2);
       const stack = compose(world);
       assert.deepEqual(stack.errors, []);
       const ids = stack.units.filter((u) => u.id.startsWith("product/")).map((u) => `${u.type}:${u.id}`);
@@ -103,7 +101,7 @@ describe("product pack", () => {
     withFixture(productSpec(), (fx) => {
       const world = fx.load();
       const { findings } = gate(compose(world), desired(), world);
-      const own = findings.filter((f) => f.pack === "product");
+      const own = findings.filter((f) => f.pack === "product" && f.check !== "pin");
       assert.deepEqual(own, []);
     }));
 
@@ -154,31 +152,19 @@ describe("product pack", () => {
     assert.match(oh, /office-hours skill/);
   });
 
-  test("the handoff resolves the provider by declaration and renders one intake line per workflow provider", () =>
+  test("no pack file names a workflow provider, a step slot or a v0 core skill, and the handoff ends with the doc path", () =>
     withFixture({}, (fx) => {
+      for (const f of packFiles().filter((x) => x.rel.startsWith("skills/"))) {
+        assert.doesNotMatch(f.text, /provider|\bslot\b|rig-project|rig-doc-review|rig-second-opinion|\/craft|\{\{rig:intake\}\}/i, f.rel);
+      }
       const handoff = readFileSync(join(SKILL, "references/design-doc.md"), "utf8");
-      assert.match(handoff, /rig-project: <provider>/);
-      assert.match(handoff, /^\{\{rig:intake\}\}$/m);
-      assert.doesNotMatch(handoff, /\/craft|\/opsx|\/prompts:/, "no provider command is hard-coded in the pack");
-      assert.doesNotMatch(handoff, /openspec\/ directory (?:means|selects)/);
+      assert.match(handoff, /^End with the design doc path, `docs\/designs\/<slug>\.md`, with the final slug\.$/m);
       const world = fx.load();
-      const workflow = [...world.providers.values()].filter((p) => p.kind === "workflow");
-      assert.deepEqual(workflow.map((p) => p.name), ["pstack", "openspec"]);
-      assert.equal(world.providers.get("pstack").intake.claude, "/craft feature <design-doc>");
-      assert.match(world.providers.get("openspec").intake.claude, /^\/opsx:new <slug>, then \/opsx:propose with <design-doc>/);
       const d = render(compose(world), world);
+      assert.deepEqual(d.errors, []);
       const copies = [...d.entries.values()].filter((e) => e.unit === "product/office-hours" && e.path.endsWith("/references/design-doc.md"));
       assert.equal(copies.length, 2);
-      for (const copy of copies) {
-        // terms resolve by the copy dir's format owner: the first listed harness that writes the dir
-        const dir = `~/${relative(fx.home, copy.path).replace(/\/office-hours\/references\/design-doc\.md$/, "")}`;
-        const owner = world.config.harnesses.find((h) => world.targets.get(h).reads.skills.some((e) => e.writable && e.path === dir));
-        const text = new TextDecoder().decode(copy.bytes);
-        assert.doesNotMatch(text, /\{\{/, `${dir}: leftover placeholder`);
-        const lines = text.split("\n").filter((l) => /^- [a-z0-9-]+: (Next: |no workflow provider)/.test(l));
-        const want = workflow.filter((p) => p.intake[owner]).map((p) => `- ${p.name}: Next: ${p.intake[owner]}`);
-        assert.deepEqual(lines, want.length ? want : ["- none: no workflow provider has an intake on this harness."], `${dir} (owner ${owner})`);
-      }
+      for (const copy of copies) assert.doesNotMatch(new TextDecoder().decode(copy.bytes), /\{\{/, copy.path);
     }));
 
   test("NOTICE.md and the MIT license ship with the pack", () => {

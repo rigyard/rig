@@ -1,5 +1,5 @@
 // Fixture config roots for world and stack tests. The repo root is a copy of this repo's own data (rig.json,
-// packs/core and the packs rig.json lists, providers, models, targets); tests add or replace files on top.
+// packs/core and the packs rig.json lists, models, targets); tests add or replace files on top.
 // Layout inside the fixture HOME: `rig/` is the repo root (RIG_ROOT), `.config/rig/` is the overlay.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -31,7 +31,6 @@ export function repoBase() {
     "rig.json": rig,
     ...files(ROOT, "packs/core"),
     ...Object.assign({}, ...Object.keys(JSON.parse(rig).packs).map((name) => files(ROOT, `packs/${name}`))),
-    ...files(ROOT, "providers"),
     ...files(ROOT, "models"),
     ...files(ROOT, "targets"),
   };
@@ -63,7 +62,7 @@ export const rigJson = (changes = {}) => ({ ...baseJson("rig.json"), ...changes 
 
 /** Files of one pack. */
 export function pack(name: string, unitFiles: Record<string, string>, manifest: object = {}) {
-  const out = { [`packs/${name}/pack.json`]: { schema: 1, name, license: "MIT", ...manifest } };
+  const out = { [`packs/${name}/pack.json`]: { schema: 2, name, license: "MIT", ...manifest } };
   for (const [k, v] of Object.entries(unitFiles)) out[`packs/${name}/${k}`] = v;
   return out;
 }

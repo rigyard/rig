@@ -9,19 +9,20 @@ const ids = (s) => s.units.map((u) => u.id);
 const unit = (s, id) => s.units.find((u) => u.id === id);
 const command = (name) => ({ [`commands/${name}.md`]: `---\ndescription: Fixture command ${name}.\n---\nDo ${name}.\n` });
 const withPacks = (packs, files) => ({ repo: { "rig.json": rigJson({ packs }), ...files } });
+const TIDY_ALIAS = { repo: { "rig.json": rigJson({ packs: { own: {} }, aliases: { pm: "tidy" } }), ...pack("own", command("tidy")) } };
 
 describe("core seal", () => {
   test("core is always in the stack, with no packs listed", () => {
     const s = stackOf(withPacks({}, {}));
-    assert.deepEqual(ids(s), ["core/rig-frame", "core/rig-doc-review", "core/rig-second-opinion", "core/craft", "core/pm"]);
+    assert.deepEqual(ids(s), ["core/rig-frame"]);
     assert.deepEqual(s.errors, []);
     assert.deepEqual(unit(s, "core/rig-frame").type, "frame");
-    assert.deepEqual([...unit(s, "core/rig-frame").files.keys()], ["frame.md", "principles.md"]);
-    assert.deepEqual(unit(s, "core/rig-doc-review").type, "slot-stub");
-    assert.deepEqual(unit(s, "core/craft").harnesses, ["claude", "codex", "omp", "cursor"]);
+    assert.deepEqual([...unit(s, "core/rig-frame").files.keys()], ["frame.md"]);
+    assert.deepEqual(unit(s, "core/rig-frame").harnesses, ["claude", "codex", "omp", "cursor"]);
   });
   test("each alias renders as a core command from the alias template", () => {
-    const s = stackOf({});
+    const s = stackOf(TIDY_ALIAS);
+    assert.deepEqual(s.errors, []);
     const pm = unit(s, "core/pm");
     assert.equal(pm.type, "command");
     assert.match(Buffer.from(pm.files.get("pm.md").bytes).toString(), /Alias of \/\{\{target\}\}/);
@@ -68,14 +69,6 @@ describe("the four customization operations", () => {
   });
   test("disable a unit that does not exist", () =>
     assert.deepEqual(codes(stackOf({ repo: { "rig.json": rigJson({ disable: ["own/explain"] }) } })), ["E_UNKNOWN_UNIT"]));
-  test("fill a slot from the overlay", () => {
-    const filler = { schema: 1, name: "omp-cli", kind: "headless", family: "multi", argv: ["omp", "-p", "{prompt}"], model_harness: "omp", forbid_same_family: false, telemetry: null };
-    const s = stackOf({ overlay: { "rig.json": { schema: 1, providers: ["omp-cli"], slots: { "second-opinion": { provider: "omp-cli", harnesses: ["claude", "cursor"] } } }, "providers/omp-cli.json": filler } });
-    assert.equal(s.slots["second-opinion"].name, "omp-cli");
-    assert.equal(s.slots["doc-review"], null);
-    assert.deepEqual(unit(s, "core/rig-second-opinion").harnesses, ["claude", "cursor"]);
-    assert.deepEqual(s.providers.map((p) => p.name), ["pstack", "openspec", "omp-cli"]);
-  });
   test("add a pack", () => assert.ok(ids(stackOf(withPacks({ kit: {} }, pack("kit", skill("review"))))).includes("kit/review")));
   test("replace a non-sealed unit: no clash, and the replaced unit leaves the stack", () => {
     const s = stackOf(withPacks({ own: {}, kit: {} }, { ...pack("own", skill("explain")), ...pack("kit", skill("explain"), { units: { explain: { replaces: "own/explain" } } }) }));
@@ -112,26 +105,13 @@ describe("clash rules", () => {
   test("an agent and a skill with one name do not clash", () =>
     assert.deepEqual(codes(stackOf(withPacks({ own: {} }, pack("own", { ...skill("review"), "agents/review.md": "x\n" })))), []));
   test("a pack unit with a core name: E_CORE_SHADOW", () => {
-    for (const files of [skill("rig-doc-review"), command("craft"), command("pm")]) {
-      const s = stackOf(withPacks({ own: {} }, pack("own", files)));
+    for (const files of [skill("pm"), command("pm")]) {
+      const s = stackOf({ repo: { ...TIDY_ALIAS.repo, "rig.json": rigJson({ packs: { own: {}, kit: {} }, aliases: { pm: "tidy" } }), ...pack("kit", files) } });
       assert.deepEqual(codes(s), ["E_CORE_SHADOW"], JSON.stringify(Object.keys(files)));
     }
   });
   test("an overlay pack unit with a core name: E_CORE_SHADOW", () => {
-    const s = stackOf({ overlay: { "rig.json": { schema: 1, packs: { mine: {} } }, ...pack("mine", skill("rig-second-opinion")) } });
+    const s = stackOf({ ...TIDY_ALIAS, overlay: { "rig.json": { schema: 2, packs: { mine: {} } }, ...pack("mine", skill("pm")) } });
     assert.deepEqual(codes(s), ["E_CORE_SHADOW"]);
   });
-  test("an alias with the name of a core command: E_CLASH", () =>
-    assert.deepEqual(codes(stackOf({ repo: { "rig.json": rigJson({ aliases: { craft: "craft" } }) } })).sort(), ["E_CLASH", "E_UNKNOWN_UNIT"]));
-});
-
-describe("second-opinion family rule", () => {
-  const codexCli = { schema: 1, name: "codex-cli", kind: "headless", family: "openai", argv: ["codex", "exec", "{prompt}"], model_harness: "codex", forbid_same_family: true, telemetry: null };
-  const spec = (harnesses) => ({ overlay: { "rig.json": { schema: 1, providers: ["codex-cli"], slots: { "second-opinion": { provider: "codex-cli", ...(harnesses ? { harnesses } : {}) } } }, "providers/codex-cli.json": codexCli } });
-  test("a filler that forbids its own family, on its own harness: E_SAME_FAMILY", () => {
-    const s = stackOf(spec(null));
-    assert.deepEqual(codes(s), ["E_SAME_FAMILY"]);
-    assert.equal(s.errors[0].harness, "codex");
-  });
-  test("leaving its own harness out passes", () => assert.deepEqual(codes(stackOf(spec(["claude", "omp", "cursor"]))), []));
 });

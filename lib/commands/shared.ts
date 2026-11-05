@@ -33,7 +33,7 @@ export function prepare(world, { filter } = {}) {
   return { world, stack, desired, findings: gated.findings, errors, planned: { ...planned, blocked: planned.blocked || errors.length > 0 } };
 }
 
-const EMPTY_STACK = Object.freeze({ units: [], slots: {}, providers: [], errors: [] });
+const EMPTY_STACK = Object.freeze({ units: [], errors: [] });
 const EMPTY_DESIRED = Object.freeze({ entries: new Map(), errors: [], info: [] });
 
 /**

@@ -12,6 +12,7 @@ import { treeHash } from "../lib/tree.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { makeStubs } from "./helpers/stubs.ts";
 import { cleanup as rmScratch, makeRepo, MIT_TEXT, scratch } from "./lock.helpers.ts";
+import { PSTACK_PACK } from "./pstack.helpers.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const BIN = join(ROOT, "bin/rig.ts");
@@ -34,7 +35,7 @@ function repoSpec() {
   const rig = readFileSync(join(ROOT, "rig.json"));
   const spec = { "rig/rig.json": rig };
   const packs = Object.keys(JSON.parse(rig.toString("utf8")).packs).map((name) => `packs/${name}`);
-  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
+  for (const dir of ["models", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
   return spec;
@@ -48,7 +49,7 @@ function setup({ home = {}, sealed = true, edit } = {}) {
   const fx = makeFixtureHome({ ...repoSpec(), ...home });
   const root = fx.path("rig");
   if (sealed) {
-    const lock = { schema: 1, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {}, pins: {} };
+    const lock = { schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} };
     writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
   }
   edit?.(root);
@@ -72,14 +73,19 @@ function changed(a, b) {
 
 const STATE = ".local/state/rig/";
 
+const editRig = (root, change) => {
+  const path = join(root, "rig.json");
+  writeFileSync(path, `${JSON.stringify(change(JSON.parse(readFileSync(path, "utf8"))), null, 2)}\n`);
+};
+
 describe("rig doctor", () => {
   test("a sealed fixture HOME: exit 0, the /pm reminder, and nothing written, not even a log line", (t) => {
-    const s = setup();
+    const s = setup({ edit: (root) => editRig(root, (c) => ({ ...c, aliases: { pm: "oh" } })) });
     t.after(() => s.fx.cleanup());
     const before = s.fx.snapshot();
     const r = s.rig(["doctor"]);
     assert.equal(r.code, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^info +alias +\/pm is an alias of \/craft/m);
+    assert.match(r.stdout, /^info +alias +\/pm is an alias of \/oh/m);
     assert.match(r.stdout, /^0 errors, \d+ warnings$/m);
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
   });
@@ -108,23 +114,6 @@ describe("rig doctor", () => {
     assert.equal(r.code, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /^info +duplicates +codex lists dup 2 times: .*\.codex\/skills\/dup, .*\.agents\/skills\/dup$/m);
     assert.doesNotMatch(r.stdout, /^info +duplicates +(claude|omp|cursor) /m, "harnesses that read one copy, or dedupe by name, list it once");
-  });
-
-  test("--project with a rig-project line: provider openspec, source instructions", (t) => {
-    const s = setup({ home: { "src/app/CLAUDE.md": "# App\n\nrig-project: openspec\n" } });
-    t.after(() => s.fx.cleanup());
-    const r = s.rig(["doctor", "--project", s.fx.path("src/app")]);
-    assert.equal(r.code, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^info +project +provider openspec source instructions \(rig-project: openspec\)$/m);
-  });
-
-  test("--project with an openspec/ dir and no line: the default provider, the footprint as info only", (t) => {
-    const s = setup({ home: { "src/app/openspec/project.md": "# spec\n" } });
-    t.after(() => s.fx.cleanup());
-    const r = s.rig(["doctor", "--project", s.fx.path("src/app")]);
-    assert.equal(r.code, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^info +project +provider pstack source default$/m);
-    assert.match(r.stdout, /^info +footprint +openspec: dir:openspec\/ \(info only/m);
   });
 
   test("--project with a path that is not a directory: exit 2", (t) => {
@@ -206,7 +195,10 @@ describe("rig models", () => {
   });
 
   test("set changes exactly one value in models/tiers.json of the fixture root, and nothing else", (t) => {
-    const s = setup();
+    const s = setup({
+      home: { "rig/packs/pstack/pack.json": `${JSON.stringify(PSTACK_PACK, null, 2)}\n` },
+      edit: (root) => editRig(root, (c) => ({ ...c, packs: { ...c.packs, pstack: {} } })),
+    });
     t.after(() => s.fx.cleanup());
     const file = join(s.root, "models/tiers.json");
     const beforeText = readFileSync(file, "utf8");
@@ -214,7 +206,6 @@ describe("rig models", () => {
     const r = s.rig(["models", "set", "strong", "model-z", "--harness", "claude"]);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /^models\/tiers\.json: tiers\.strong\.claude: opus -> model-z\n/);
-    // The filtered plan holds the one model file that render emits on an empty HOME: the pstack model rules.
     assert.match(r.stdout, /^create +owned +claude +~\/\.claude\/rules\/pstack-models\.md +pstack\/models$/m);
     assert.match(r.stdout, /^1 change, 0 blocks$/m);
     assert.match(readFileSync(s.fx.path(".claude/rules/pstack-models.md"), "utf8"), /^hardest tasks: model-z xhigh$/m);
@@ -290,20 +281,34 @@ describe("rig pack add", () => {
 });
 
 describe("rig pin", () => {
-  test("pin set without a candidate exits 1 with E_PIN_UNCHECKED", (t) => {
+  test("pin set core without a candidate exits 1 with E_PIN_UNCHECKED", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
-    const r = s.rig(["pin", "set", "x"]);
+    const r = s.rig(["pin", "set", "core"]);
     assert.equal(r.code, 1);
-    assert.match(r.stderr, /^rig pin set: E_PIN_UNCHECKED x has no candidate/);
+    assert.match(r.stderr, /^rig pin set: E_PIN_UNCHECKED core has no candidate/);
   });
 
-  test("pin check without --sha for a name other than core exits 2", (t) => {
+  test("pin check and pin set of a name other than core exit 2", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
-    const r = s.rig(["pin", "check", "x"]);
-    assert.equal(r.code, 2);
-    assert.match(r.stderr, /^rig pin: E_USAGE rig pin check x needs --sha\n$/);
+    const before = readFileSync(join(s.root, "rig.lock.json"));
+    for (const sub of ["check", "set"]) {
+      const r = s.rig(["pin", sub, "x", ...(sub === "check" ? ["--sha", "0".repeat(40)] : [])]);
+      assert.equal(r.code, 2, r.stderr);
+      assert.match(r.stderr, new RegExp(`^rig pin: E_USAGE rig pin ${sub} works on core only in this version, not on x\\n$`));
+    }
+    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
+  });
+
+  test("pin check core --sha exits 2 with E_USAGE and leaves the lock alone", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    const before = readFileSync(join(s.root, "rig.lock.json"));
+    const r = s.rig(["pin", "check", "core", "--sha", "0".repeat(40)]);
+    assert.equal(r.code, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /^rig pin: E_USAGE rig pin check core does not take --sha\n$/);
+    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
   });
 
   test("bootstrap: pin check core, then pin set core, seals an unsealed root and doctor exits 0", (t) => {

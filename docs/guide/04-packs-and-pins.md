@@ -1,6 +1,6 @@
-# Add packs and pin plugins
+# Add packs and seal core
 
-In this page you learn what a pack is and turn the shipped packs on and off. You vendor a pack from another repository at a fixed commit, and you lock a native plugin such as pstack. After this page, every skill on your machine traces back to a commit and a tree hash in `rig.lock.json`.
+In this page you learn what a pack is and turn the shipped packs on and off. You vendor a pack from another repository at a fixed commit, and you seal core again after a change. After this page, every vendored skill on your machine traces back to a commit and a tree hash in `rig.lock.json`.
 
 ## Know what a pack is
 
@@ -11,13 +11,13 @@ A pack is a directory under `packs/<name>/`. rig finds its units by the director
 - `agents/<name>.md`
 - `rules/<name>.md`
 
-An optional `pack.json` holds the license, the scopes the pack supports, where it came from, and exceptions per unit. A pack is data only. rig has no code plugins, and the `exec` check blocks scripts, hooks and MCP configs inside a pack. The design record is [decision 0004](../decisions/0004-packs-and-targets-as-data.md).
+An optional `pack.json` holds the license, the scopes the pack supports, and exceptions per unit. The lock, not `pack.json`, records where a vendored pack came from. A pack is data only. rig has no code plugins, and the `exec` check blocks scripts, hooks and MCP configs inside a pack. The design record is [decision 0004](../decisions/0004-packs-and-targets-as-data.md).
 
 ## Meet the shipped packs
 
 The checkout ships two packs.
 
-`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the principles index, the vocabulary in `terms.json`, the `/craft` command, the alias template and two slot stubs. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
+`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json` and the alias template. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
 
 `packs/product` holds the `/oh` command and the `office-hours` skill. It is a port of the gstack office-hours skill at commit `b244e6d`. `NOTICE.md` lists each derived file, and `licenses/MIT-gstack.txt` holds the MIT license text. The pack is MIT and supports the scopes `machine-hidden`, `project` and `hybrid`. The checkout enables it with `"product": {}` in `rig.json`. The pack is part of v0 by [decision 0026](../decisions/0026-product-pack-in-v0.md). Open points are in [the open questions](../assumptions-and-open-questions.md#open-questions-for-the-user).
 
@@ -35,12 +35,12 @@ To turn a pack off, remove its key from the checkout `rig.json`. The overlay at 
 
 ```text
 {
-  "schema": 1,
+  "schema": 2,
   "disable": ["product/oh"]
 }
 ```
 
-On a fresh temporary HOME, `rig plan` drops from 33 changes to 29: the four `/oh` command files are gone. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
+On a fresh temporary HOME, `rig plan` drops from 20 changes to 15: the four `/oh` command files are gone, and so is the Cursor plugin manifest, which only `/oh` needed. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
 
 ## Vendor a pack at a commit
 
@@ -71,17 +71,16 @@ Each config root has one `rig.lock.json`. This is the checkout's file on main:
 
 ```text
 {
-  "schema": 1,
+  "schema": 2,
   "core": {
-    "tree": "sha256:34ce10a4c2250abfcb12ca4f4ff4df239ba54357bb69bc97215b978d30490dac",
+    "tree": "sha256:02e383d3d5ec0414909820e019bb1483ef91f264821ccfe81e6abb3148394bce",
     "candidate": null
   },
-  "packs": {},
-  "pins": {}
+  "packs": {}
 }
 ```
 
-A pack entry records the repo, the full commit, the paths, the license and the tree hash. The tree hash is sha256 over the sorted lines `<path>\0<mode>\0<sha256 of bytes>`. A vendored pack leaves `pack.json` out of its hash. The core seal includes it. When the files on disk differ from the lock, `pin` blocks with `tree ... differs from locked ...`. rig has no update command and no auto-update. A new version is a new `pack add` that you run. rig writes the file in canonical JSON and refuses a hand-formatted one with `E_JSON_ROUNDTRIP`. The design record is [decision 0003](../decisions/0003-copies-and-lockfile.md).
+A pack entry records the repo, the full commit, the root, the paths, the excludes, the license, the tree hash, the port record and the candidate. `rig pack add` writes the root as `.`, no excludes, and no port record or candidate yet. The tree hash is sha256 over the sorted lines `<path>\0<mode>\0<sha256 of bytes>`. A vendored pack leaves `pack.json` out of its hash. The core seal includes it. When the files on disk differ from the lock, `pin` blocks with `tree ... differs from locked ...`. rig has no update command and no auto-update. A new version is a new `pack add` that you run. rig writes the file in canonical JSON and refuses a hand-formatted one with `E_JSON_ROUNDTRIP`. A `rig.lock.json` with `"schema": 1` is a v0 lock. `rig plan` and the commands that read the lock refuse it with `E_SCHEMA`. The design record is [decision 0003](../decisions/0003-copies-and-lockfile.md).
 
 If you change core on purpose, seal it again with no network. This output comes from the test "bootstrap: pin check core, then pin set core, seals an unsealed root and doctor exits 0":
 
@@ -93,37 +92,6 @@ $ rig pin set core
 promoted the core candidate to current
 ```
 
-## Pin a native plugin
-
-pstack installs through Claude Code's own plugin system. rig does not copy it. rig gates it and locks the commit you approved, in two steps.
-
-`rig pin check pstack --sha <commit>` reads the plugin name from `providers/pstack.json` and the marketplace repo from `~/.claude/plugins/known_marketplaces.json`. It fetches that commit, hashes the plugin tree, refreshes the OSV cache and gates the tree. A clean tree becomes the `candidate` in the lock. A blocked tree leaves the lock unchanged. This output comes from the test "pin check prints the candidate version, commit and tree; pin set promotes it when the installed commit is equal":
-
-```text
-$ rig pin check pstack --sha 0123456789abcdef0123456789abcdef01234567
-recorded pstack candidate 9.8.7 (0123456789abcdef0123456789abcdef01234567) sha256:...; run rig pin set pstack
-...
-```
-
-Next, install that commit in Claude Code. Then run `rig pin set pstack`. It promotes the candidate to `current` only when every installed record of the plugin has the same commit. These two failures ran on a temporary HOME:
-
-```text
-$ rig pin check pstack
-rig pin: E_USAGE rig pin check pstack needs --sha
-$ rig pin set pstack
-rig pin set: E_PIN_UNCHECKED pstack has no candidate; run rig pin check pstack --sha <sha> first
-```
-
-After `pin set`, add `"pstack"` to `pins` in `rig.json`. Then every plan compares the installed commit with the lock and blocks when they differ. A name in `pins` with no `current` version blocks too, so add it after `pin set`, not before. The `pin` check also warns when the marketplace has auto-update on. rig cannot stop Claude Code from updating a plugin. It detects the change on the next `rig plan` or `rig doctor`.
-
-## Know the pstack pin status on main
-
-The checkout has no pstack pin yet: `pins` is empty in both `rig.json` and `rig.lock.json`. Whether to ship a locked pin is an [open decision](../assumptions-and-open-questions.md). Until you lock one, `rig doctor` warns on every run:
-
-```text
-warn  pin       pstack/rig.lock.json: /craft on claude reads pstack from the plugin cache, and pstack has no locked version: run rig pin check pstack
-```
-
-`/craft` on Claude Code reads pstack from a plugin cache path that contains the locked version. With no locked version, `/craft` tells you to run `rig pin check pstack`.
+`rig pin check` and `rig pin set` take only `core` in this version. Any other name exits 2 with `E_USAGE`.
 
 Next: [Scope packs to projects](./05-scope-and-projects.md).

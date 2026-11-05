@@ -1,5 +1,6 @@
-// One spec per config file (docs/design/rig-architecture.md section 2). Every root record is closed and carries
-// `schema: 1`. Cross-file rules (scope modes, references between files) live in lib/world.ts.
+// One spec per config file (docs/design/rig-architecture.md section 2). Every root record is closed. rig.json,
+// pack.json and rig.lock.json carry `schema: 2` (docs/design/rig-v1-first-seed.md), the other files `schema: 1`.
+// Cross-file rules (scope modes, references between files) live in lib/world.ts.
 
 import { ID, S, overlayOf } from "./schema.ts";
 
@@ -10,6 +11,16 @@ export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 const id = () => S.str({ pattern: ID });
 const text = () => S.str({ nonEmpty: true });
 const schema = S.lit(1);
+
+export const SCHEMA_1_MESSAGE = "schema 1 is v0, see docs/design/rig-v1-first-seed.md";
+
+const schema2 = (rec) => ({
+  ...S.fn((v, fail, sub) => {
+    if (v !== null && typeof v === "object" && !Array.isArray(v) && v.schema === 1) fail(SCHEMA_1_MESSAGE, ["schema"]);
+    return sub(rec, v);
+  }),
+  spec: rec,
+});
 
 /** `<pack>/<unit>`. A core unit is sealed: no disable and no replace may name it. */
 const unitRef = () =>
@@ -58,47 +69,50 @@ const packEntry = S.rec({
   channel: S.map(S.enum(["plugin"]), { key: id() }),
 });
 
-const slotFiller = S.rec({ provider: id(), tier: S.enum(TIERS), harnesses: S.arr(id(), { unique: true }) }, ["provider"]);
-
 const packName = () => S.str({ pattern: ID, reject: (v) => (v === "core" ? "core is always installed and is never listed in packs" : null) });
 
-export const RIG = S.rec(
+/** A fill value: one unit, a list of units, or a list of {when, use}. */
+const fillValue = S.fn((v, fail, sub) => {
+  if (typeof v === "string") return sub(text(), v);
+  if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string")) return sub(S.arr(text(), { unique: true }), v);
+  if (Array.isArray(v)) return sub(S.arr(S.rec({ when: text(), use: text() }, ["when", "use"])), v);
+  return fail("expected a unit, a list of units, or a list of {when, use}");
+});
+
+const rigRec = S.rec(
   {
-    schema,
+    schema: S.lit(2),
     harnesses: S.arr(id(), { unique: true, union: true }),
     packs: S.map(packEntry, { key: packName() }),
-    pins: S.arr(id(), { unique: true, union: true }),
-    providers: S.arr(id(), { unique: true, union: true }),
-    default_provider: id(),
     aliases: S.map(id(), { key: id() }),
-    slots: S.map(S.nul(slotFiller), { key: id(), slot: true }),
+    fill: S.map(fillValue, { key: text() }),
     disable: S.arr(unitRef(), { unique: true, union: true }),
     metrics: S.rec({ session_hook: S.bool() }, ["session_hook"]),
   },
-  ["schema", "harnesses", "packs", "pins", "providers", "default_provider", "aliases", "slots", "disable", "metrics"],
+  ["schema", "harnesses", "packs", "aliases", "disable", "metrics"],
 );
+export const RIG = schema2(rigRec);
 
-export const RIG_OVERLAY = overlayOf(RIG, {
-  projects: S.map(S.rec({ provider: id() }, ["provider"]), { key: text() }),
+export const RIG_OVERLAY = schema2(overlayOf(rigRec, {
   model_surfaces: S.arr(modelSurface, { union: true }),
   private_terms: S.arr(text(), { unique: true, union: true }),
-});
+}));
 
 // pack.json
 
-export const PACK = S.rec(
+export const PACK = schema2(S.rec(
   {
-    schema,
+    schema: S.lit(2),
     name: id(),
     scopes: S.arr(S.enum(SCOPES), { unique: true, nonEmpty: true }),
     license: S.str(),
-    source: S.nul(S.rec({ repo: text(), sha: text(), paths: S.arr(text(), { nonEmpty: true }) }, ["repo", "sha", "paths"])),
-    // provenance of a pack ported into this repo (design draft section 9); info only, NOTICE.md carries the license
-    ported_from: S.nul(S.rec({ source: id(), sha: S.str({ pattern: /^[0-9a-f]{40}$/ }) }, ["source", "sha"])),
     units: S.map(S.rec({ harnesses: S.arr(id(), { unique: true }), replaces: unitRef() }), { key: id() }),
+    mode: S.fn((v, fail) => (v !== null && typeof v === "object" && !Array.isArray(v) ? v : fail("expected an object"))),
+    model_surfaces: S.arr(modelSurface),
+    telemetry: S.nul(S.rec({ default_on: S.bool(), optout_env: S.arr(text()) }, ["default_on", "optout_env"])),
   },
   ["schema", "name"],
-);
+));
 
 // targets/<h>.json. Only the read-set fields are required: the other fields arrive with the slices that use them.
 
@@ -126,7 +140,7 @@ export const TARGET = S.rec(
     // the manifest of a rig-owned local plugin; rendered when any file lands under its plugin root (probe j)
     plugin_manifest: S.rec({ path: text(), value: S.any() }, ["path", "value"]),
     effort_syntax: S.enum(["separate-key", "colon-suffix", "dash-fused", "bracket"]),
-    // where model choices live outside a provider's skill: the frame's Models line
+    // where model choices live: the frame's Models line
     models: S.rec({ source: text(), effort_table: S.bool() }, ["source"]),
     model_surfaces: S.arr(modelSurface),
     project_scope: S.nul(S.rec({ channel: S.enum(["plugin"]), enable_file: text() }, ["channel", "enable_file"])),
@@ -134,57 +148,10 @@ export const TARGET = S.rec(
       session_end: S.nul(S.rec({ event: text(), file: text(), pointer: text(), payload: S.arr(text()) }, ["event", "file", "pointer", "payload"])),
     }),
     transcripts: S.nul(S.rec({ format: S.enum(["claude-jsonl", "codex-rollout", "omp-jsonl", "cursor-agent-jsonl"]), root: text() }, ["format", "root"])),
-    facts: S.map(text(), { key: S.str({ pattern: /^[a-z0-9_]+$/ }) }),
     budget: S.rec({ description_max: S.int(), listing_fraction: S.num(), instructions_max_bytes: S.nul(S.int()) }),
   },
   ["schema", "name", "reads"],
 );
-
-// providers/<p>.json
-
-const PROVIDER_FIELDS = {
-  workflow: ["pin", "entry", "phases", "artifacts", "model_surfaces", "footprint", "intake"],
-  headless: ["family", "argv", "model_harness", "forbid_same_family"],
-  native: ["family", "model_harness"],
-};
-
-const providerRec = S.rec(
-  {
-    schema,
-    name: id(),
-    kind: S.enum(["workflow", "headless", "native"]),
-    pin: S.nul(S.one([
-      ["plugin", S.rec({ plugin: text() }, ["plugin"])],
-      ["cli", S.rec({ cli: text(), version: text() }, ["cli", "version"])],
-    ])),
-    entry: S.map(S.nul(S.one([
-      ["read", S.rec({ read: text() }, ["read"])],
-      ["command", S.rec({ command: text() }, ["command"])],
-    ])), { key: id() }),
-    phases: S.arr(id()),
-    artifacts: text(),
-    model_surfaces: S.arr(modelSurface),
-    footprint: S.map(text(), { key: id() }),
-    // the product-role handoff per harness (design draft sections 5 and 9); null = no intake there
-    intake: S.map(S.nul(text()), { key: id() }),
-    family: id(),
-    argv: S.arr(text(), { nonEmpty: true }),
-    model_harness: id(),
-    forbid_same_family: S.bool(),
-    telemetry: S.nul(S.rec({ default_on: S.bool(), optout_env: S.arr(text()) }, ["default_on", "optout_env"])),
-  },
-  ["schema", "name", "kind", "telemetry"],
-);
-
-/** A provider record. Fields of another kind are an error: a headless record has no `entry`. */
-export const PROVIDER = S.fn((v, fail, sub) => {
-  const out = sub(providerRec, v);
-  const own = PROVIDER_FIELDS[out.kind];
-  for (const k of Object.values(PROVIDER_FIELDS).flat()) {
-    if (k in out && !own.includes(k)) fail(`not a field of a ${out.kind} provider`, [k]);
-  }
-  return out;
-});
 
 // models/roles.json and models/tiers.json
 
@@ -234,22 +201,36 @@ export const TIERS_OVERLAY = overlayOf(TIERS_FILE);
 // rig.lock.json
 
 const tree = () => S.str({ pattern: /^sha256:[0-9a-f]+$/ });
-const pinState = S.rec({ version: text(), sha: text(), tree: tree() }, ["version", "sha", "tree"]);
+const sha40 = () => S.str({ pattern: /^[0-9a-f]{40}$/ });
 
-export const LOCK = S.rec(
+export const LOCK = schema2(S.rec(
   {
-    schema,
+    schema: S.lit(2),
     core: S.nul(S.rec({ tree: S.nul(tree()), candidate: S.nul(tree()) }, ["tree", "candidate"])),
-    packs: S.map(S.rec({ repo: text(), sha: text(), paths: S.arr(text()), license: S.str(), tree: tree() },
-      ["repo", "sha", "paths", "license", "tree"]), { key: id() }),
-    pins: S.map(S.rec({
-      plugin: text(),
-      current: S.nul(pinState),
-      candidate: S.nul(S.rec({ ...pinState.fields, checked: S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/ }) }, [...pinState.req, "checked"])),
-    }, ["plugin", "current", "candidate"]), { key: id() }),
+    packs: S.map(S.rec({
+      repo: text(),
+      sha: sha40(),
+      root: text(),
+      paths: S.arr(text()),
+      exclude: S.arr(text(), { unique: true }),
+      license: S.str(),
+      tree: tree(),
+      port: S.nul(S.rec({
+        paths: S.arr(text(), { unique: true, nonEmpty: true }),
+        tree: tree(),
+        reviewed_sha: S.nul(sha40()),
+        reviewed_tree: S.nul(tree()),
+      }, ["paths", "tree", "reviewed_sha", "reviewed_tree"])),
+      candidate: S.nul(S.rec({
+        sha: sha40(),
+        tree: tree(),
+        port_tree: S.nul(tree()),
+        checked: S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/ }),
+      }, ["sha", "tree", "port_tree", "checked"])),
+    }, ["repo", "sha", "root", "paths", "exclude", "license", "tree", "port", "candidate"]), { key: id() }),
   },
-  ["schema", "packs", "pins"],
-);
+  ["schema", "packs"],
+));
 
 // audit.allow.json
 
