@@ -17,5 +17,6 @@
     "rule": {"dir": "~/.claude/rules", "format": "md"}
   },
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
+  "models": {"source": "the roster and effort table in the rules under ~/.claude/rules", "effort_table": true},
   "instructions": {"path": "~/.claude/rules/rig-frame.md", "mode": "whole-file"}
 }

@@ -23,6 +23,7 @@
     "sync",
     "archive"
   ],
+  "artifacts": "openspec/changes/<name>/",
   "model_surfaces": [],
   "footprint": {
     "any": "dir:openspec/"

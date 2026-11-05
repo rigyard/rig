@@ -20,5 +20,6 @@
   "plugin_manifest": {"path": "~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json",
                       "value": {"name": "rig", "skills": "./skills/"}},
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
+  "models": {"source": "the agent files in ~/.cursor/agents"},
   "instructions": {"path": "~/.cursor/rules/rig-frame.mdc", "mode": "whole-file"}
 }

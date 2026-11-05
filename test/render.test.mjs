@@ -277,8 +277,8 @@ test("placement failures and unbuilt channels are errors, never silent drops", (
   const c = render(chan, world({ aliases: {} }));
   assert.equal(c.errors[0].code, "E_INTERNAL");
   assert.match(c.errors[0].message, /plugin channel render is not implemented/);
-  // slot stubs render from their filler, which is not in this version
-  const stub = { units: [unit({ id: "core/rig-second-opinion", type: "slot-stub", files: { "SKILL.md": "x" } })] };
+  // a slot stub with no SKILL.md cannot carry its filler body
+  const stub = { units: [unit({ id: "core/rig-second-opinion", type: "slot-stub", files: { "README.md": "x" } })] };
   assert.equal(render(stub, world({ aliases: {} })).errors[0].code, "E_INTERNAL");
 });
 
@@ -326,8 +326,7 @@ test("the repo's own data: loadWorld, compose and render agree on /craft, the pm
     const stack = compose(w);
     assert.deepEqual(stack.errors, []);
     const d = render(stack, w);
-    // slot stubs are the only units this version does not render
-    assert.deepEqual(d.errors.map((e) => e.code), stack.units.filter((u) => u.type === "slot-stub").map(() => "E_INTERNAL"));
+    assert.deepEqual(d.errors, []);
     const at = new Map([...d.entries].map(([abs, e]) => [`~/${abs.slice(fx.home.length + 1)}`, e]));
     for (const name of ["craft", "pm"]) {
       for (const p of [`~/.claude/commands/${name}.md`, `~/.codex/prompts/${name}.md`, `~/.omp/agent/commands/${name}.md`,

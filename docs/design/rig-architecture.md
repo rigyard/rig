@@ -88,7 +88,7 @@ Error codes:
 | `E_SLOT_TWICE` | `stack` | A slot has a second filler. |
 | `E_READSET` | `targets` | No placement gives each harness exactly one copy. |
 | `E_SAME_FAMILY` | `targets` | A `second-opinion` filler runs the same CLI as the current harness, and the filler record forbids it. |
-| `E_TERM_UNKNOWN`, `E_TERM_MISSING` | `targets` | A `{{rig:term}}` placeholder is not in `terms.json`, or a target has no row for it. |
+| `E_TERM_UNKNOWN`, `E_TERM_MISSING` | `targets` | A `{{rig:term}}` placeholder is not in `terms.json`, or a target has no row for it. A `{{name}}` variable in a core template is not one of that template's variables. |
 | `E_LOCATOR` | `targets` | A declared cell is absent, a cell matches twice, or a `block` has no markers while its table already exists outside them. |
 | `E_ADOPT_MISMATCH` | `state` | First run on a path, and its current bytes or values differ from the render. This covers an unmanaged file at a rendered path, for example a hand-written `/pm`. |
 | `E_DRIFT` | `state` | Current bytes or cell values differ from what rig last wrote. |
@@ -410,7 +410,7 @@ Two kinds. A `workflow` provider is a playbook that a project declares. A `headl
 // providers/openspec.json (abridged)
 {"schema": 1, "name": "openspec", "kind": "workflow", "pin": {"cli": "openspec", "version": "1.5.0"},
  "entry": {"claude": {"command": "/opsx:propose"}, "codex": {"command": "/prompts:openspec-propose"}, "omp": null, "cursor": null},
- "phases": ["explore", "propose", "apply", "sync", "archive"], "model_surfaces": [],
+ "phases": ["explore", "propose", "apply", "sync", "archive"], "artifacts": "openspec/changes/<name>/", "model_surfaces": [],
  "telemetry": {"default_on": true, "optout_env": ["OPENSPEC_TELEMETRY=0", "DO_NOT_TRACK=1"]},
  "footprint": {"any": "dir:openspec/"}}
 
@@ -678,6 +678,7 @@ The sketch is the contract between modules. Bodies throw. `// TODO` blocks give 
  * @property {{skill?: object, command?: {dir: string, format: string}, agent?: AgentFormat | null, rule?: {dir: string, format: "md"|"mdc"}}} units
  * @property {{method: "frontmatter-key"|"sidecar"|"none", key?: string, file?: string, value?: unknown}} hide
  * @property {{path: string, mode: "whole-file"|"managed-block"}} instructions
+ * @property {{source: string, effort_table?: boolean}} [models]   the frame's Models line
  * @property {"separate-key"|"colon-suffix"|"dash-fused"|"bracket"} effort_syntax
  * @property {ModelSurface[]} model_surfaces
  * @property {{channel: "plugin", enable_file: string} | null} project_scope
@@ -717,6 +718,7 @@ The sketch is the contract between modules. Bodies throw. `// TODO` blocks give 
  * @property {{plugin: string} | {cli: string, version: string} | null} [pin]
  * @property {Record<string, {read: string} | {command: string} | null>} [entry]      workflow
  * @property {string[]} [phases]                                                      workflow
+ * @property {string} [artifacts]                                                     workflow
  * @property {ModelSurface[]} [model_surfaces]                                        workflow
  * @property {Record<string, string>} [footprint]                                     workflow, info only
  * @property {string} [family]                                                        headless, native
@@ -1334,7 +1336,7 @@ One registry table in `lib/gate.mjs`. `plan` output and this table derive from i
 
 | Check | Runs on | Finds | Severity | Ackable |
 |---|---|---|---|---|
-| `pin` | lock, sources, facts | lock tree mismatch, core seal mismatch, installed plugin commit differs from `current`. Auto-update on for a marketplace that serves a pinned plugin (warn) | block | never |
+| `pin` | lock, sources, facts, records | lock tree mismatch, core seal mismatch, installed plugin commit differs from `current`. Auto-update on for a marketplace that serves a pinned plugin (warn). A provider entry that reads the plugin cache with no locked version (warn) | block | never |
 | `exec` | sources | exec bit, shebang, script extension, binary magic, `hooks.json`, `.mcp.json`, `package.json` scripts, symlinks in a pack | block | yes |
 | `secret` | sources, rendered | secret patterns. Sub-rule `private_terms`: an overlay term inside a repo pack. | block | yes |
 | `unicode` | sources, rendered | hidden Unicode (zero-width, bidi), pipe-to-shell, eval of fetched data (block). Injection phrases (warn) | block, warn | yes |

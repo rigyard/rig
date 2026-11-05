@@ -15,5 +15,6 @@
     "agent": null
   },
   "hide": {"method": "frontmatter-key", "key": "hide", "value": true},
+  "models": {"source": "the modelRoles key in ~/.omp/agent/config.yml"},
   "instructions": {"path": "~/.omp/agent/AGENTS.md", "mode": "whole-file"}
 }

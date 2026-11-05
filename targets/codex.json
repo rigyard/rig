@@ -15,6 +15,7 @@
     "agent": {"dir": "~/.codex/agents", "format": "codex-toml"}
   },
   "hide": {"method": "sidecar", "file": "agents/openai.yaml", "key": "policy.allow_implicit_invocation", "value": false},
+  "models": {"source": "the agent files in ~/.codex/agents"},
   "instructions": {"path": "~/.codex/AGENTS.md", "mode": "managed-block"},
   "budget": {"description_max": 1024, "instructions_max_bytes": 32768}
 }
