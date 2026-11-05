@@ -15,10 +15,10 @@ const outputChoices = /--output-format[\s\S]*?\(choices: ([^)]*)\)/.exec(help)?.
   .split(",").map((c) => c.trim().replace(/"/g, "")) ?? [];
 
 const cwd = freshDir("i-project");
-const small = (extra) => run("claude", ["-p", "--max-turns", "1", ...extra], { cwd, timeoutMs: 110000 });
+const small = (extra: string[]) => run("claude", ["-p", "--max-turns", "1", ...extra], { cwd, timeoutMs: 110000 });
 
 const jsonRun = small(["--output-format", "json", "reply ok"]);
-let jsonKeys = [];
+let jsonKeys: string[] = [];
 try {
   const parsed = JSON.parse(jsonRun.stdout);
   jsonKeys = Object.keys(Array.isArray(parsed) ? parsed.at(-1) : parsed).sort();

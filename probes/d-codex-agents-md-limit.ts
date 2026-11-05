@@ -20,14 +20,14 @@ const scratch = opt.scratch ?? fs.mkdtempSync(path.join(os.tmpdir(), 'rig-probe-
 fs.mkdirSync(scratch, { recursive: true });
 const timeoutMs = Number(opt.timeout) * 1000;
 const runs = Number(opt.runs);
-const redact = (s) => String(s).replaceAll(scratch, '<scratch>').replaceAll(os.homedir(), '~').replaceAll(os.userInfo().username, '<user>');
+const redact = (s: unknown) => String(s).replaceAll(scratch, '<scratch>').replaceAll(os.homedir(), '~').replaceAll(os.userInfo().username, '<user>');
 
 const TOTAL = 40 * 1024;
 const TARGETS = [4096, 16384, 30720, 31744, 32700, 32800, 33280, 36864, 39936];
 
 function buildDoc() {
   let out = '# Probe doc\n\n';
-  const starts = {};
+  const starts: Record<string, number> = {};
   let i = 0;
   const size = () => Buffer.byteLength(out);
   for (const t of TARGETS) {
@@ -51,8 +51,11 @@ const { text, sentinels } = buildDoc();
 fs.writeFileSync(path.join(repo, 'AGENTS.md'), text);
 
 const PROMPT = 'List every line in your instructions that starts with RIGSENT-, exactly as written, one per line. Do not read files or run commands.';
-function runCodex(extra = []) {
-  return new Promise((resolve) => {
+type CodexEvent = { type?: string; item?: { type?: string; text?: string } };
+type CodexRun = { code: number | null; timedOut: boolean; ok: boolean; seen: string[]; toolItems: Array<string | undefined>; answer: string };
+
+function runCodex(extra: string[] = []): Promise<CodexRun> {
+  return new Promise<CodexRun>((resolve) => {
     const args = ['exec', '-s', 'read-only', '-C', repo, '--ephemeral', '--ignore-user-config', '--ignore-rules', '--json', ...extra, PROMPT];
     const child = spawn('codex', args, { cwd: repo, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
@@ -61,27 +64,27 @@ function runCodex(extra = []) {
       timedOut = true;
       child.kill('SIGKILL');
     }, timeoutMs);
-    const done = (code) => {
+    const done = (code: number | null) => {
       clearTimeout(timer);
-      const events = out.split('\n').flatMap((l) => {
+      const events = out.split('\n').flatMap((l): CodexEvent[] => {
         try {
           return [JSON.parse(l)];
         } catch {
           return [];
         }
       });
-      const msg = events.filter((e) => e.type === 'item.completed' && e.item?.type === 'agent_message').map((e) => e.item.text).join('\n');
-      const toolItems = events.filter((e) => e.item && e.item.type !== 'agent_message' && e.item.type !== 'reasoning').map((e) => e.item.type);
+      const msg = events.filter((e) => e.type === 'item.completed' && e.item?.type === 'agent_message').map((e) => e.item?.text).join('\n');
+      const toolItems = events.filter((e) => e.item && e.item.type !== 'agent_message' && e.item.type !== 'reasoning').map((e) => e.item?.type);
       const seen = [...new Set(msg.match(/RIGSENT-\d+/g) ?? [])];
       resolve({ code, timedOut, ok: events.some((e) => e.type === 'turn.completed'), seen, toolItems, answer: msg.slice(0, 400) });
     };
-    child.stdout.on('data', (b) => (out += b));
+    child.stdout.on('data', (b: Buffer) => (out += b));
     child.on('close', done);
     child.on('error', () => done(-1));
   });
 }
 
-const defaultRuns = [];
+const defaultRuns: CodexRun[] = [];
 for (let i = 0; i < runs; i++) defaultRuns.push(await runCodex());
 const raised = await runCodex(['-c', 'project_doc_max_bytes=65536']);
 
@@ -93,8 +96,8 @@ const helpHits = ['--help', 'exec --help'].map((a) => {
   return { command: `codex ${a}`, mentionsProjectDoc: /project_doc|AGENTS\.md/i.test(r.stdout + r.stderr) };
 });
 
-const sets = (r) => new Set(r.seen);
-const classify = (r) => sentinels.map((s) => ({ ...s, seen: sets(r).has(s.name) }));
+const sets = (r: CodexRun) => new Set(r.seen);
+const classify = (r: CodexRun) => sentinels.map((s) => ({ ...s, seen: sets(r).has(s.name) }));
 const rows = defaultRuns.map(classify);
 const stable = rows.every((r) => r.every((x, i) => x.seen === rows[0][i].seen));
 const first = rows[0] ?? [];
@@ -103,7 +106,7 @@ const lowestUnseenStart = Math.min(Infinity, ...first.filter((x) => !x.seen).map
 const monotone = first.every((x) => x.seen === (x.end <= highestSeenEnd));
 const okAll = defaultRuns.every((r) => r.ok && !r.timedOut);
 let verdict = 'INCONCLUSIVE';
-let limit = null;
+let limit: { lowerBoundBytes: number; upperBoundBytes: number } | null = null;
 let reason = '';
 if (!okAll) reason = 'a run failed or timed out';
 else if (!stable) reason = 'runs disagree on which sentinels are visible';

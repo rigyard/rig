@@ -27,10 +27,10 @@ const r = run("claude", ["-p", "--max-turns", "1", "reply ok"], { cwd: project, 
 const elapsedMs = Date.now() - started;
 
 let fired = fs.existsSync(payloadFile);
-let keys = [];
-let types = {};
-let enums = {};
-let parseError = null;
+let keys: string[] = [];
+let types: Record<string, string> = {};
+const enums: Record<string, string> = {};
+let parseError: string | null = null;
 let transcriptPathExists = null;
 if (fired) {
   try {

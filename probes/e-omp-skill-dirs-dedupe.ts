@@ -57,17 +57,17 @@ const commands = [
 ];
 for (const [name, dir, sentinel] of commands) writeFile(path.join(dir, `${name}.md`), `Say ${sentinel} and nothing else.\n`);
 
-const rel = (p) => path.relative(fs.realpathSync(iso.root), fs.realpathSync(p));
+const rel = (p: string) => path.relative(fs.realpathSync(iso.root), fs.realpathSync(p));
 
 // Channel 1, no model call: `omp read skill://<unknown>` answers with the effective skill names.
-async function readChannelNames() {
+async function readChannelNames(): Promise<string[] | null> {
   const r = await runOmp(iso, ['read', 'skill://rigprobe-no-such-skill']);
   const m = /^Available: (.*)$/m.exec(r.stdout + r.stderr);
   if (!m) return null;
-  return m[1].split(',').map((s) => s.trim()).filter(Boolean);
+  return m[1].split(',').map((s: string) => s.trim()).filter(Boolean);
 }
 
-async function readChannelPath(name) {
+async function readChannelPath(name: string) {
   const r = await runOmp(iso, ['read', `skill://${name}`]);
   const m = /^\[Skill file: (.*)\]$/m.exec(r.stdout);
   return m ? rel(m[1]) : null;
@@ -75,7 +75,9 @@ async function readChannelPath(name) {
 
 // Channel 2, model call: ask for the skills list three times. Every run must agree.
 const LIST_PROMPT = 'List every skill whose name contains "rigprobe" in your available skills list. Output one line per list entry exactly as the entry is named, including any prefix before a slash. If the same name appears several times in the list, repeat it. Do not call any tool. If none, output NONE.';
-async function modelListing() {
+type Listing = { error: string; names?: undefined; tool_calls?: undefined } | { names: string[]; tool_calls: number; error?: undefined };
+
+async function modelListing(): Promise<Listing> {
   const r = await runOmp(iso, ['-p', '--mode', 'json', '--no-session', LIST_PROMPT]);
   const events = jsonEvents(r.stdout);
   if (r.code !== 0 || !events) return { error: `exit ${r.code}${r.timedOut ? ' (timeout)' : ''}` };
@@ -85,18 +87,18 @@ async function modelListing() {
 }
 
 const readNames = await readChannelNames();
-const runs = [];
+const runs: Listing[] = [];
 for (let i = 0; i < 3; i++) runs.push(await modelListing());
 
 const readOk = Array.isArray(readNames);
 const runsOk = runs.every((r) => r.names && r.tool_calls === 0);
 const runsAgree = runsOk && runs.every((r) => JSON.stringify(r.names) === JSON.stringify(runs[0].names));
-const modelNames = runsOk ? runs[0].names : [];
+const modelNames: string[] = (runsOk ? runs[0].names : undefined) ?? [];
 const modelMatchesRead = readOk && runsAgree && JSON.stringify([...readNames].sort()) === JSON.stringify(modelNames);
 
-const bare = (n) => n.split('/').pop();
-const count = (list, name) => list.filter((n) => bare(n) === name).length;
-const effective = readOk ? readNames : modelNames;
+const bare = (n: string) => n.split('/').pop();
+const count = (list: string[], name: string) => list.filter((n: string) => bare(n) === name).length;
+const effective: string[] = readNames ?? modelNames;
 const same = count(effective, 'rigprobe-same');
 const side = count(effective, 'rigprobe-side');
 const diff = count(effective, 'rigprobe-diff');
@@ -118,7 +120,7 @@ const pathsEvidence = {
 };
 
 // Commands: a command file is read when omp replaces the prompt with the file body.
-const commandResults = [];
+const commandResults: Array<{ location: string; command: string; exit: number | null; expanded: boolean }> = [];
 for (const [name, , sentinel, label] of commands) {
   const r = await runOmp(iso, ['-p', '--mode', 'json', '--no-session', `/${name}`]);
   const events = jsonEvents(r.stdout);

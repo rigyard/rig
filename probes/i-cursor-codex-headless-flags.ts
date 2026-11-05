@@ -8,8 +8,8 @@ import os from 'node:os';
 import { parseArgs } from 'node:util';
 
 const { values: opt } = parseArgs({ options: { out: { type: 'string' } } });
-const redact = (s) => String(s).replaceAll(os.homedir(), '~').replaceAll(os.userInfo().username, '<user>');
-const help = (cmd, args) => {
+const redact = (s: unknown) => String(s).replaceAll(os.homedir(), '~').replaceAll(os.userInfo().username, '<user>');
+const help = (cmd: string, args: string[]) => {
   const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: 30000 });
   return { exit: r.status, text: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 };
@@ -18,7 +18,7 @@ const cursor = help('cursor-agent', ['--help']);
 const codex = help('codex', ['exec', '--help']);
 const codexTop = help('codex', ['--help']);
 
-const need = (text, label, re) => {
+const need = (text: string, label: string, re: RegExp) => {
   const m = text.match(re);
   return { label, found: Boolean(m), line: m ? redact(m[0].trim()).replace(/\(e\.g\.,[^)]*\)/g, '(e.g., <model>)').slice(0, 160) : null };
 };

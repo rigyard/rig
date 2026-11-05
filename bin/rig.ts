@@ -16,8 +16,7 @@ export type Flag = {value: boolean, arg?: string, choices?: string[], required?:
 export type Command = {name: string, sub?: string, args?: string[], flags: Record<string, Flag>,
   run: (a: ParsedArgs, env: NodeJS.ProcessEnv) => Promise<0|1|2>, help: string};
 
-/** @type {Command[]} */
-const COMMANDS = [
+const COMMANDS: Command[] = [
   { name: "plan", flags: {}, run: planCmd, help: "compose, render, gate, diff against disk and state; writes nothing" },
   { name: "apply", flags: { "--undo": { value: true, arg: "run-id" } }, run: applyCmd, help: "plan, then the journaled write; the only writer into ~" },
   { name: "doctor", flags: { "--project": { value: true, arg: "dir" } }, run: doctorCmd, help: "read-only diagnosis of the machine, or of one project" },
@@ -62,8 +61,7 @@ const NAMES = [...new Set(COMMANDS.map((c) => c.name))];
 
 class UsageError extends Error {}
 
-/** @param {Command} c @returns {string} */
-function synopsis(c) {
+function synopsis(c: Command): string {
   const parts = ["rig", c.name];
   if (c.sub) parts.push(c.sub);
   for (const a of c.args ?? []) parts.push(`<${a}>`);
@@ -76,8 +74,7 @@ function synopsis(c) {
   return parts.join(" ");
 }
 
-/** @param {Command[]} rows @returns {string} */
-function helpText(rows) {
+function helpText(rows: Command[]): string {
   const col = 46; // a longer synopsis puts its help on the next line
   const lines = rows.map((c) => {
     const s = synopsis(c);
@@ -95,11 +92,8 @@ function helpText(rows) {
   ].join("\n");
 }
 
-/**
- * Strict parse of one command's argv against its rows.
- * @param {string} name @param {string[]} argv @returns {{row: Command, parsed: ParsedArgs}}
- */
-function parse(name, argv) {
+/** Strict parse of one command's argv against its rows. */
+function parse(name: string, argv: string[]): { row: Command; parsed: ParsedArgs } {
   const rows = COMMANDS.filter((c) => c.name === name);
   const subs = rows.filter((c) => c.sub).map((c) => c.sub);
   let row = rows.find((c) => c.sub !== undefined && c.sub === argv[0]);
@@ -111,15 +105,14 @@ function parse(name, argv) {
       : `unknown subcommand "${argv[0]}" for rig ${name}; expected: ${subs.join(", ")}`);
   }
 
-  const options = {};
+  const options: Record<string, { type: "string" | "boolean" }> = {};
   for (const [flag, f] of Object.entries(row.flags)) options[flag.slice(2)] = { type: f.value ? "string" : "boolean" };
   // strict: false, because every token is validated below, with messages that name the flag.
   const { tokens } = parseArgs({ args: rest, options, strict: false, allowPositionals: true, tokens: true });
 
   const where = `rig ${name}${row.sub ? ` ${row.sub}` : ""}`;
-  /** @type {Record<string, string | boolean | string[]>} */
-  const flags = {};
-  const positionals = [];
+  const flags: ParsedArgs["flags"] = {};
+  const positionals: string[] = [];
   for (const t of tokens) {
     if (t.kind === "positional") {
       positionals.push(t.value);
@@ -128,7 +121,7 @@ function parse(name, argv) {
     if (t.kind !== "option") continue; // the "--" terminator
     const f = t.rawName.startsWith("--") ? row.flags[t.rawName] : undefined;
     if (!f) throw new UsageError(`unknown flag ${t.rawName} for ${where}`);
-    let value = true;
+    let value: string | boolean = true;
     if (f.value) {
       if (t.value === undefined || (!t.inlineValue && t.value.startsWith("-"))) throw new UsageError(`${t.rawName} needs a value`);
       if (f.choices && !f.choices.includes(t.value)) throw new UsageError(`${t.rawName} accepts only: ${f.choices.join(", ")}`);
@@ -136,7 +129,8 @@ function parse(name, argv) {
     } else if (t.value !== undefined) {
       throw new UsageError(`${t.rawName} takes no value`);
     }
-    if (f.repeat) flags[t.name] = [...(flags[t.name] ?? []), value];
+    const prev = flags[t.name];
+    if (f.repeat) flags[t.name] = [...(Array.isArray(prev) ? prev : []), String(value)];
     else if (t.name in flags) throw new UsageError(`${t.rawName} given more than once`);
     else flags[t.name] = value;
   }
@@ -150,12 +144,12 @@ function parse(name, argv) {
       ? `${where} takes ${names.map((a) => `<${a}>`).join(" ")}, got ${positionals.length} argument(s)`
       : `${where} takes no arguments, got "${positionals[0]}"`);
   }
-  const args = Object.fromEntries(names.map((a, i) => [a, positionals[i]]));
+  const args = Object.fromEntries(names.map((a, i) => [a, positionals[i] ?? ""]));
   return { row, parsed: { cmd: name, sub: row.sub ?? null, args, flags } };
 }
 
-/** @param {string[]} argv @returns {Promise<number>} exit code */
-async function main(argv) {
+/** Returns the exit code. */
+async function main(argv: string[]): Promise<number> {
   const [first, ...rest] = argv;
   if (first === undefined) throw new UsageError("missing command; run rig --help");
   if (first === "--help" || first === "help") {

@@ -15,7 +15,18 @@ const skip = new Set([
   ".git", ".Trash", ".worktrees", ".claude", ".cache", ".npm", ".cargo", ".rustup",
 ]);
 
-function readPlugins(file) {
+type PluginEntry = {
+  id: string;
+  scope: string;
+  enabled: boolean;
+  projectEnabled?: boolean;
+  notes?: string[];
+  noteDetails?: Array<{ type: string }>;
+};
+type Candidate = { dir: string; id: string };
+type Listing = { error: string; entries?: undefined } | { entries: PluginEntry[]; error?: undefined };
+
+function readPlugins(file: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
     return parsed && typeof parsed.enabledPlugins === "object" ? parsed.enabledPlugins : {};
@@ -24,7 +35,7 @@ function readPlugins(file) {
   }
 }
 
-function isTracked(dir) {
+function isTracked(dir: string) {
   try {
     execFileSync("git", ["-C", dir, "ls-files", "--error-unmatch", ".claude/settings.json"], { stdio: "ignore" });
     return true;
@@ -33,11 +44,11 @@ function isTracked(dir) {
   }
 }
 
-function findCandidate(userPlugins) {
-  let found = null;
-  const walk = (dir, depth) => {
+function findCandidate(userPlugins: Record<string, unknown>): Candidate | null {
+  let found: Candidate | null = null;
+  const walk = (dir: string, depth: number): void => {
     if (found || depth > 5) return;
-    let entries;
+    let entries: fs.Dirent[];
     try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const e of entries) {
       if (found || !e.isDirectory()) continue;
@@ -58,20 +69,20 @@ function findCandidate(userPlugins) {
   return found;
 }
 
-function listJson(cwd) {
+function listJson(cwd: string): Listing {
   const r = run("claude", ["plugin", "list", "--json"], { cwd, timeoutMs: 60000 });
   if (r.status !== 0) return { error: `exit ${r.status}` };
   try { return { entries: JSON.parse(r.stdout) }; } catch { return { error: "unparseable json" }; }
 }
 
-function summarise(entries, id, pairs) {
-  const groups = new Map();
+function summarise(entries: PluginEntry[], id: string, pairs: Array<[string, string]>) {
+  const groups = new Map<string, { scope: string; enabled: boolean; projectEnabled: boolean | null; notes: string[]; noteTypes: string[]; count: number }>();
   for (const e of entries.filter((x) => x.id === id)) {
     const row = {
       scope: e.scope,
       enabled: e.enabled,
       projectEnabled: e.projectEnabled ?? null,
-      notes: (e.notes ?? []).map((n) => redact(n, pairs)),
+      notes: (e.notes ?? []).map((n: string) => redact(n, pairs)),
       noteTypes: (e.noteDetails ?? []).map((d) => d.type),
     };
     const key = JSON.stringify(row);
@@ -94,7 +105,7 @@ if (!candidate) {
   process.exit(0);
 }
 
-const pairs = [[candidate.dir, "<project>"], [candidate.id, "<plugin>"]];
+const pairs: Array<[string, string]> = [[candidate.dir, "<project>"], [candidate.id, "<plugin>"]];
 const inProject = listJson(candidate.dir);
 const control = listJson(freshDir("a-control"));
 const textRun = run("claude", ["plugin", "list"], { cwd: candidate.dir, timeoutMs: 60000 });
@@ -115,8 +126,8 @@ if (inProject.error || control.error) {
   process.exit(0);
 }
 
-const projectEntries = summarise(inProject.entries, candidate.id, pairs);
-const controlEntries = summarise(control.entries, candidate.id, pairs);
+const projectEntries = summarise(inProject.entries ?? [], candidate.id, pairs);
+const controlEntries = summarise(control.entries ?? [], candidate.id, pairs);
 const effectiveInProject = projectEntries.some((e) => e.enabled === true);
 const effectiveInControl = controlEntries.some((e) => e.enabled === true);
 const overrideNote = projectEntries.some((e) => e.noteTypes.includes("ineffective-disable"));

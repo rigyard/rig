@@ -28,8 +28,8 @@ if (help.spawnError === 'ENOENT') {
   process.exit(0);
 }
 const helpText = help.stdout;
-const flags = [];
-const shortFlags = {};
+const flags: string[] = [];
+const shortFlags: Record<string, string> = {};
 for (const line of helpText.split('\n')) {
   const m = /^\s{2,}(?:(-[A-Za-z]),\s+)?(--[a-z][\w-]*)/.exec(line);
   if (!m) continue;
@@ -38,7 +38,7 @@ for (const line of helpText.split('\n')) {
 }
 const missing = REQUIRED.filter((f) => !flags.includes(f));
 const modeLine = (/--mode=<value>\s+(.*)/.exec(helpText) ?? [])[1] ?? null;
-const envLines = helpText.split('\n').filter((l) => /^\s+(PI_CODING_AGENT_DIR|OMP_PROFILE)\b/.test(l)).map((l) => l.trim().replace(/\s+/g, ' '));
+const envLines = helpText.split('\n').filter((l: string) => /^\s+(PI_CODING_AGENT_DIR|OMP_PROFILE)\b/.test(l)).map((l) => l.trim().replace(/\s+/g, ' '));
 const version = (await runOmp(iso, ['--version'])).stdout.trim();
 const configHelp = (await runOmp(iso, ['config', '--help'])).stdout;
 const configActions = (/ACTION\s+Config action \(([^)]*)\)/.exec(configHelp) ?? [])[1] ?? null;
@@ -65,10 +65,10 @@ const jsonRun = {
 async function openStdinRun() {
   const child = spawn('omp', ['-p', '--mode', 'json', '--no-session', 'reply with the single word ok'], { cwd: iso.proj, env: isolatedEnv(iso), stdio: ['pipe', 'pipe', 'pipe'] });
   let bytes = 0;
-  child.stdout.on('data', (d) => (bytes += d.length));
+  child.stdout.on('data', (d: Buffer) => (bytes += d.length));
   child.stderr.on('data', () => {});
-  const exited = new Promise((resolve) => child.on('close', (code) => resolve({ code })));
-  const timer = new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), 15_000));
+  const exited = new Promise<{ code: number | null; timedOut?: undefined }>((resolve) => child.on('close', (code) => resolve({ code })));
+  const timer = new Promise<{ timedOut: true; code?: undefined }>((resolve) => setTimeout(() => resolve({ timedOut: true }), 15_000));
   const r = await Promise.race([exited, timer]);
   if (r.timedOut) child.kill('SIGKILL');
   return { hung_after_15s: Boolean(r.timedOut), stdout_bytes: bytes };
@@ -77,7 +77,7 @@ const stdinOpen = await openStdinRun();
 
 // Directory overrides, read with `omp config path` (no model call).
 const withProfileEnv = { ...isolatedEnv(iso), OMP_PROFILE: 'probe-profile' };
-const rel = (p) => {
+const rel = (p: string) => {
   const t = p.trim();
   return t ? redact(t, scratch) : t;
 };
@@ -99,7 +99,7 @@ const evidence = {
   directory_overrides: overrides,
 };
 
-let verdict;
+let verdict: string;
 if (help.code !== 0 || !flags.length) verdict = 'INCONCLUSIVE';
 else if (missing.length) verdict = 'FAIL';
 else if (!jsonRun.every_stdout_line_parses_as_json || !jsonRun.ends_with_agent_end || run.code !== 0) verdict = run.code === 0 ? 'FAIL' : 'INCONCLUSIVE';

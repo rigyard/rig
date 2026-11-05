@@ -15,7 +15,7 @@ const scratch = createScratch(args.scratch);
 const iso = newIsolated(scratch, 'c');
 assertIsolated(iso, isolatedEnv(iso));
 
-const ROLES = {
+const ROLES: Record<string, string> = {
   plan: 'provider/model-e:medium',
   default: 'provider/model-a:medium',
   task: 'provider/model-b:low',
@@ -39,19 +39,19 @@ const cfg = path.join(iso.agentDir, 'config.yml');
 const lock = `${cfg}.lock`;
 writeFile(cfg, config, 0o600);
 
-const topKeys = (text) => text.split('\n').filter((l) => /^[A-Za-z_][\w-]*:/.test(l)).map((l) => l.split(':')[0]);
-const isSubsequence = (small, big) => {
+const topKeys = (text: string) => text.split('\n').filter((l: string) => /^[A-Za-z_][\w-]*:/.test(l)).map((l: string) => l.split(':')[0]);
+const isSubsequence = (small: string[], big: string[]) => {
   let i = 0;
   for (const x of big) if (x === small[i]) i++;
   return i === small.length;
 };
 
 // Line-level locator for modelRoles cells. This is the shape that rig's writer must read.
-function locateRoles(text) {
+function locateRoles(text: string): { block_style: boolean; cells: Record<string, string> } {
   const lines = text.split('\n');
-  const start = lines.findIndex((l) => /^modelRoles:\s*$/.test(l));
+  const start = lines.findIndex((l: string) => /^modelRoles:\s*$/.test(l));
   if (start < 0) return { block_style: false, cells: {} };
-  const cells = {};
+  const cells: Record<string, string> = {};
   for (let i = start + 1; i < lines.length; i++) {
     const m = /^ {2}([A-Za-z]+): (\S.*)$/.exec(lines[i]);
     if (!m) break;
@@ -65,7 +65,9 @@ function snapshot() {
   return { text: buf.toString('utf8'), sha: sha256(buf), bytes: buf.length, mode: (fs.statSync(cfg).mode & 0o777).toString(8), lock: fs.existsSync(lock) };
 }
 
-function compare(before, after, expectedRoles) {
+type Snapshot = ReturnType<typeof snapshot>;
+
+function compare(before: Snapshot, after: Snapshot, expectedRoles: Record<string, string>) {
   const roles = locateRoles(after.text);
   const orderOk = isSubsequence(topKeys(before.text), topKeys(after.text));
   return {
@@ -87,9 +89,9 @@ function compare(before, after, expectedRoles) {
   };
 }
 
-const steps = {};
+const steps: Record<string, unknown> = {};
 let prev = snapshot();
-const run = async (label, argv) => {
+const run = async (label: string, argv: string[]) => {
   const r = await runOmp(iso, argv);
   const now = snapshot();
   return { r, now, label };
@@ -118,7 +120,7 @@ for (const argv of [['config', 'list'], ['config', 'get', 'modelRoles']]) {
 }
 
 // Step 3: a settings change unrelated to modelRoles, through omp itself.
-let unrelated;
+let unrelated: ({ command: string; exit: number | null } & ReturnType<typeof compare>) | undefined;
 {
   const before = prev;
   const r = await runOmp(iso, ['config', 'set', 'symbolPreset', 'ascii']);
@@ -128,7 +130,7 @@ let unrelated;
 }
 
 // Step 4: change one modelRoles cell the only way omp allows it (whole map as JSON).
-let roles;
+let roles: ({ command: string; exit: number | null; dotted_key_command_exit: number | null; dotted_key_command_message: string } & ReturnType<typeof compare>) | undefined;
 {
   const before = prev;
   const changed = { ...ROLES, default: 'provider/model-q:low' };

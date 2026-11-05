@@ -9,7 +9,7 @@ const sets = "claude /craft entry path (project command and skill units)";
 const out = parseOut(process.argv);
 
 const project = freshDir("craft-project");
-const write = (rel, body) => {
+const write = (rel: string, body: string) => {
   const file = path.join(project, rel);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
@@ -20,7 +20,7 @@ write(
   "---\nname: rigprobe-skill\ndescription: rig probe skill\ndisable-model-invocation: true\n---\nReply with the word skill-ok and nothing else.\n",
 );
 
-const ask = (prompt) => run("claude", ["-p", "--max-turns", "3", prompt], { cwd: project, timeoutMs: 110000 });
+const ask = (prompt: string) => run("claude", ["-p", "--max-turns", "3", prompt], { cwd: project, timeoutMs: 110000 });
 const cmd = ask("/rigprobe-cmd");
 const skill = ask("/rigprobe-skill");
 

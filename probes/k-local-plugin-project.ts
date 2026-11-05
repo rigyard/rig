@@ -26,27 +26,27 @@ fs.writeFileSync(
   "---\ndescription: rig probe command\n---\nReply with exactly the word k-ok and nothing else.\n",
 );
 
-const ask = (cmd, withPlugin) =>
+const ask = (cmd: string, withPlugin: boolean) =>
   run(
     "claude",
     ["-p", "--max-turns", "2", ...(withPlugin ? ["--plugin-dir", pluginDir] : []), cmd],
     { cwd: project, timeoutMs: 110000 },
   );
 
-const attempts = {};
-const worked = [];
+const attempts: Record<string, { exit: number | null; timedOut: boolean; sawMarker: boolean }> = {};
+const worked: string[] = [];
 if (flagListed) {
   for (const [label, cmd] of [["bare", "/rigprobe-k"], ["namespaced", "/rigprobe:rigprobe-k"]]) {
     const r = ask(cmd, true);
     attempts[label] = { exit: r.status, timedOut: r.timedOut, sawMarker: r.stdout.includes("k-ok") };
-    if (attempts[label].sawMarker) worked.push(label);
+    if (attempts[label]?.sawMarker) worked.push(label);
   }
 }
 const control = flagListed ? ask("/rigprobe-k", false) : null;
 const controlSawMarker = control ? control.stdout.includes("k-ok") : null;
 
 const localVariantPass =
-  flagListed && worked.includes("bare") && control.status === 0 && controlSawMarker === false;
+  flagListed && worked.includes("bare") && control?.status === 0 && controlSawMarker === false;
 finish({
   probe,
   verdict: "INCONCLUSIVE",
