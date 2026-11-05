@@ -3,7 +3,6 @@
 
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cellValues } from "./models.ts";
 import { treeHash } from "./tree.ts";
 import { place } from "./targets/place.ts";
 import { readSet as readSetOf } from "./targets/readset.ts";
@@ -12,6 +11,7 @@ import { substitute, substituteBytes } from "./targets/terms.ts";
 import { fill } from "./targets/vars.ts";
 import { entryLines, intakeLines, modelsLine, providerLines, slotBody, slotLines } from "./targets/providers.ts";
 import { codexAgent, cursorAgent, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
+import { renderModelSurfaces } from "./targets/models-render.ts";
 
 import type { World } from "./world.ts";
 import type { ModelSurface } from "./world.ts";
@@ -27,7 +27,8 @@ export type DesiredEntry = {kind: "owned", path: string, bytes: Uint8Array, mode
   | {kind: "cells", path: string, surfaces: ModelSurface[], values: CellValue[], unit: string}
   | {kind: "block", path: string, marker: string, bytes: Uint8Array, unit: string, table?: string}
   | {kind: "json-element", path: string, pointer: string, id: string, value: unknown, unit: string};
-export type CellValue = {surface: number, key: string, element: number, value: string};
+/** One cell (models.cellValues): field is model, effort, display, model_effort or literal; displays lists every display name. */
+export type CellValue = {surface: number, key: string, element: number, field: string, value: string, displays?: string[]};
 export type Desired = {entries: Map<string, DesiredEntry>, errors: RigError[], info: string[]};
 
 const encoder = new TextEncoder();
@@ -42,11 +43,12 @@ const FRAME_FILE = "frame.md";
 /**
  * Render every unit for every harness. Pure: reads nothing from disk; input bytes come through stack and world.
  * Owned units in this version: skills, commands, agents, rules, the frame, the slot stubs, the alias commands
- * that compose emits, the plugin manifest of a harness whose local plugin received files, and the `whole` model
- * surfaces of the workflow providers (the pstack model rules). The one other entry is the session-end hook: with
- * rig.json `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. Other
- * model surfaces render nothing yet. Core templates fill a closed set of {{name}} variables from the provider
- * records, the target records, the slot fillers and the lock; a name outside that set is E_TERM_UNKNOWN.
+ * that compose emits, the plugin manifest of a harness whose local plugin received files, the `whole` model
+ * surfaces (the pstack model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
+ * `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. The other model
+ * surfaces render as cells entries (frontmatter, cells, keys) and one block (the Codex [agents] table). Core
+ * templates fill a closed set of {{name}} variables from the provider records, the target records, the slot
+ * fillers and the lock; a name outside that set is E_TERM_UNKNOWN.
  * A render error lands in `errors` and its entry is left out. A malformed World (an installed harness with no
  * target record) still throws, because loadWorld rules it out.
  */
@@ -74,7 +76,7 @@ export function render(stack: Stack, world: World): Desired {
     info: [],
   };
   for (const unit of stack.units) renderUnit(ctx, unit);
-  renderModelFiles(ctx);
+  renderModels(ctx);
   renderPluginManifests(ctx);
   renderSessionHooks(ctx);
   return { entries: ctx.entries, errors: uniqueErrors(ctx.errors), info: ctx.info };
@@ -332,53 +334,13 @@ function coreVars(ctx, unit, rel, text, vars, keep = []) {
   return r.text;
 }
 
-// ---- model files
+// ---- model surfaces (lib/targets/models-render.ts)
 
-/**
- * The `whole` model surfaces of the workflow providers: one owned file per surface on an installed harness. The body
- * is the `# budget:` line and one `<label>: <value>[, <value>]` line per roles.json key of the consumer, in
- * roles.json order. With keep_header, patch() keeps the current frontmatter and "#" lines. A `.mdc` file carries
- * `alwaysApply: true`. A harness that tiers.json names in no tier renders no file, with an info line; any other
- * cell error is a render error.
- */
-function renderModelFiles(ctx) {
-  for (const p of ctx.providers) {
-    for (const s of p.model_surfaces ?? []) {
-      if (s.kind !== "whole" || !ctx.installed.includes(s.harness)) continue;
-      const unit = `${p.name}/models`;
-      if (!Object.values(ctx.tiers?.tiers ?? {}).some((row) => Object.hasOwn(row, s.harness))) {
-        ctx.info.push(`absent ${s.harness} ${unit}: tiers.json names no ${s.harness} model, so ${s.path} does not render`);
-        continue;
-      }
-      let values;
-      try {
-        values = cellValues(ctx.world, s, s.harness);
-      } catch (e) {
-        if (typeof e?.code !== "string") throw e;
-        const message = e.message.startsWith(`${e.code}: `) ? e.message.slice(e.code.length + 2) : e.message;
-        ctx.errors.push({ code: e.code, harness: s.harness, path: s.path, message: `unit ${unit}: ${message}` });
-        continue;
-      }
-      const body = roleLines(s, values);
-      const bytes = encoder.encode(s.path.endsWith(".mdc") ? mdc(body) : body);
-      emit(ctx, s.path, { kind: "owned", bytes, mode: FILE_MODE, unit, ...(s.keep_header ? { keep_header: true } : {}) });
-    }
-  }
-}
-
-/** The role lines of one surface from its cell values. The `budget` key is the `# budget:` line. */
-function roleLines(surface, values) {
-  const byKey = new Map();
-  for (const v of values) {
-    if (!byKey.has(v.key)) byKey.set(v.key, []);
-    (byKey.get(v.key)[v.element] ??= {})[v.field] = v.value;
-  }
-  const grammar = surface.grammar ?? "{model}";
-  const lines = [...byKey].map(([key, elements]) => {
-    const tokens = elements.map((f) => f.literal ?? grammar.replace(/\{(\w+)\}/g, (_, name) => f[name]));
-    return `${key === "budget" ? "# budget" : key}: ${tokens.join(", ")}`;
-  });
-  return `${lines.join("\n")}\n`;
+function renderModels(ctx) {
+  const r = renderModelSurfaces({ installed: ctx.installed, targets: ctx.targets, providers: ctx.providers, tiers: ctx.tiers, world: ctx.world });
+  ctx.errors.push(...r.errors);
+  ctx.info.push(...r.info);
+  for (const { rel, entry } of r.entries) emit(ctx, rel, entry);
 }
 
 // ---- plugin manifests

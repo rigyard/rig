@@ -25,12 +25,15 @@ export function unit({ id, type, harnesses = HARNESSES, scope = "machine-hidden"
   return { id, type, name: id.split("/")[1], scope, projects: [], harnesses, channel, files: files(f) };
 }
 
-/** A World with only the fields render reads. */
+/**
+ * A World with only the fields render reads. It has no tiers.json, so the records' model surfaces are dropped:
+ * test/models-render.test.ts covers them on a loaded world.
+ */
 export function world({ targets = records(), terms = fixtureTerms(), aliases = { pm: "craft" }, harnesses = HARNESSES } = {}) {
   return {
     env: { home: HOME, state: `${HOME}/.local/state/rig`, data: `${HOME}/.local/share/rig`, test: true },
     config: { schema: 1, harnesses, aliases },
-    targets,
+    targets: new Map([...targets].map(([h, r]) => [h, { ...r, model_surfaces: [] }])),
     terms,
   };
 }

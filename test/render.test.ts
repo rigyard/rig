@@ -314,11 +314,6 @@ test("the frame renders frame.md only; principles.md does not render", () => {
   assert.equal(render(noFrame, world({ aliases: {} })).errors[0].code, "E_INTERNAL");
 });
 
-test("model surfaces render nothing yet: no cells entries", () => {
-  const d = render(fixtureStack(), world());
-  assert.ok([...d.entries.values()].every((e) => e.kind === "owned" || e.kind === "block"));
-});
-
 test("the repo's own data: loadWorld, compose and render agree on /craft, the pm alias and the frame", () => {
   const fx = makeFixtureHome({});
   try {

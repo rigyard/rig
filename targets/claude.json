@@ -23,5 +23,9 @@
                             "payload": ["session_id", "transcript_path"]}},
   "transcripts": {"format": "claude-jsonl", "root": "~/.claude/projects"},
   "effort_syntax": "separate-key",
+  "model_surfaces": [
+    {"path": "~/.claude/agents/{role}.md", "consumer": "fleet", "kind": "frontmatter",
+     "keys": {"model": "model", "effort": "effort"}, "display_in": "description"}
+  ],
   "facts": {"installed_plugins": "~/.claude/plugins/installed_plugins.json", "marketplaces": "~/.claude/plugins/known_marketplaces.json"}
 }

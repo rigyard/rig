@@ -17,6 +17,13 @@
   "hide": {"method": "sidecar", "file": "agents/openai.yaml", "key": "policy.allow_implicit_invocation", "value": false},
   "models": {"source": "the agent files in ~/.codex/agents"},
   "instructions": {"path": "~/.codex/AGENTS.md", "mode": "managed-block"},
+  "effort_syntax": "separate-key",
+  "model_surfaces": [
+    {"path": "~/.codex/agents/{role}.toml", "consumer": "fleet", "kind": "whole",
+     "keys": {"model": "model", "effort": "model_reasoning_effort"}, "text_from": "~/.claude/agents/{role}.md"},
+    {"path": "~/.codex/config.toml", "consumer": "codex", "kind": "block", "marker": "rig:models", "table": "agents",
+     "keys": {"model": "default_subagent_model", "effort": "default_subagent_reasoning_effort"}}
+  ],
   "budget": {"description_max": 1024, "instructions_max_bytes": 32768},
   "hooks": {"session_end": null},
   "transcripts": {"format": "codex-rollout", "root": "~/.codex/sessions"}

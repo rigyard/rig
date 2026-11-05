@@ -90,7 +90,8 @@ function desiredDigest(e) {
 }
 
 function cellDiff(p, current, values) {
-  const key = (c) => `${c.surface}/${c.key}/${c.element}`;
+  // field is part of the cell: one frontmatter role holds model, effort and display under one key.
+  const key = (c) => `${c.surface}/${c.key}/${c.element}/${c.field}`;
   const cur = new Map((current ?? []).map((c) => [key(c), c.value]));
   const lines = values.filter((c) => cur.get(key(c)) !== c.value).map((c) => `${p} ${key(c)}: ${JSON.stringify(cur.get(key(c)) ?? null)} -> ${JSON.stringify(c.value)}`);
   return `${lines.join("\n")}\n`;

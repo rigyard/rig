@@ -22,6 +22,11 @@
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
   "models": {"source": "the agent files in ~/.cursor/agents"},
   "instructions": {"path": "~/.cursor/rules/rig-frame.mdc", "mode": "whole-file"},
+  "effort_syntax": "bracket",
+  "model_surfaces": [
+    {"path": "~/.cursor/agents/{role}.md", "consumer": "fleet", "kind": "frontmatter", "keys": {"model": "model"},
+     "grammar": "{model_effort}"}
+  ],
   "hooks": {"session_end": null},
   "transcripts": {"format": "cursor-agent-jsonl", "root": "~/.cursor/projects"}
 }

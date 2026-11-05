@@ -148,7 +148,8 @@ describe("pstack model rules, a whole file with keep_header (S3.3)", () => {
     writeFileSync(join(s.root, "models/tiers.json"), json(partial));
     const pw = loadWorld(s.env);
     const pd = render(compose(pw), pw);
-    assert.deepEqual(pd.errors.map((e) => [e.code, e.path]), [["E_SCHEMA", "~/.cursor/rules/pstack-models.mdc"]]);
+    // The Cursor fleet agents surface of targets/cursor.json fails the same way.
+    assert.deepEqual(pd.errors.map((e) => [e.code, e.path]), [["E_SCHEMA", "~/.cursor/rules/pstack-models.mdc"], ["E_SCHEMA", "~/.cursor/agents/{role}.md"]]);
     assert.equal(pd.entries.has(s.fx.path(".cursor/rules/pstack-models.mdc")), false);
 
     // A current file with frontmatter and no "#" line keeps its own frontmatter, once.
