@@ -32,6 +32,16 @@ of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction.
 `;
 
+export const GPL_TEXT = `                    GNU GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+`;
+
+export const APACHE_TEXT = `                                 Apache License
+                           Version 2.0, January 2004
+`;
+
 /**
  * Build a bare repo from a list of commits. A commit is a map of path -> string | {content, mode} | {symlink} | null,
  * where null deletes the path. A value replaces whatever is at the path, a folder included.

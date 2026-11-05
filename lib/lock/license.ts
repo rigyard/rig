@@ -30,4 +30,27 @@ export function licenseFromPackageJson(json: string): string | null {
   }
 }
 
-export const isLicenseFile = (name) => /^(LICEN[SC]E|COPYING)(\.[a-z]+)?$/i.test(name);
+const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|mts|cts|py|rb|go|rs|java|c|h)$/i;
+const NOTICE_NAME = /^(LICEN[SC]E|COPYING)([.\-_].*)?$/i;
+
+export function isLicenseFile(path: string): boolean {
+  const parts = path.split("/");
+  if (parts.slice(0, -1).some((d) => d.toUpperCase() === "LICENSES")) return true;
+  const name = parts[parts.length - 1];
+  return NOTICE_NAME.test(name) && !CODE_EXT.test(name);
+}
+
+/** AND-join license ids so that no id can change the meaning of its neighbours. Unbalanced parentheses are unknown. */
+export function joinLicenses(ids: string[]): string {
+  const operands: string[] = [];
+  for (const id of ids) {
+    let depth = 0;
+    for (const ch of id) {
+      if (ch === "(") depth++;
+      else if (ch === ")" && --depth < 0) return NO_LICENSE;
+    }
+    if (depth !== 0) return NO_LICENSE;
+    operands.push(ids.length > 1 && /\s/.test(id) ? `(${id})` : id);
+  }
+  return operands.sort().join(" AND ");
+}

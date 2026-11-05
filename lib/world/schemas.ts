@@ -226,6 +226,7 @@ export const LOCK = schema2(S.rec(
         exclude: S.arr(text(), { unique: true }),
         tree: tree(),
         port_tree: S.nul(tree()),
+        license: S.str(),
         checked: S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/ }),
       }, ["sha", "exclude", "tree", "port_tree", "checked"])),
     }, ["repo", "sha", "root", "paths", "exclude", "license", "tree", "port", "candidate"]), { key: id() }),

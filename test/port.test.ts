@@ -11,7 +11,7 @@ import { pinCheck, pinSet, vendor } from "../lib/lock.ts";
 import { treeHash } from "../lib/tree.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { makeStubs } from "./helpers/stubs.ts";
-import { cleanup, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
+import { cleanup, GPL_TEXT, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
 import { filesUnder, json, repoJson, ROOT } from "./pstack.helpers.ts";
 
 const BIN = join(ROOT, "bin/rig.ts");
@@ -208,7 +208,7 @@ test("a vendored pack with a port: pin check records its exclude list, pin set a
   assert.deepEqual(c.port, { paths: ["hub.md"], stale: true, reviewed_sha: repo.shas[0] });
   assert.equal(c.changed, 2, "SKILL.md modified and old.md removed");
   assert.deepEqual(c.files.map((f) => f.path), ["SKILL.md"]);
-  const candidate = { sha: repo.shas[1], exclude: ["hub.md", "scripts"], tree: treeHash(c.files), port_tree: c.candidate.port_tree, checked: "2026-11-05" };
+  const candidate = { sha: repo.shas[1], exclude: ["hub.md", "scripts"], tree: treeHash(c.files), port_tree: c.candidate.port_tree, license: "MIT", checked: "2026-11-05" };
   assert.deepEqual(lockOf(root).packs.kit.candidate, candidate);
 
   const checked = readFileSync(join(root, "rig.lock.json"));
@@ -283,6 +283,44 @@ test("rig: an upstream license change is gated at pin check; a disallowed one le
   assert.deepEqual(manifest, { ...JSON.parse(manifestBytes.toString("utf8")), license: "Apache-2.0" }, "pin set changes only the license of pack.json");
   assert.equal(json(manifest), readFileSync(manifestPath, "utf8"), "in canonical JSON");
   assert.equal(lockOf(root).packs.lic.license, "Apache-2.0");
+});
+
+test("rig: a GPL LICENSE file added in a vendored subfolder blocks pin check even when the root LICENSE stays MIT", (t) => {
+  const { root, rig } = cli(t);
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [
+    { LICENSE: MIT_TEXT, "skills/lic/SKILL.md": skill("lic", "v1.") },
+    { "skills/LICENSE": GPL_TEXT, "skills/lic/SKILL.md": skill("lic", "v2.") },
+    { "skills/LICENSE": null, "skills/lic/deep/LICENSE": GPL_TEXT },
+  ]);
+  assert.equal(rig("pack", "add", repo.url, "--sha", repo.shas[0], "--path", "skills", "--name", "lic").code, 0);
+  const lockBytes = readFileSync(join(root, "rig.lock.json"));
+
+  const sub = rig("pin", "check", "lic", "--sha", repo.shas[1]);
+  assert.equal(sub.code, 1, sub.all);
+  assert.match(sub.stdout, /^block license lic\/pack\.json: license missing$/m);
+  assert.deepEqual(readFileSync(join(root, "rig.lock.json")), lockBytes, "a blocked candidate is not recorded");
+  assert.equal(rig("pin", "set", "lic").code, 1, "nothing to promote");
+
+  const deep = rig("pin", "check", "lic", "--sha", repo.shas[2]);
+  assert.equal(deep.code, 1, deep.all);
+  assert.match(deep.stdout, /^block license lic\/pack\.json: license missing$/m);
+  assert.deepEqual(readFileSync(join(root, "rig.lock.json")), lockBytes);
+
+  const excluded = rig("pin", "check", "lic", "--sha", repo.shas[2], "--exclude", "skills/lic/deep");
+  assert.equal(excluded.code, 0, excluded.all);
+});
+
+test("rig: pack add blocks a GPL LICENSE file in the vendored subfolder and records the license as NOASSERTION", (t) => {
+  const { root, rig } = cli(t);
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [{ LICENSE: MIT_TEXT, "skills/LICENSE": GPL_TEXT, "skills/lic/SKILL.md": skill("lic", "v1.") }]);
+  const add = rig("pack", "add", repo.url, "--sha", repo.shas[0], "--path", "skills", "--name", "lic");
+  assert.equal(add.code, 1, add.all);
+  assert.match(add.stdout, /^block license lic\/pack\.json: license missing$/m);
+  assert.equal(lockOf(root).packs.lic.license, "NOASSERTION");
 });
 
 test("rig: --no-exclude records an empty exclude list, so an excluded folder that upstream deleted needs no hand edit", (t) => {

@@ -9,7 +9,7 @@ import type { TreeEntry } from "./lock/git.ts";
 import { readTreeFromDisk } from "./lock/disk.ts";
 import { readLock, encodeLock, LOCK_FILE } from "./lock/lockfile.ts";
 import { ID } from "./world.ts";
-import { NO_LICENSE, isLicenseFile, licenseFromPackageJson, licenseFromText } from "./lock/license.ts";
+import { NO_LICENSE, isLicenseFile, joinLicenses, licenseFromPackageJson, licenseFromText } from "./lock/license.ts";
 
 
 const ROOTS = ["repo", "overlay"];
@@ -82,28 +82,42 @@ async function collect(dir, picked) {
   return dests.map((d, i) => ({ path: d, mode: picked.get(d).mode === "100755" ? 0o755 : 0o644, bytes: blobs[i] }));
 }
 
-/** Closest package.json or LICENSE file, starting in the named path and walking up to the repo root. */
-async function detectLicense(dir, entries, paths) {
-  const ids = new Set();
+async function detectLicense(dir: string, entries: TreeEntry[], paths: string[], vendored: string[]): Promise<string> {
+  const dirOf = (p: string) => (posix.dirname(p) === "." ? "" : posix.dirname(p));
+  const isPackageJson = (e: TreeEntry) => posix.basename(e.path) === "package.json";
+  const idsOf = async (cands: TreeEntry[]) => {
+    const blobs = await readBlobs(dir, cands.map((e) => e.oid));
+    return cands.map((e, i) => (isPackageJson(e) ? licenseFromPackageJson : licenseFromText)(blobs[i].toString("utf8")));
+  };
+  const ids = new Set<string>();
   for (const p of paths) {
-    let d = p === "." ? "" : entries.some((e) => e.path === p) ? posix.dirname(p).replace(/^\.$/, "") : p;
-    let found = null;
+    let d = p === "." ? "" : entries.some((e) => e.path === p) ? dirOf(p) : p;
+    let found: string | null = null;
     for (;;) {
-      const here = entries.filter((e) => (posix.dirname(e.path) === "." ? "" : posix.dirname(e.path)) === d && e.type === "blob");
-      const pkg = here.find((e) => posix.basename(e.path) === "package.json");
-      const lic = here.filter((e) => isLicenseFile(posix.basename(e.path)));
+      const here = entries.flatMap((e) => {
+        const rel = d === "" ? e.path : e.path.startsWith(`${d}/`) ? e.path.slice(d.length + 1) : null;
+        return e.type === "blob" && rel !== null ? [{ e, rel }] : [];
+      });
+      const pkg = here.find((h) => h.rel === "package.json")?.e;
+      const lic = here.filter((h) => (!h.rel.includes("/") || h.rel.toUpperCase().startsWith("LICENSES/")) && isLicenseFile(h.rel)).map((h) => h.e);
       const cands = [...(pkg ? [pkg] : []), ...lic];
-      const blobs = await readBlobs(dir, cands.map((e) => e.oid));
-      found = cands
-        .map((e, i) => (e === pkg ? licenseFromPackageJson(blobs[i].toString("utf8")) : licenseFromText(blobs[i].toString("utf8"))))
-        .find(Boolean) ?? null;
+      const got = await idsOf(cands);
+      if (got.some((id, i) => id === null && cands[i] !== pkg)) return NO_LICENSE;
+      found = got.find(Boolean) ?? null;
       if (found || d === "") break;
       d = posix.dirname(d).replace(/^\.$/, "");
     }
     if (!found) return NO_LICENSE;
     ids.add(found);
   }
-  return [...ids].sort().join(" AND ");
+  const vendoredSet = new Set(vendored);
+  const nested = entries.filter((e) => e.type === "blob" && vendoredSet.has(e.path) && (isPackageJson(e) || isLicenseFile(e.path)));
+  const nestedIds = await idsOf(nested);
+  for (const [i, id] of nestedIds.entries()) {
+    if (id !== null) ids.add(id);
+    else if (!isPackageJson(nested[i])) return NO_LICENSE;
+  }
+  return joinLicenses([...ids]);
 }
 
 const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
@@ -115,6 +129,8 @@ const normList = (xs: string[]) => [...new Set(xs.map(normalizePath))].sort();
 function excludeList(xs: string[]) {
   const exclude = normList(xs);
   if (exclude.includes(".")) throw new LockError("E_USAGE", "--exclude . would exclude every path");
+  const notice = exclude.find((x) => isLicenseFile(x) || posix.basename(x).toUpperCase() === "LICENSES");
+  if (notice !== undefined) throw new LockError("E_USAGE", `--exclude ${notice} names a license file; exclude the folder of the code it covers instead`, notice);
   return exclude;
 }
 
@@ -238,7 +254,8 @@ export async function vendor(world: object, args: {repo: string, sha: string, ro
       portTree = treeHash(await collect(dir, picked));
     }
     const licensed = adopted ? port : paths;
-    return { ...v, commit, portTree, license: await detectLicense(dir, entries, licensed.map((p) => repoPath(upstream, p))) };
+    const vendored = (adopted ? [...portPick(entries, upstream, port).picked.keys()] : v.files.map((f) => f.path)).map((p) => repoPath(upstream, p));
+    return { ...v, commit, portTree, license: await detectLicense(dir, entries, licensed.map((p) => repoPath(upstream, p)), vendored) };
   });
   const portLock = got.portTree === null ? null : { paths: port, tree: got.portTree, reviewed_sha: null, reviewed_tree: null };
   const record = (tree: string) => ({ repo: args.repo, sha: got.commit, root: upstream, paths, exclude, license: got.license, tree, port: portLock, candidate: null });
@@ -308,14 +325,14 @@ async function coreCheck(world: LockWorld, opts: {gate?: Gate}) {
 /**
  * rig pin check <pack> [--sha] [--diff] [--exclude | --no-exclude]. Fetch `sha` (default: the locked one), select the
  * locked paths with the locked excludes, or with `opts.exclude` in their place (`[]` for none), detect the license
- * and gate that candidate. A license that differs from the locked one replaces the pack.json license in the gate.
+ * and gate that candidate, which records the detected license. A license that differs from the locked one replaces the pack.json license in the gate.
  * For an adopted pack the candidate is the folder on disk and its license stays. The port is stale when its tree at
  * `sha` differs from `reviewed_tree`, and always before the first attest. Writes only `candidate` of the pack's lock
  * entry, with its exclude list, and only when the gate passes. `opts.diff` only prints: it adds a unified diff of the
  * port paths from `reviewed_sha` to `sha` (from the empty tree before the first attest), fetches `reviewed_sha` for
  * it, and writes nothing. For core: no network, no flags.
  */
-export async function pinCheck(world: object, name: string, sha: string | null, opts: {gate?: Gate, diff?: boolean, exclude?: string[]} = {}): Promise<{candidate: {sha: string | null, exclude: string[] | null, tree: string, port_tree: string | null, checked: string}, files: File[], changed: number | null, port: {paths: string[], stale: boolean, reviewed_sha: string | null} | null, diff: string | null, recorded: boolean, findings: object[], blocked: boolean}> {
+export async function pinCheck(world: object, name: string, sha: string | null, opts: {gate?: Gate, diff?: boolean, exclude?: string[]} = {}): Promise<{candidate: {sha: string | null, exclude: string[] | null, tree: string, port_tree: string | null, license?: string, checked: string}, files: File[], changed: number | null, port: {paths: string[], stale: boolean, reviewed_sha: string | null} | null, diff: string | null, recorded: boolean, findings: object[], blocked: boolean}> {
   if (name === "core") {
     const flag = sha !== null ? "--sha" : opts.diff ? "--diff" : opts.exclude ? (opts.exclude.length > 0 ? "--exclude" : "--no-exclude") : null;
     if (flag) throw new LockError("E_USAGE", `rig pin check core does not take ${flag}`);
@@ -333,7 +350,7 @@ export async function pinCheck(world: object, name: string, sha: string | null, 
 
   const got = await withClone(entry.repo, target, async ({ dir, commit, entries }) => {
     const files = adopted ? disk.filter((f) => f.path !== "pack.json") : (await vendoredFiles(dir, entries, entry.root, entry.paths, exclude)).files;
-    const license = adopted ? entry.license : await detectLicense(dir, entries, entry.paths.map((p: string) => repoPath(entry.root, p)));
+    const license = adopted ? entry.license : await detectLicense(dir, entries, entry.paths.map((p: string) => repoPath(entry.root, p)), files.map((f) => repoPath(entry.root, f.path)));
     if (!port) return { commit, files, license, portTree: null, diff: null };
     const portTree = treeHash(await collect(dir, portPick(entries, entry.root, port.paths).picked));
     const diff = opts.diff ? await portDiff(dir, base, commit, entry.root, port.paths) : null;
@@ -341,7 +358,7 @@ export async function pinCheck(world: object, name: string, sha: string | null, 
   }, base);
 
   const checked = (world.now ?? new Date()).toISOString().slice(0, 10);
-  const candidate = { sha: got.commit, exclude, tree: treeHash(got.files), port_tree: got.portTree, checked };
+  const candidate = { sha: got.commit, exclude, tree: treeHash(got.files), port_tree: got.portTree, license: got.license, checked };
   const manifestFile = disk.find((f) => f.path === "pack.json");
   const manifest = manifestFile ? JSON.parse(Buffer.from(manifestFile.bytes).toString("utf8")) : null;
   const gated = await gateOf(opts, got.files, { root: rootName, manifest: manifest && got.license !== entry.license ? { ...manifest, license: got.license } : manifest });
@@ -367,7 +384,7 @@ function coreSet(world: LockWorld) {
 
 /**
  * rig pin set <pack> [--ported]. Without --ported: re-fetch candidate.sha, select with candidate.exclude, refuse
- * unless the tree equals candidate.tree, delete the files that are not in the candidate, write the new ones, write the
+ * unless the tree and the detected license equal candidate.tree and candidate.license, delete the files that are not in the candidate, write the new ones, write the
  * new license into pack.json when it differs from the locked one, then move sha, tree, license, exclude and port.tree
  * in the lock. A raw fs error becomes E_PIN_WRITE. The lock is written last, so a failed run leaves the candidate for
  * a retry. An adopted pack has no vendored files, so it moves sha and port.tree with no fetch. With --ported:
@@ -400,13 +417,16 @@ export async function pinSet(world: object, name: string, opts: {ported?: boolea
   if (!c) return refuse(`${name} has no candidate; run rig pin check ${name} --sha <sha> first`);
   let { tree, license } = entry;
   if (!adopted) {
-    const got = await withClone(entry.repo, c.sha, async ({ dir, entries }) => ({
-      files: (await vendoredFiles(dir, entries, entry.root, entry.paths, c.exclude)).files,
-      license: await detectLicense(dir, entries, entry.paths.map((p: string) => repoPath(entry.root, p))),
-    }));
+    const got = await withClone(entry.repo, c.sha, async ({ dir, entries }) => {
+      const { files } = await vendoredFiles(dir, entries, entry.root, entry.paths, c.exclude);
+      return { files, license: await detectLicense(dir, entries, entry.paths.map((p: string) => repoPath(entry.root, p)), files.map((f) => repoPath(entry.root, f.path))) };
+    });
     tree = treeHash(got.files);
     if (tree !== c.tree) {
       return refuse(`the files of ${name} at ${c.sha} with the candidate excludes hash to ${tree}, not to the candidate ${c.tree}; run rig pin check ${name} again`);
+    }
+    if (got.license !== c.license) {
+      return refuse(`the license of ${name} at ${c.sha} with the candidate excludes is ${got.license}, not the checked ${c.license ?? "none"}; run rig pin check ${name} again`);
     }
     license = got.license;
     const keep = new Set(got.files.map((f) => f.path));

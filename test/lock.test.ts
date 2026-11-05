@@ -5,7 +5,9 @@ import { existsSync, readFileSync, rmSync, statSync, writeFileSync, readdirSync 
 import { basename, join } from "node:path";
 import { treeHash } from "../lib/tree.ts";
 import { vendor, pinCheck, pinSet } from "../lib/lock.ts";
-import { cleanup, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
+import { licenseAllowed } from "../lib/gate/license.ts";
+import { isLicenseFile, joinLicenses } from "../lib/lock/license.ts";
+import { APACHE_TEXT, cleanup, GPL_TEXT, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 const f = (path, mode, text) => ({ path, mode, bytes: Buffer.from(text) });
@@ -296,6 +298,156 @@ test("license comes from package metadata before LICENSE text", async (t) => {
   const world = makeWorld(base);
   await vendor(world, { repo: repo.url, sha: repo.shas[0], root: "skills/p", paths: ["."] });
   assert.equal(readLockFile(world.roots.repo).packs.p.license, "Apache-2.0");
+});
+
+const licenseOf = async (t: {after: (fn: () => void) => void}, files: Record<string, string>, args: Record<string, unknown> = {}) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [files]);
+  const world = makeWorld(base);
+  await vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["skills"], name: "p", ...args });
+  return readLockFile(world.roots.repo).packs.p.license;
+};
+
+test("a LICENSE file that matches no rule is unknown and stops the walk, so a permissive root cannot cover it", async (t) => {
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/LICENSE": GPL_TEXT, "skills/a.md": "a\n" }), "NOASSERTION");
+});
+
+test("an unmatched LICENSE file beside a package.json is unknown even when package.json names a license", async (t) => {
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/LICENSE": GPL_TEXT, "skills/package.json": '{"license": "MIT"}\n' }), "NOASSERTION");
+});
+
+test("an unmatched LICENSE file inside the vendored tree is unknown, whatever the root says", async (t) => {
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/a/b/LICENSE": GPL_TEXT, "skills/a/b/x.md": "x\n" }), "NOASSERTION");
+});
+
+test("a recognised LICENSE file inside the vendored tree joins the detected license", async (t) => {
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/a/LICENSE": APACHE_TEXT, "skills/a/x.md": "x\n" }), "Apache-2.0 AND MIT");
+});
+
+test("an exclude that drops the folder with the unmatched LICENSE file lifts the unknown", async (t) => {
+  const files = { LICENSE: MIT_TEXT, "skills/a/b/LICENSE": GPL_TEXT, "skills/a/b/x.md": "x\n", "skills/k.md": "k\n" };
+  assert.equal(await licenseOf(t, files, { exclude: ["skills/a/b"] }), "MIT");
+});
+
+const pkgJson = (license: unknown) => JSON.stringify(license === undefined ? { name: "x" } : { name: "x", license }) + "\n";
+
+test("ids that join into one expression keep their own grouping, so GPL-3.0 and MIT OR Apache-2.0 do not pass the gate", async (t) => {
+  const license = await licenseOf(t, { "skills/a/package.json": pkgJson("GPL-3.0"), "skills/b/package.json": pkgJson("MIT OR Apache-2.0") }, { paths: ["skills/a", "skills/b"] });
+  assert.equal(license, "(MIT OR Apache-2.0) AND GPL-3.0");
+  assert.equal(licenseAllowed(license), false);
+  assert.equal(licenseAllowed(joinLicenses(["MIT OR Apache-2.0", "BSD-2-Clause"])), true);
+});
+
+test("joinLicenses: a single id is kept as written, compound ids join in parentheses, unbalanced parentheses are unknown", () => {
+  assert.equal(joinLicenses(["MIT OR Apache-2.0"]), "MIT OR Apache-2.0");
+  assert.equal(joinLicenses(["MIT", "Apache-2.0 WITH LLVM-exception"]), "(Apache-2.0 WITH LLVM-exception) AND MIT");
+  for (const evil of ["MIT) OR (MIT", "(MIT", "MIT)"]) {
+    assert.equal(joinLicenses([evil, "GPL-3.0"]), "NOASSERTION", evil);
+    assert.equal(joinLicenses([evil]), "NOASSERTION", evil);
+  }
+});
+
+test("a license id that closes its own parenthesis cannot turn the joined expression permissive", async (t) => {
+  const license = await licenseOf(t, { "skills/a/package.json": pkgJson("MIT) OR (MIT"), "skills/b/package.json": pkgJson("GPL-3.0") }, { paths: ["skills/a", "skills/b"] });
+  assert.equal(license, "NOASSERTION");
+  assert.equal(licenseAllowed(license), false);
+});
+
+test("a vendored package.json license joins the detected license even with no LICENSE file beside it", async (t) => {
+  const files = { LICENSE: MIT_TEXT, "skills/a/package.json": pkgJson("GPL-3.0"), "skills/a/SKILL.md": "a\n" };
+  assert.equal(await licenseOf(t, files), "GPL-3.0 AND MIT");
+  assert.equal(licenseAllowed(await licenseOf(t, files)), false);
+});
+
+test("a vendored package.json with no license field, an unreadable one, or an object type adds nothing or its type", async (t) => {
+  const base = { LICENSE: MIT_TEXT, "skills/a/SKILL.md": "a\n" };
+  assert.equal(await licenseOf(t, { ...base, "skills/a/package.json": pkgJson(undefined) }), "MIT");
+  assert.equal(await licenseOf(t, { ...base, "skills/a/package.json": "{not json" }), "MIT");
+  assert.equal(await licenseOf(t, { ...base, "skills/a/package.json": pkgJson({ type: "GPL-3.0" }) }), "GPL-3.0 AND MIT");
+});
+
+test("an exclude that drops the folder of a vendored package.json removes its license", async (t) => {
+  const files = { LICENSE: MIT_TEXT, "skills/a/package.json": pkgJson("GPL-3.0"), "skills/a/x.md": "x\n", "skills/k.md": "k\n" };
+  assert.equal(await licenseOf(t, files, { exclude: ["skills/a"] }), "MIT");
+});
+
+test("isLicenseFile: LICENSE, LICENCE and COPYING names with any suffix, and anything under LICENSES/, but not source code", () => {
+  for (const yes of ["LICENSE", "license", "LICENCE", "COPYING", "LICENSE.md", "LICENSE.txt", "LICENSE-GPL", "LICENSE-MIT", "LICENSE.GPL-3.0", "LICENSE_APACHE", "COPYING.LESSER", "License.md",
+    "LICENSES/GPL-3.0-only.txt", "licenses/MIT.txt", "a/LICENSES/x/MIT.txt", "skills/a/LICENSE"]) {
+    assert.equal(isLicenseFile(yes), true, yes);
+  }
+  for (const no of ["license.js", "License.ts", "license.mjs", "license.cjs", "license.py", "license.rb", "license.go", "license.rs", "License.java", "license.c", "license.h", "LICENSES", "licenses.md", "LICENSED.md", "SKILL.md", "scripts/license.ts"]) {
+    assert.equal(isLicenseFile(no), false, no);
+  }
+});
+
+test("license notices under a suffixed name or a LICENSES folder that match no rule are unknown, at the root of the walk and inside the tree", async (t) => {
+  for (const notice of ["skills/LICENSE-GPL", "skills/LICENSE.GPL-3.0", "skills/a/LICENSE-GPL", "skills/a/COPYING.LESSER"]) {
+    assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, [notice]: GPL_TEXT, "skills/a/x.md": "x\n" }), "NOASSERTION", notice);
+  }
+  assert.equal(await licenseOf(t, { "skills/LICENSES/GPL-3.0-only.txt": GPL_TEXT, "skills/a/x.md": "x\n" }), "NOASSERTION", "LICENSES/ in the walk");
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/a/LICENSES/GPL-3.0-only.txt": GPL_TEXT, "skills/a/x.md": "x\n" }), "NOASSERTION", "LICENSES/ inside the tree");
+  assert.equal(await licenseOf(t, { LICENSE: MIT_TEXT, "skills/a/LICENSES/MIT.txt": MIT_TEXT, "skills/a/x.md": "x\n" }), "MIT", "a recognised file under LICENSES/ joins");
+});
+
+test("source files named like a license are not license files", async (t) => {
+  const files = { LICENSE: MIT_TEXT, "skills/a/license.js": GPL_TEXT, "skills/a/License.ts": GPL_TEXT, "skills/a/x.md": "x\n" };
+  assert.equal(await licenseOf(t, files), "MIT");
+});
+
+test("--exclude that names only a license file is E_USAGE, so a notice cannot be dropped while its code stays", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [{ LICENSE: MIT_TEXT, "skills/a/LICENSE": APACHE_TEXT, "skills/a/LICENSES/MIT.txt": MIT_TEXT, "skills/a/x.md": "x\n" }]);
+  const world = makeWorld(base);
+  for (const exclude of ["skills/a/LICENSE", "skills/a/LICENSES", "skills/a/LICENSES/MIT.txt"]) {
+    await assert.rejects(vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["skills"], name: "p", exclude: [exclude] }), { code: "E_USAGE", message: /names a license file/ }, exclude);
+  }
+  assert.equal(existsSync(join(world.roots.repo, "rig.lock.json")), false, "nothing is written");
+  await vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["skills"], name: "p" });
+  await assert.rejects(pinCheck(world, "p", null, { exclude: ["skills/a/LICENSE"] }), { code: "E_USAGE", message: /names a license file/ });
+});
+
+test("pin check records the detected license in the candidate, and pin set refuses when it detects another one", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [
+    { LICENSE: MIT_TEXT, "skills/a/x.md": "x\n" },
+    { "skills/a/package.json": pkgJson("GPL-3.0") },
+  ]);
+  const world = makeWorld(base, { now: new Date("2026-11-05T00:00:00Z") });
+  const root = world.roots.repo;
+  await vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["skills"], name: "p" });
+  await pinCheck(world, "p", repo.shas[1]);
+  const checked = readFileSync(join(root, "rig.lock.json"));
+  assert.equal(readLockFile(root).packs.p.candidate.license, "GPL-3.0 AND MIT");
+
+  for (const license of ["MIT", undefined]) {
+    const tampered = readLockFile(root);
+    if (license === undefined) delete tampered.packs.p.candidate.license;
+    else tampered.packs.p.candidate.license = license;
+    writeFileSync(join(root, "rig.lock.json"), JSON.stringify(tampered, null, 2) + "\n");
+    const r = await pinSet(world, "p");
+    assert.equal(r.promoted, false, String(license));
+    assert.equal(r.error?.code, "E_PIN_UNCHECKED", String(license));
+    assert.match(r.error?.message ?? "", /license of p at .* is GPL-3\.0 AND MIT, not the checked .*run rig pin check p again/, String(license));
+    assert.equal(existsSync(join(root, "packs/p/skills/a/package.json")), false, "a refused pin set writes nothing");
+  }
+
+  writeFileSync(join(root, "rig.lock.json"), checked);
+  assert.deepEqual(await pinSet(world, "p"), { promoted: true, sha: repo.shas[1], port: "none" });
+  assert.equal(readLockFile(root).packs.p.license, "GPL-3.0 AND MIT");
+});
+
+test("an adopted pack detects the license under its port paths, nested files included", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [{ LICENSE: MIT_TEXT, "hub/SKILL.md": "hub\n", "hub/deep/LICENSE": GPL_TEXT }]);
+  const world = makeWorld(base);
+  world.writeConfig(world.roots.repo, "packs/p/pack.json", Buffer.from('{"schema": 2, "name": "p", "license": "MIT", "units": {}}\n'));
+  await vendor(world, { repo: repo.url, sha: repo.shas[0], name: "p", port: ["hub"] });
+  assert.equal(readLockFile(world.roots.repo).packs.p.license, "NOASSERTION");
 });
 
 test("the lock is written in canonical form with sorted names, and a non-canonical lock is refused", async (t) => {
