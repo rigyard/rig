@@ -264,6 +264,9 @@ describe("pre-read facts, sources and vars", () => {
   test("vars hold only the variables checks read", () =>
     withFixture({ env: { DO_NOT_TRACK: "1", SOME_SECRET: "x" } }, (fx) =>
       assert.deepEqual({ ...fx.load().vars }, { DO_NOT_TRACK: "1", OPENSPEC_TELEMETRY: undefined })));
+  test("vars also hold the Claude alias overrides that models.effective reports", () =>
+    withFixture({ env: { ANTHROPIC_DEFAULT_OPUS_MODEL: "remapped", ANTHROPIC_API_KEY: "x" } }, (fx) =>
+      assert.deepEqual({ ...fx.load().vars }, { ANTHROPIC_DEFAULT_OPUS_MODEL: "remapped", DO_NOT_TRACK: undefined, OPENSPEC_TELEMETRY: undefined })));
   test("pack files keep their mode and symlinks stay links", () =>
     withFixture({ repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain")) }, home: { "rig/packs/own/skills/explain/link": { symlink: "SKILL.md" } } }, (fx) => {
       const files = fx.load().packs.get("own").files;

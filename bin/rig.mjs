@@ -2,7 +2,7 @@
 // bin/rig.mjs — the command table. Parser, help and dispatch derive from it. No policy here.
 
 import { parseArgs } from "node:util";
-import { applyCmd, doctorCmd, modelsCmd, packAddCmd, pinCmd, planCmd, statsCmd } from "../lib/commands.mjs";
+import { applyCmd, dispatch, doctorCmd, modelsCmd, packAddCmd, pinCmd, planCmd, statsCmd } from "../lib/commands.mjs";
 
 /** @typedef {import("../lib/commands.mjs").ParsedArgs} ParsedArgs */
 
@@ -42,7 +42,7 @@ const COMMANDS = [
     args: ["tier", "model"],
     flags: { "--harness": { value: true, arg: "h", required: true } },
     run: modelsCmd,
-    help: "swap the model of one tier through the apply pipeline",
+    help: "swap the model of one tier in models/tiers.json; rig apply renders it",
   },
   {
     name: "pack",
@@ -173,12 +173,8 @@ async function main(argv) {
     return 0;
   }
   const { row, parsed } = parse(first, rest);
-  try {
-    return await row.run(parsed, process.env);
-  } catch (err) {
-    process.stderr.write(`rig ${first}: ${err instanceof Error ? err.message : String(err)}\n`);
-    return 1;
-  }
+  // Exit codes: dispatch maps a typed error to 2 (usage, config) or 1, and a non-exit-code result to E_INTERNAL.
+  return dispatch(first, row.run, parsed, process.env);
 }
 
 try {

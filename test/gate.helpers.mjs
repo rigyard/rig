@@ -1,5 +1,4 @@
 // Hand-built World, Stack and Desired values for gate tests. Only the fields the gate reads exist.
-import { createHash } from "node:crypto";
 
 export const HOME = "/home/test";
 
@@ -24,8 +23,9 @@ export function pack(name, files = {}, opts = {}) {
 export const goodPack = (name = "good", extra = {}, opts = {}) =>
   pack(name, { "skills/hello/SKILL.md": "# Hello\n\nSay hello.\n", ...extra }, opts);
 
-export function world({ packs = [], acks = [], vars = {}, private_terms = [], pins = [], locks, facts, targets, providers, osv } = {}) {
+export function world({ packs = [], acks = [], vars = {}, private_terms = [], pins = [], locks, facts, targets, providers, osv, now = new Date() } = {}) {
   return {
+    now,
     env: { home: HOME, state: `${HOME}/.local/state/rig`, data: `${HOME}/.local/share/rig`, test: true },
     config: { schema: 1, pins, private_terms },
     packs: new Map(packs.map((p) => [p.name, p])),
@@ -51,11 +51,6 @@ export function desired(owned = {}) {
 }
 
 export const ack = (f, extra = {}) => ({ id: f.id, check: f.check, pack: f.pack, path: f.path, reason: "reviewed by hand", expires: "2999-12-31", ...extra });
-
-export const treeOf = (files) => {
-  const lines = [...files].map(([p, f]) => `${p}\0${(f.mode & 0o777).toString(8)}\0${createHash("sha256").update(f.bytes).digest("hex")}\n`).sort();
-  return `sha256:${createHash("sha256").update(lines.join("")).digest("hex")}`;
-};
 
 export const lockWith = ({ core = null, packs = {}, pins = {} } = {}) => ({
   repo: { schema: 1, core: { tree: core ?? "", candidate: null }, packs, pins },

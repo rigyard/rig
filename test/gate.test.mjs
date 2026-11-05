@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { gate, refreshOsv, registry, checkTable } from "../lib/gate.mjs";
 import { parseAcks } from "../lib/gate/ack.mjs";
-import { ack, desired, goodPack, HOME, lockWith, pack, stack, treeOf, world } from "./gate.helpers.mjs";
+import { ack, desired, goodPack, HOME, lockWith, pack, stack, world } from "./gate.helpers.mjs";
+import { treeHash } from "../lib/tree.mjs";
 
 const run = (w, d = desired(), s = stack()) => gate(s, d, w);
 const of = (r, check) => r.findings.filter((f) => f.check === check);
@@ -85,6 +86,14 @@ test("exec: an acked script passes, and one changed byte blocks again with a new
   assert.notEqual(f3.id, f1.id);
   assert.equal(f3.acked, false);
   assert.equal(changed.blocked, true);
+});
+
+test("acks: expiry uses the World clock, not the wall clock", () => {
+  const w = (now, acks = []) => world({ packs: [goodPack("p", { "scripts/a.sh": "#!/bin/sh\n" })], acks, now: new Date(now) });
+  const [f] = of(run(w("2026-11-04T23:00:00Z")), "exec");
+  const acks = [ack(f, { expires: "2026-11-04" })];
+  assert.equal(run(w("2026-11-04T23:00:00Z", acks)).blocked, false, "valid through the end of its date");
+  assert.equal(run(w("2026-11-05T00:00:00Z", acks)).blocked, true, "expired the next day");
 });
 
 test("exec: a mode change alone changes the id", () => {
@@ -238,7 +247,7 @@ test("license: a license finding can be acked", () => {
 
 const pinFixture = () => {
   const p = goodPack("vendored", {}, { source: { repo: "https://example.invalid/r", sha: "abc1234", paths: ["skills"] } });
-  return { p, tree: treeOf(new Map([...p.files].filter(([k]) => k !== "pack.json"))) };
+  return { p, tree: treeHash(p.files) };
 };
 
 test("pin: a lock tree that matches passes; one changed byte blocks and cannot be acked", () => {
@@ -264,7 +273,7 @@ test("pin: a vendored pack with no lock entry blocks; an own pack does not need 
 
 test("pin: a changed byte under core breaks the seal", () => {
   const core = pack("core", { "frame.md": "frame\n" }, { license: undefined });
-  const locks = lockWith({ core: treeOf(core.files) });
+  const locks = lockWith({ core: treeHash(core.files, { core: true }) });
   assert.deepEqual(of(run(world({ packs: [core], locks })), "pin"), []);
   core.files.get("frame.md").bytes = Buffer.from("frame!\n");
   const r = run(world({ packs: [core], locks }));

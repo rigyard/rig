@@ -288,3 +288,28 @@ test("core: pinCheck hashes packs/core with no network and pinSet seals it", asy
   assert.deepEqual(pinSet(world, "core"), { promoted: true });
   assert.deepEqual(readLockFile(world.roots.repo).core, { tree: r.candidate.tree, candidate: null });
 });
+
+test("core: a blocked gate keeps the candidate out of the lock, so pinSet cannot promote it", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const world = makeWorld(base);
+  world.writeConfig(world.roots.repo, "packs/core/frame.md", Buffer.from("frame\n"));
+  const seen = [];
+  const r = await pinCheck(world, "core", null, { gate: (files) => (seen.push(files.map((x) => x.path)), { findings: [{ check: "exec" }], blocked: true }) });
+  assert.deepEqual(seen, [["frame.md"]], "the gate sees the candidate files");
+  assert.equal(r.blocked, true);
+  assert.equal(existsSync(join(world.roots.repo, "rig.lock.json")), false, "no lock write on a block");
+  assert.equal(pinSet(world, "core").error.code, "E_PIN_UNCHECKED");
+  const ok = await pinCheck(world, "core", null, { gate: () => ({ findings: [], blocked: false }) });
+  assert.equal(ok.blocked, false);
+  assert.deepEqual(readLockFile(world.roots.repo).core, { tree: null, candidate: ok.candidate.tree }, "no seal before pin set");
+});
+
+test("the lock that vendor and pinCheck write on an empty root has the shape world reads: core null, then tree null", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRepo(base, [{ LICENSE: MIT_TEXT, "z/SKILL.md": "z\n" }]);
+  const world = makeWorld(base);
+  await vendor(world, { repo: repo.url, sha: repo.shas[0], paths: ["z"] });
+  assert.equal(readLockFile(world.roots.repo).core, null);
+});

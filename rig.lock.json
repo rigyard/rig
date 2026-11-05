@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "core": {
+    "tree": "sha256:6e802db3a40a1d9fb2d155b43ff9dc6487abe9bf29fb756249f8f201fb8dddf0",
+    "candidate": null
+  },
+  "packs": {},
+  "pins": {}
+}
