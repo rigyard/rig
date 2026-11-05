@@ -2,6 +2,8 @@
 
 rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesses. These docs record the research, the decisions and the current design from the 2026-11-04 design work. A fresh planning session can start from the design draft, the decision log and the assumptions record.
 
+To use rig, read [the rig guide](guide/README.md) and [what rig writes per harness](harnesses.md). The pages below explain why rig works the way it does.
+
 ## Design
 
 | File | Status | Content |

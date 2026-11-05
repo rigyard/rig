@@ -1,0 +1,133 @@
+# Pick and swap models
+
+In this page you read the model table that rig renders into each harness, swap the model of one tier, pin a Claude tier to a full model id, and fill the `second-opinion` slot with a model from another family. You get one place to change a model after a vendor release, and a guarantee that rig changes only the model and effort cells of your files.
+
+## Know the two files
+
+rig keeps model choices in two files under `models/`:
+
+- `models/roles.json` maps each role to a tier and an effort. The `fleet` consumer says, for example, that `reviewer` is `["strong", "high"]` and `quick-worker` is `["cheap", "low"]`.
+- `models/tiers.json` maps each of the four tiers `reason`, `strong`, `fast` and `cheap` to a model per harness. It also holds the effort ladder of each harness, for example `low`, `medium`, `high` on Cursor.
+
+A vendor release changes `tiers.json` only. Roles stay as they are. When a role asks for an effort that the harness does not have, rig uses the highest rung of the ladder at or below it, so `xhigh` becomes `high` on Cursor. Read [decision 0018](../decisions/0018-four-tiers-and-second-opinion-slot.md) for why there are four tiers.
+
+On main, `tiers.json` names Claude models only. Other harnesses get their rows from your overlay (see [Add a harness's models](#add-a-harnesss-models)). The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
+
+## Read the effective table
+
+```text
+rig models
+harness  tier    model   source
+claude   reason  fable   tiers.json
+claude   strong  opus    tiers.json
+claude   fast    sonnet  tiers.json
+claude   cheap   haiku   tiers.json
+```
+
+The `source` column tells you where each value comes from. Claude tiers are aliases, so `opus` always resolves to the current model of that family. Claude Code can remap an alias for every session through an environment variable, and `rig models` shows that:
+
+```text
+ANTHROPIC_DEFAULT_OPUS_MODEL=acme-opus-test rig models
+harness  tier    model           source
+claude   reason  fable           tiers.json
+claude   strong  acme-opus-test  env override (ANTHROPIC_DEFAULT_OPUS_MODEL)
+claude   fast    sonnet          tiers.json
+claude   cheap   haiku           tiers.json
+```
+
+`rig models` reads only. Most Claude releases need no edit at all, because the alias follows the release ([decision 0019](../decisions/0019-claude-aliases-with-optional-pins.md)).
+
+## Let rig adopt your agent files
+
+rig does not ship Claude agent files. When `~/.claude/agents/<role>.md` exists for a `fleet` role, rig manages its `model` and `effort` lines and the model name in parentheses in `description`. The first plan compares your cells with the render:
+
+```text
+rig plan
+...
+adopt  cells  claude  ~/.claude/agents/reviewer.md      models/claude
+block  cells  claude  ~/.claude/agents/quick-worker.md  E_ADOPT_MISMATCH ~/.claude/agents/quick-worker.md: current values differ from the render (diff below)
+~/.claude/agents/quick-worker.md 0/quick-worker/0/model: "sonnet" -> "haiku"
+~/.claude/agents/quick-worker.md 0/quick-worker/0/display: "Sonnet" -> "Haiku"
+1 change, 1 block
+```
+
+A file whose cells equal the render is adopted, and rig records it. A file that differs blocks, and rig names each cell. Fix the cell or the role, then plan again. An agent file that does not exist is skipped without a line.
+
+## Swap a model
+
+```text
+rig models set strong acme-strong-2 --harness claude
+models/tiers.json: tiers.strong.claude: opus -> acme-strong-2
+...
+update       owned  claude  ~/.claude/rules/pstack-models.md  pstack/models
+patch-cells  cells  claude  ~/.claude/agents/reviewer.md      models/claude
+2 changes, 0 blocks
+run 20261105T055313.336Z-2: 2 ops applied
+```
+
+`rig models set` runs one journaled apply on the model files only, then writes `models/tiers.json`. You do not need a separate `rig apply`. The next `rig apply` prints `0 changes, 0 blocks`. If the plan blocks, for example because you hand-edited a cell, rig writes nothing, and `tiers.json` keeps its bytes. Commit `models/tiers.json` after the swap.
+
+In `reviewer.md`, the swap changed `model: opus` to `model: acme-strong-2` and the description token `(Opus)` to `(Acme-strong-2)`. Every other byte stayed. The tests `swap: every tier on every harness changes only cell lines, converges, and reverts byte-exact` in `test/models.test.ts` and `rig models set changes exactly the expected cells` in `test/models-render.test.ts` pin that.
+
+`set` takes a tier that `tiers.json` knows, a harness that `rig.json` lists, and one model token without spaces. Anything else exits 2, for example `rig models: E_USAGE: unknown tier ultra`.
+
+## Pin a Claude tier to a full id
+
+To stop an alias from moving, pin the tier by hand in `models/tiers.json`:
+
+```text
+"cheap": {
+  "claude": {"id": "acme-haiku-pinned", "display": "Haiku"}
+}
+```
+
+```text
+rig models
+...
+claude   cheap   acme-haiku-pinned  pinned id
+rig plan
+...
+patch-cells  cells  claude  ~/.claude/agents/quick-worker.md  models/claude
+1 change, 0 blocks
+```
+
+A pin renders the full id into the agent's `model` line and keeps the display token. The environment override does not apply to a pinned tier. Later swaps of a pinned tier go through `rig models set` and keep the pin shape.
+
+## Add a harness's models
+
+The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo does not set. For Codex:
+
+```text
+{
+  "schema": 1,
+  "tiers": {
+    "reason": {"codex": "acme-codex-max"},
+    "strong": {"codex": "acme-codex"},
+    "fast": {"codex": "acme-codex-mini"},
+    "cheap": {"codex": "acme-codex-nano"}
+  }
+}
+```
+
+`rig models` then shows four `codex` rows, and `rig plan` adds `create block codex ~/.codex/config.toml models/codex`. That block sits between `rig:models` markers. Whether markers stay limited to inserted blocks like this one is an open decision ([assumptions and open questions](../assumptions-and-open-questions.md)).
+
+The overlay can only add. A cell that the repo already sets fails with `E_OVERLAY_CONFLICT`. With an overlay `tiers.json` present, `rig models set` refuses with exit 2, because it would copy your overlay values into the repo file. Edit the overlay file by hand and run `rig apply`. That path uses the same writer. The same add-only rule holds for an overlay `models/roles.json`.
+
+## Fill the second-opinion slot
+
+The `second-opinion` slot gets an independent verdict from another model family. In v0 only a headless provider fills it. Put a provider record in `~/.config/rig/providers/claude-cli.json` with `"kind": "headless"`, `"argv": ["claude", "-p", "--output-format", "json", "--model", "{model}", "{prompt}"]`, `"model_harness": "claude"` and `"forbid_same_family": true`. Then list it in `~/.config/rig/rig.json`:
+
+```text
+{"schema": 1, "providers": ["claude-cli"],
+ "slots": {"second-opinion": {"provider": "claude-cli", "tier": "strong", "harnesses": ["codex", "omp", "cursor"]}}}
+```
+
+rig renders the `rig-second-opinion` skill with the model of the `strong` tier:
+
+```text
+Provider: claude-cli. Run `claude -p --output-format json --model opus "<prompt>"`, where <prompt> is the input above. Its output is the output above.
+```
+
+Leave the provider's own harness out of `harnesses`. Otherwise the plan blocks with `E_SAME_FAMILY claude-cli runs the claude family; leave claude out of slots.second-opinion.harnesses`. A CLI provider spends tokens in its own harness, and they show up in that harness's transcripts.
+
+Next: [Read your usage](./08-stats.md).
