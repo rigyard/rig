@@ -33,6 +33,7 @@ const EXPECTED = {
     "~/.codex/AGENTS.md",
     "~/.codex/prompts/brief.md",
     "~/.agents/skills/rig-notes/SKILL.md",
+    "~/.agents/skills/rig-notes/agents/openai.yaml",
     "~/.agents/skills/explain/SKILL.md",
     "~/.agents/skills/explain/agents/openai.yaml",
     "~/.codex/prompts/review.md",
@@ -84,7 +85,7 @@ test("no rendered path lies outside the declared writable dirs", () => {
   for (const p of byRel(d).keys()) assert.ok(ownerOf(p, recs), `${p} is outside every declared write location`);
 });
 
-test("a hidden skill carries the hide control of every harness that reads its dir; a visible one carries none", () => {
+test("a hidden skill carries the hide control of every harness that reads its dir; a unit in auto carries none", () => {
   const d = byRel(render(fixtureStack(), world()));
   // ~/.claude/skills: read by Claude and Cursor -> one frontmatter key, no sidecar, no omp key
   const claudeCopy = text(d.get("~/.claude/skills/explain/SKILL.md"));
@@ -96,11 +97,14 @@ test("a hidden skill carries the hide control of every harness that reads its di
   assert.match(agentsCopy, /^hide: true$/m);
   assert.match(agentsCopy, /^disable-model-invocation: true$/m);
   assert.equal(text(d.get("~/.agents/skills/explain/agents/openai.yaml")), "policy:\n  allow_implicit_invocation: false\n");
-  // the core skill is visible
-  for (const p of ["~/.claude/skills/rig-notes/SKILL.md", "~/.agents/skills/rig-notes/SKILL.md"]) {
-    assert.doesNotMatch(text(d.get(p)), /disable-model-invocation|^hide:/m, p);
+  assert.match(text(d.get("~/.claude/skills/rig-notes/SKILL.md")), /^disable-model-invocation: true$/m);
+  assert.ok(d.has("~/.agents/skills/rig-notes/agents/openai.yaml"));
+  const auto = byRel(render({ ...fixtureStack(), mode: { auto: new Set(["own/explain"]) } as any }, world()));
+  for (const p of ["~/.claude/skills/explain/SKILL.md", "~/.agents/skills/explain/SKILL.md"]) {
+    assert.doesNotMatch(text(auto.get(p)), /disable-model-invocation|^hide:/m, p);
   }
-  assert.ok(!d.has("~/.agents/skills/rig-notes/agents/openai.yaml"));
+  assert.ok(!auto.has("~/.agents/skills/explain/agents/openai.yaml"));
+  assert.match(text(auto.get("~/.claude/skills/rig-notes/SKILL.md")), /^disable-model-invocation: true$/m);
 });
 
 test("a hidden skill keeps a sidecar it already ships and adds the policy key line-level", () => {

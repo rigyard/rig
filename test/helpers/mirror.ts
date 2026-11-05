@@ -137,24 +137,31 @@ export function ompEnv(home: string, agentDir: string = join(home, ".omp", "agen
 
 /**
  * Headless argv per harness, from the probe (i) verdicts. omp gets its fixture HOME and agent dir, and a closed
- * stdin (runHarness ends stdin at once). The other harnesses keep the real HOME and its login.
+ * stdin (runHarness ends stdin at once). codex gets an empty temp HOME and CODEX_HOME at the real ~/.codex, so it keeps
+ * its login but cannot see ~/.agents/skills: codex lists a same-name user skill there over the project unit, and
+ * --ignore-user-config does not hide it. `cleanup` removes that temp HOME; call it after the run. The other harnesses
+ * keep the real HOME and its login.
  * The omp model defaults to $RIG_LIVE_OMP_MODEL, because the omp default model can hit a provider spending limit.
  * @param opts
  *        dir: the scratch project (cwd); home: the fixture HOME (omp)
  */
-export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string} {
+export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string, cleanup: () => void} {
   const { dir } = opts;
   const base = { ...(opts.env ?? process.env) };
   const model = opts.model ?? (harness === "omp" ? base.RIG_LIVE_OMP_MODEL || undefined : undefined);
   for (const k of RELOCATE_ENV) delete base[k];
   const m = (flag) => (model ? [flag, model] : []);
-  const out = (bin, args, env = base) => ({ bin, args, cwd: dir, env, input: "" });
+  const out = (bin, args, env = base, cleanup = () => {}) => ({ bin, args, cwd: dir, env, input: "", cleanup });
   if (harness === "claude") return out("claude", ["-p", "--max-turns", String(opts.maxTurns ?? 3), "--output-format", "json", ...m("--model"), prompt]);
   if (harness === "omp") {
     if (!opts.home) throw new Error("mirror: omp needs the fixture home");
     return out("omp", [...m("--model"), "-p", "--mode", "json", "--no-session", prompt], ompEnv(opts.home, opts.agentDir, base));
   }
-  if (harness === "codex") return out("codex", ["exec", "-s", "read-only", "--ephemeral", "--ignore-user-config", "--json", ...m("-m"), "-C", dir, prompt]);
+  if (harness === "codex") {
+    const home = mkdtempSync(join(tmpdir(), "rig-codex-home-"));
+    const env = { ...base, HOME: home, CODEX_HOME: join(realHome(), ".codex") };
+    return out("codex", ["exec", "-s", "read-only", "--ephemeral", "--ignore-user-config", "--json", ...m("-m"), "-C", dir, prompt], env, () => rmSync(home, { recursive: true, force: true }));
+  }
   if (harness === "cursor") {
     const plugin = opts.pluginDir ? ["--plugin-dir", opts.pluginDir] : [];
     return out("cursor-agent", ["-p", "--mode", "ask", "--trust", "--workspace", dir, "--output-format", "json", ...m("--model"), ...plugin, prompt]);
@@ -215,6 +222,10 @@ export function replyOf(harness: "claude"|"omp"|"codex"|"cursor", r: {code: numb
  */
 export async function runSeed(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: Parameters<typeof harnessArgv>[2] & {timeoutMs?: number}) {
   const a = harnessArgv(harness, prompt, opts);
-  const r = await runHarness({ ...a, bin: realBin(a.bin, a.env.PATH), timeoutMs: opts.timeoutMs ?? 180_000 });
-  return { ...r, reply: replyOf(harness, r) };
+  try {
+    const r = await runHarness({ ...a, bin: realBin(a.bin, a.env.PATH), timeoutMs: opts.timeoutMs ?? 180_000 });
+    return { ...r, reply: replyOf(harness, r) };
+  } finally {
+    a.cleanup();
+  }
 }

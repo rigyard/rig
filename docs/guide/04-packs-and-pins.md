@@ -40,7 +40,7 @@ To turn a pack off, remove its key from the checkout `rig.json`. The overlay at 
 }
 ```
 
-On a fresh temporary HOME, `rig plan` drops from 20 changes to 15: the four `/oh` command files are gone, and so is the Cursor plugin manifest, which only `/oh` needed. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
+On a fresh temporary HOME, `rig plan` drops from 33 changes to 28: the four `/oh` command files are gone, and so is the Cursor plugin manifest, which only `/oh` needed. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
 
 ## Vendor a pack at a commit
 

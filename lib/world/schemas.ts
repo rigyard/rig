@@ -71,12 +71,12 @@ const packEntry = S.rec({
 
 const packName = () => S.str({ pattern: ID, reject: (v) => (v === "core" ? "core is always installed and is never listed in packs" : null) });
 
-/** A fill value: one unit, a list of units, or a list of {when, use}. */
+/** A fill value: one unit, a list of units, or a list of {when, use, domain?}. */
 const fillValue = S.fn((v, fail, sub) => {
   if (typeof v === "string") return sub(text(), v);
   if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string")) return sub(S.arr(text(), { unique: true }), v);
-  if (Array.isArray(v)) return sub(S.arr(S.rec({ when: text(), use: text() }, ["when", "use"])), v);
-  return fail("expected a unit, a list of units, or a list of {when, use}");
+  if (Array.isArray(v)) return sub(S.arr(S.rec({ when: text(), use: text(), domain: id() }, ["when", "use"])), v);
+  return fail("expected a unit, a list of units, or a list of {when, use, domain}");
 });
 
 const rigRec = S.rec(
@@ -86,6 +86,7 @@ const rigRec = S.rec(
     packs: S.map(packEntry, { key: packName() }),
     aliases: S.map(id(), { key: id() }),
     fill: S.map(fillValue, { key: text() }),
+    auto: S.arr(unitRef(), { unique: true, union: true }),
     disable: S.arr(unitRef(), { unique: true, union: true }),
     metrics: S.rec({ session_hook: S.bool() }, ["session_hook"]),
   },
@@ -137,6 +138,7 @@ export const TARGET = S.rec(
     }),
     hide: S.rec({ method: S.enum(["frontmatter-key", "sidecar", "none"]), key: text(), file: text(), value: S.any() }, ["method"]),
     instructions: S.rec({ path: text(), mode: S.enum(["whole-file", "managed-block"]) }, ["path", "mode"]),
+    skill_prefix: S.enum(["/", "$"]),
     // the manifest of a rig-owned local plugin; rendered when any file lands under its plugin root (probe j)
     plugin_manifest: S.rec({ path: text(), value: S.any() }, ["path", "value"]),
     effort_syntax: S.enum(["separate-key", "colon-suffix", "dash-fused", "bracket"]),
@@ -249,6 +251,20 @@ export const ALLOW = S.rec(
     }, ["id", "check", "pack", "path", "reason", "expires"])),
   },
   ["schema", "acks"],
+);
+
+// packs/core/domains.json
+
+const domain = (prefix: string) => S.rec({ prefix: S.lit(prefix), stages: S.arr(id(), { unique: true, nonEmpty: true }) }, ["prefix", "stages"]);
+export const DOMAINS = S.rec(
+  {
+    schema,
+    domains: S.rec(
+      { business: domain("biz"), product: domain("prod"), engineering: domain("eng"), upkeep: domain("upk") },
+      ["business", "product", "engineering", "upkeep"],
+    ),
+  },
+  ["schema", "domains"],
 );
 
 // packs/core/terms.json

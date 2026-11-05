@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "domains": {
+    "business": { "prefix": "biz", "stages": ["demand", "scope"] },
+    "product": { "prefix": "prod", "stages": ["discover", "shape", "review", "spec"] },
+    "engineering": { "prefix": "eng", "stages": ["ground", "design", "build", "verify", "review", "ship"] },
+    "upkeep": { "prefix": "upk", "stages": ["upkeep", "retire"] }
+  }
+}

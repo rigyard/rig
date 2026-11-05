@@ -7,7 +7,7 @@ In this page you preview a plan, write it with one journaled apply, adopt files 
 Run `rig plan`. It composes the stack, renders it per harness, runs the gate and compares the result with disk and with `installed.json`. On a fresh HOME it prints:
 
 ```text
-info budget */harness:claude: always-on: 636 characters, 159 tokens
+info budget */harness:claude: always-on: 717 characters, 180 tokens
 ...
 info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/config.yml does not render
 create  owned  claude  ~/.claude/rules/rig-frame.md                                    core/rig-frame
@@ -15,7 +15,7 @@ create  block  codex   ~/.codex/AGENTS.md                                       
 ...
 create  owned  claude  ~/.claude/commands/oh.md                                        product/oh
 ...
-20 changes, 0 blocks
+33 changes, 0 blocks
 ```
 
 Gate findings come first, then `info` lines, then one line per op. Each op line names the op, the entry kind, the harness, the path and the unit. An `owned` file belongs to rig as a whole. A `block` entry is one marked region inside a file that you also edit, such as `~/.codex/AGENTS.md`. The last line counts the changes and the blocks.
@@ -30,8 +30,8 @@ Run `rig apply`. It runs the same pipeline and then writes the ops. Start from a
 ...
 update  block  codex   ~/.codex/AGENTS.md                                              core/rig-frame
 ...
-20 changes, 0 blocks
-run 20261105T055231.480Z-1: 20 ops applied
+33 changes, 0 blocks
+run 20261105T055231.480Z-1: 33 ops applied
 ```
 
 Every write into a harness file goes through this journaled transaction. `rig apply` runs it for the whole plan. `rig models set` runs it for the model cells only, as [Models](./07-models.md) shows. For each op, the transaction copies the current bytes into `backups/<run-id>/` and appends an intent line to the journal. Then it checks the file once more and writes through a temp file and a rename. After the last op it replaces `installed.json` and appends a `commit` line. The state root now holds:
@@ -76,7 +76,7 @@ block   owned  claude  ~/.claude/commands/oh.md                                 
 +Run the office-hours skill with the same arguments.
 -Ask one question at a time.
  
-19 changes, 1 block
+32 changes, 1 block
 ```
 
 `rig plan` exits 1. `rig apply` prints the same report, then `blocked: nothing written`, and exits 1. It creates no state root. rig never replaces a file it does not manage. Model files and marked regions follow the same rules per cell or per block, as section 8 of the [architecture](../design/rig-architecture.md) shows. Move your file away, or make it equal to the render. After `mv ~/.claude/commands/oh.md ~/oh-mine.md`, the next apply passes:
@@ -87,8 +87,8 @@ adopt   owned  claude  ~/.claude/rules/rig-frame.md                             
 ...
 create  owned  claude  ~/.claude/commands/oh.md                                        product/oh
 ...
-20 changes, 0 blocks
-run 20261105T055302.933Z-1: 20 ops applied
+33 changes, 0 blocks
+run 20261105T055302.933Z-1: 33 ops applied
 ```
 
 ## Undo a run
@@ -96,7 +96,7 @@ run 20261105T055302.933Z-1: 20 ops applied
 Pass the run id of the AGENTS.md run to `--undo`. `rig apply --undo 20261105T055231.480Z-1` prints:
 
 ```text
-undid run 20261105T055231.480Z-1 as run 20261105T055244.304Z-2: 20 ops restored
+undid run 20261105T055231.480Z-1 as run 20261105T055244.304Z-2: 33 ops restored
 ```
 
 rig walks the journal of that run in reverse. Each file it changed gets its pre-image back, byte for byte. Each file it created moves into the backups of the new run, because rig never deletes. Here `cmp` found `~/.codex/AGENTS.md` identical to the hand-written original, and `installed.json` went back to `"entries": {}`.
@@ -106,7 +106,7 @@ The undo is a new journaled run with its own backups. Before it writes, it check
 ```text
 conflict E_UNDO_CONFLICT ~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json: ~/.cursor/plugins/local/rig/.cursor-plugin/plugin.json no longer has the after hash of run 20261105T055231.480Z-1
 ...
-20 conflicts: nothing restored
+33 conflicts: nothing restored
 ```
 
 ## Recover from a crash
@@ -115,10 +115,10 @@ If an apply dies halfway, the next `rig apply` reads the open journal and recove
 
 ```text
 info run 20261105T055332.152Z-1 was interrupted; rig apply recovers it first
-15 changes, 0 blocks
+28 changes, 0 blocks
 ```
 
-The next apply writes the 15 ops and closes the old journal with `{"type":"recovered","by":"20261105T055332.638Z-2"}`. The apply after that prints `0 changes, 0 blocks`. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
+The next apply writes the 28 ops and closes the old journal with `{"type":"recovered","by":"20261105T055332.638Z-2"}`. The apply after that prints `0 changes, 0 blocks`. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
 
 ## Let the gate stop a write
 
@@ -129,7 +129,7 @@ The gate runs inside the plan, so it blocks before the first byte. A pack script
 block exec product/skills/office-hours/scripts/run.sh: exec bit, shebang, script extension; mode 755, sha256 299001868fb8
   ack: {"id":"a7e004059f9b28ae","check":"exec","pack":"product","path":"skills/office-hours/scripts/run.sh","reason":"","expires":""}
 ...
-22 changes, 1 block
+35 changes, 1 block
 blocked: nothing written
 ```
 

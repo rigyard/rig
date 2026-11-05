@@ -10,8 +10,8 @@ const run = (w, d = desired(), s = stack()) => gate(s, d, w);
 const of = (r, check) => r.findings.filter((f) => f.check === check);
 const real = (r) => r.findings.filter((f) => f.severity !== "info");
 
-test("the registry lists exactly the nine binding checks, in order", () => {
-  assert.deepEqual(registry.map((r) => r.id), ["pin", "exec", "secret", "unicode", "links", "license", "cve", "telemetry", "budget"]);
+test("the registry lists exactly the ten binding checks, in order", () => {
+  assert.deepEqual(registry.map((r) => r.id), ["pin", "exec", "secret", "unicode", "links", "mode", "license", "cve", "telemetry", "budget"]);
   assert.deepEqual(registry.filter((r) => !r.ackable).map((r) => r.id), ["pin", "telemetry", "budget"]);
   const table = checkTable().split("\n");
   assert.equal(table.length, 2 + registry.length);

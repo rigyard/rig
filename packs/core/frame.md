@@ -6,4 +6,5 @@ Invariants, in every task:
 2. Pause before irreversible writes: force-push, deploy, data deletion, external messages.
 3. Verify on the real artifact.
 4. Report with evidence per claim and an uncertainties section.
+For multi-step work, type `{{craft}}`, optionally with a domain: `{{craft}} eng: ...`.
 Models: {{models}}

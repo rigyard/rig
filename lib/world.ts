@@ -9,8 +9,10 @@ import { projectDeclaration as declaration } from "./world/project.ts";
 import { expandHome, homeRelative, readBytes, readConfig, readTree } from "./world/read.ts";
 import { check } from "./world/schema.ts";
 import {
-  ALLOW, ENCODE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
+  ALLOW, DOMAINS, ENCODE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
 } from "./world/schemas.ts";
+import { modeShapeError } from "./mode.ts";
+import type { DomainTable } from "./mode.ts";
 
 export { SCHEMA_1_MESSAGE } from "./world/schemas.ts";
 export { ID } from "./world/schema.ts";
@@ -26,8 +28,10 @@ export type RigConfig = {
   /** no scope: machine-hidden */
   packs: Record<string, {scope?: Scope, projects?: string[], harnesses?: string[], channel?: Record<string, "plugin">}>;
   aliases: Record<string, string>;
-  /** address -> unit refs, plus `triggers`; validated for shape only */
-  fill?: Record<string, string | string[] | {when: string, use: string}[]>;
+  /** address -> unit refs, plus `triggers`; validated for shape only, compileMode checks the addresses */
+  fill?: Record<string, string | string[] | {when: string, use: string, domain?: string}[]>;
+  /** units that render with no hide switch; absent means none */
+  auto?: string[];
   disable: string[];
   metrics: {session_hook: boolean};
   /** overlay only */
@@ -43,7 +47,7 @@ export type PackManifest = {
   scopes: Scope[];
   license: string;
   units: Record<string, {harnesses?: string[], replaces?: string}>;
-  /** validated as an object only */
+  /** inner shape validated by lib/mode.ts */
   mode?: Record<string, unknown>;
   model_surfaces?: ModelSurface[];
   telemetry?: {default_on: boolean, optout_env: string[]} | null;
@@ -59,6 +63,8 @@ export type TargetRecord = {
   units: {skill?: object, command?: {dir: string, format: string}, agent?: AgentFormat | null, rule?: {dir: string, format: "md"|"mdc"}};
   hide: {method: "frontmatter-key"|"sidecar"|"none", key?: string, file?: string, value?: unknown};
   instructions: {path: string, mode: "whole-file"|"managed-block"};
+  /** how the user types a skill by name in a prompt: `/craft` or `$craft` */
+  skill_prefix?: "/"|"$";
   /** the frame's Models line: where model choices live */
   models?: {source: string, effort_table?: boolean};
   /** a rig-owned local plugin's manifest (Cursor, probe j) */
@@ -163,6 +169,8 @@ export type World = {
   acks: Allow["acks"];
   /** term -> harness -> text, from packs/core/terms.json */
   terms: Record<string, Record<string, string>>;
+  /** the domains of the mode skill and their stages, from packs/core/domains.json */
+  domains: DomainTable;
   /** text_from files of whole surfaces, keyed by home-relative path */
   sources: Map<string, Uint8Array>;
   /** only the env vars checks read (DO_NOT_TRACK, telemetry opt-outs, model overrides) */
@@ -252,6 +260,7 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
   if (inOverlay("packs/core")) throw new RigError("E_OVERLAY_CONFLICT", "core lives only in the repo", { file: oname("packs/core") });
   const coreFiles = readTree(R("packs/core"));
   const terms = readConfig(R("packs/core/terms.json"), "packs/core/terms.json", TERMS).terms;
+  const domains = { domains: readConfig(R("packs/core/domains.json"), "packs/core/domains.json", DOMAINS).domains };
 
   // Targets: only the harnesses rig.json names, from the repo.
   const targets = new Map();
@@ -302,6 +311,8 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
     const mfile = repo ? mrel : oname(mrel);
     const m = readConfig(repo ? R(mrel) : O(mrel), mfile, PACK);
     if (m.name !== name) throw schemaError(`must equal the directory name ${name}`, mfile, "name");
+    const badMode = m.mode === undefined ? null : modeShapeError(m.mode);
+    if (badMode) throw schemaError(badMode.message, mfile, badMode.path);
     const manifest = { schema: 2, name, scopes: ["machine-hidden"], units: {}, ...m };
 
     const scope = entry.scope ?? "machine-hidden";
@@ -381,6 +392,7 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
     locks: { repo: repoLock, overlay: overLock },
     acks,
     terms,
+    domains,
     sources,
     osv,
     vars,

@@ -27,10 +27,10 @@ Add the unit id, `<pack>/<unit>`, to `disable` in the overlay `rig.json`:
 ```text
 rig plan
 ...
-9 changes, 0 blocks
+22 changes, 0 blocks
 ```
 
-The same plan without the entry has 20 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
+The same plan without the entry has 33 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
 
 ```text
 block E_UNKNOWN_UNIT disable names product/nothing, which no listed pack contains
@@ -50,7 +50,7 @@ Put the pack under `~/.config/rig/packs/<name>/` and list it in the overlay `rig
 rig plan
 ...
 create  owned  claude  ~/.claude/skills/notes/SKILL.md                                 mine/notes
-21 changes, 0 blocks
+34 changes, 0 blocks
 ```
 
 Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --root <dir> --path . --into overlay` ([Add packs and seal core](./04-packs-and-pins.md)).
@@ -76,7 +76,7 @@ To use your own version of a pack unit, declare `replaces` in your pack's `pack.
 rig plan
 ...
 create  owned  claude  ~/.claude/skills/office-hours/SKILL.md                  mine/office-hours
-11 changes, 0 blocks
+24 changes, 0 blocks
 ```
 
 The count includes the `notes` skill from above. The replaced unit leaves the stack on every harness. Your unit installs where its own pack entry allows, here Claude Code only. Two units that replace one target fail with `E_CLASH`. A `replaces` that names a unit that does not exist is `E_UNKNOWN_UNIT`.

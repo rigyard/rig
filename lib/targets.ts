@@ -1,7 +1,7 @@
 // lib/targets.ts — public: render, readSet, patch
 // internals: lib/targets/*.ts (unreachable from outside, see boundary test)
 
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import { treeHash } from "./tree.ts";
 import { place } from "./targets/place.ts";
@@ -9,10 +9,12 @@ import { readSet as readSetOf } from "./targets/readset.ts";
 import { patch as patchRegion } from "./targets/patch.ts";
 import { substitute, substituteBytes } from "./targets/terms.ts";
 import { fill } from "./targets/vars.ts";
-import { codexAgent, cursorAgent, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
+import { codexAgent, cursorAgent, frontmatterValue, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
 import { absentLine, delivery, manifests, marketplaceOf, packOf, pluginDir, pluginPath } from "./targets/scope.ts";
 import type { Delivery, Plugin } from "./targets/scope.ts";
 import { renderModelSurfaces } from "./targets/models-render.ts";
+import { insertAnchor, modeFiles } from "./mode.ts";
+import type { Mode, UnitRef } from "./mode.ts";
 
 import type { World } from "./world.ts";
 import type { ModelSurface } from "./world.ts";
@@ -42,10 +44,11 @@ const ALIAS_NAME = "target";
 const ALIAS_TARGET = `{{${ALIAS_NAME}}}`;
 const FRAME_MARKER = "rig:frame";
 const FRAME_FILE = "frame.md";
+const ANCHOR_LINK = "../craft/references/adapter.md";
 
 /**
  * Render every unit for every harness. Pure: reads nothing from disk; input bytes come through stack and world.
- * Owned units in this version: skills, commands, agents, rules, the frame, the alias commands
+ * Owned units in this version: skills, the mode skill, commands, agents, rules, the frame, the alias commands
  * that compose emits, the plugin manifest of a harness whose local plugin received files, the `whole` model
  * surfaces (a pack's model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
  * `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. The other model
@@ -71,8 +74,11 @@ export function render(stack: Stack, world: World): Desired {
     plugins: new Map<string, Plugin>(), // project-scope plugins by "~/"-relative plugin dir (lib/targets/scope.ts)
     errors: [],
     info: [],
+    auto: stack.mode?.auto ?? new Set<UnitRef>(),
+    anchored: {} as Record<string, string[]>,
   };
-  for (const unit of stack.units) renderUnit(ctx, unit);
+  for (const unit of stack.units) if (unit.type !== "mode") renderUnit(ctx, unit);
+  for (const unit of stack.units) if (unit.type === "mode") renderMode(ctx, unit, stack.mode!);
   renderModels(ctx);
   renderPluginManifests(ctx);
   renderMarketplaces(ctx);
@@ -93,8 +99,7 @@ function renderUnit(ctx, unit) {
     }
     if (scope === "project") return;
   }
-  // Decision 0017 has no machine-visible scope: every pack copy is hidden. Core units are rig's own and stay visible.
-  const hidden = !isCore(unit);
+  const hidden = !ctx.auto.has(unit.id);
   if (unit.type === "skill") renderSkill(ctx, unit, hidden);
   else if (unit.type === "frame") renderFrame(ctx, unit);
   else if (unit.type === "command" || unit.type === "agent" || unit.type === "rule") renderSingle(ctx, unit, unit.type);
@@ -106,9 +111,35 @@ function renderUnit(ctx, unit) {
 /** Harnesses that read a skill dir. A copy there carries the hide control of each (section 7). */
 const readersOf = (ctx, dir) => ctx.installed.filter((h) => ctx.targets.get(h).reads.skills.some((e) => e.path === dir));
 
+function vendored(ctx: any, unit: Unit) {
+  const pack = ctx.world.packs?.get(packOf(unit));
+  const lock = pack?.root === "overlay" ? ctx.world.locks?.overlay : ctx.world.locks?.repo;
+  return (lock?.packs?.[packOf(unit)]?.paths?.length ?? 0) > 0;
+}
+
+function applyHide(ctx: any, unit: Unit, dir: string | null, files: Map<string, {bytes: Uint8Array, mode: number}>, errors: RigError[]) {
+  for (const h of readersOf(ctx, dir)) {
+    const hide = ctx.targets.get(h).hide ?? { method: "none" };
+    if (hide.method === "frontmatter-key") {
+      const skill = files.get("SKILL.md");
+      if (!skill) {
+        errors.push({ code: "E_INTERNAL", message: `unit ${unit.id}: no SKILL.md to carry the ${h} hide key` });
+        continue;
+      }
+      const text = setFrontmatterKey(decoder.decode(skill.bytes), hide.key, hide.value);
+      files.set("SKILL.md", { mode: skill.mode, bytes: encoder.encode(text) });
+    } else if (hide.method === "sidecar") {
+      const cur = files.get(hide.file);
+      const r = setYamlKey(cur ? decoder.decode(cur.bytes) : null, hide.key, hide.value);
+      if (r.error) errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: ${r.error}` });
+      else files.set(hide.file, { mode: cur?.mode ?? FILE_MODE, bytes: encoder.encode(r.text) });
+    }
+  }
+}
+
 /**
- * The files of one skill copy in one dir. Terms resolve by the dir's format owner. Hide controls come from every
- * harness that reads the dir.
+ * The files of one skill copy in one dir. Terms resolve by the dir's format owner. A machine copy of a vendored
+ * leaf gets the adapter anchor (design D5). Hide controls come from every harness that reads the dir.
  * @returns {{files: {path: string, mode: number, bytes: Uint8Array}[], errors: RigError[]}}
  */
 function skillCopy(ctx, unit, dir, owner, hidden) {
@@ -123,29 +154,17 @@ function skillCopy(ctx, unit, dir, owner, hidden) {
     for (const e of r.errors) errors.push(termError(e, unit, rel));
     files.set(rel, { mode: src.mode, bytes: r.bytes });
   }
-  if (hidden) {
-    for (const h of readersOf(ctx, dir)) {
-      const hide = ctx.targets.get(h).hide ?? { method: "none" };
-      if (hide.method === "frontmatter-key") {
-        const skill = files.get("SKILL.md");
-        if (!skill) {
-          errors.push({ code: "E_INTERNAL", message: `unit ${unit.id}: no SKILL.md to carry the ${h} hide key` });
-          continue;
-        }
-        const text = setFrontmatterKey(decoder.decode(skill.bytes), hide.key, hide.value);
-        files.set("SKILL.md", { mode: skill.mode, bytes: encoder.encode(text) });
-      } else if (hide.method === "sidecar") {
-        const cur = files.get(hide.file);
-        const r = setYamlKey(cur ? decoder.decode(cur.bytes) : null, hide.key, hide.value);
-        if (r.error) errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: ${r.error}` });
-        else files.set(hide.file, { mode: cur?.mode ?? FILE_MODE, bytes: encoder.encode(r.text) });
-      }
-    }
+  const skill = files.get("SKILL.md");
+  if (dir !== null && skill && vendored(ctx, unit)) {
+    const r = insertAnchor(decoder.decode(skill.bytes), ANCHOR_LINK);
+    if (r.error) errors.push({ ...r.error, message: `unit ${unit.id}: ${r.error.message}` });
+    else files.set("SKILL.md", { mode: skill.mode, bytes: encoder.encode(r.text) });
   }
+  if (hidden) applyHide(ctx, unit, dir, files, errors);
   return { files: [...files].map(([path, f]) => ({ path, mode: f.mode, bytes: f.bytes })), errors };
 }
 
-function renderSkill(ctx, unit, hidden) {
+function renderSkill(ctx, unit, hidden, copyOf = (dir: string, owner: string) => skillCopy(ctx, unit, dir, owner, hidden), anchored?: Record<string, string[]>) {
   // place() compares copies by the digest of each format owner's render, taken in that owner's first writable dir.
   // Exact for a visible unit. For a hidden unit the hide set can differ between two dirs of one owner. In the v0
   // records only Codex owns two dirs, and each hidden Codex copy carries the sidecar that no other owner's copy has.
@@ -153,11 +172,11 @@ function renderSkill(ctx, unit, hidden) {
   for (const owner of ctx.installed) {
     const dir = ctx.targets.get(owner).reads.skills.find((e) => e.writable)?.path;
     if (!dir) continue;
-    const copy = skillCopy(ctx, unit, dir, owner, hidden);
+    const copy = copyOf(dir, owner);
     if (copy.errors.length === 0) digests[owner] = treeHash(copy.files, { core: true });
   }
   const placed = place(
-    { id: unit.id, harnesses: harnessesOf(ctx, unit), channel: unit.channel ?? {}, digests, hidden },
+    { id: unit.id, harnesses: harnessesOf(ctx, unit), channel: unit.channel ?? {}, digests, hidden, anchored },
     ctx.installed,
     ctx.targets,
   );
@@ -172,7 +191,7 @@ function renderSkill(ctx, unit, hidden) {
       ctx.errors.push({ code: "E_INTERNAL", harness: d.owner, message: `unit ${unit.id}: the ${d.channel} channel render is not implemented` });
       continue;
     }
-    const copy = skillCopy(ctx, unit, d.path, d.owner, hidden);
+    const copy = copyOf(d.path, d.owner);
     if (copy.errors.length) {
       ctx.errors.push(...copy.errors);
       continue;
@@ -180,7 +199,56 @@ function renderSkill(ctx, unit, hidden) {
     for (const f of copy.files) {
       emit(ctx, `${d.path}/${unit.name}/${f.path}`, { kind: "owned", bytes: f.bytes, mode: f.mode, unit: unit.id });
     }
+    if (!hidden && unit.type === "skill") sourceHideLines(ctx, unit, d.path);
+    if (unit.type === "skill" && vendored(ctx, unit)) {
+      const packs = (ctx.anchored[d.path] ??= []);
+      if (!packs.includes(packOf(unit))) packs.push(packOf(unit));
+    }
   }
+}
+
+/** An `auto` unit whose source already sets the hide control of a reader stays hidden there: rig keeps upstream bytes. */
+function sourceHideLines(ctx: any, unit: Unit, dir: string) {
+  for (const h of readersOf(ctx, dir)) {
+    const hide = ctx.targets.get(h).hide ?? { method: "none" };
+    let where = null;
+    if (hide.method === "frontmatter-key") {
+      const skill = unit.files.get("SKILL.md");
+      if (skill && frontmatterValue(decoder.decode(skill.bytes), hide.key) === String(hide.value)) where = hide.key;
+    } else if (hide.method === "sidecar") {
+      const file = unit.files.get(hide.file);
+      const [outer, inner] = hide.key.split(".");
+      const set = new RegExp(`^${outer}:[ \\t]*\\r?\\n(?:[ \\t]+.*\\n)*?[ \\t]+${inner}:[ \\t]*${JSON.stringify(hide.value)}[ \\t]*\\r?$`, "m");
+      if (file && set.test(decoder.decode(file.bytes))) where = `${hide.key} in ${hide.file}`;
+    }
+    const line = `${unit.id} stays hidden on ${h}: its source sets ${where}`;
+    if (where && !ctx.info.includes(line)) ctx.info.push(line);
+  }
+}
+
+// ---- the mode skill (lib/mode.ts)
+
+/** Runs after every other unit, so `link` reads the leaf paths that the other units rendered and craft sits in every dir that holds an anchored leaf. */
+function renderMode(ctx: any, unit: Unit, mode: Mode) {
+  const shell = unit.files.get("SKILL.md");
+  if (!shell) {
+    ctx.errors.push({ code: "E_INTERNAL", message: `unit ${unit.id}: the mode skill has no SKILL.md template` });
+    return;
+  }
+  const hidden = !ctx.auto.has(unit.id);
+  const copyOf = (dir: string, owner: string) => {
+    const shellText = substitute(decoder.decode(shell.bytes), ctx.terms, owner);
+    const errors = shellText.errors.map((e) => termError(e, unit, "SKILL.md"));
+    const link = (ref: UnitRef, from: string) => {
+      const target = `${dir}/${ref.split("/")[1]}/SKILL.md`;
+      return ctx.owners.get(target) === ref ? posix.relative(posix.dirname(`${dir}/${unit.name}/${from}`), target) : null;
+    };
+    const r = modeFiles(mode, shellText.text, { harness: owner, readers: readersOf(ctx, dir), link });
+    errors.push(...r.errors.map((e) => termError(e, unit, "SKILL.md")));
+    if (hidden) applyHide(ctx, unit, dir, r.files, errors);
+    return { files: [...r.files].map(([path, f]) => ({ path, mode: f.mode, bytes: f.bytes })), errors };
+  };
+  renderSkill(ctx, unit, hidden, copyOf, ctx.anchored);
 }
 
 // ---- commands, agents, rules
@@ -273,7 +341,11 @@ function renderFrame(ctx, unit) {
 // ---- template variables of core templates
 
 function frameVars(ctx, h) {
-  return { models: () => modelsLine(ctx.targets.get(h)) };
+  const prefix = ctx.targets.get(h).skill_prefix;
+  return {
+    models: () => modelsLine(ctx.targets.get(h)),
+    craft: () => (prefix ? `${prefix}craft` : { error: { code: "E_INTERNAL", harness: h, message: `targets/${h}.json declares no skill_prefix, so the frame cannot name the typed form of craft` } }),
+  };
 }
 
 function modelsLine(target) {

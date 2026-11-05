@@ -41,7 +41,7 @@ create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/commands/o
 ...
 create  owned  claude  ~/.local/share/rig/marketplace/plugins/product/.claude-plugin/plugin.json                            product/plugin
 create  owned  claude  ~/.local/share/rig/marketplace/.claude-plugin/marketplace.json                                       core/marketplace
-12 changes, 0 blocks
+25 changes, 0 blocks
 ```
 
 rig renders the plugin under its data root, in a marketplace named `rig-local`. The pack gets no copy in `~/.claude/skills`. The plugin version is a hash of the plugin files, for example `0.0.0-ac3a624d57fe`, so a changed pack gets a new version.
@@ -52,7 +52,7 @@ rig renders the plugin under its data root, in a marketplace named `rig-local`. 
 
 ```text
 ...
-run 20261105T055333.405Z-1: 12 ops applied
+run 20261105T055333.405Z-1: 25 ops applied
 register claude: run once; it installs each project pack and disables it at user scope:
   claude plugin marketplace add ~/.local/share/rig/marketplace
   claude plugin install product@rig-local
@@ -95,4 +95,4 @@ info  scope claude pack product is enabled here (local)
 
 `doctor` reads the project and writes nothing. For `enabledPlugins` it follows the precedence of Claude Code: local beats project, project beats user. The `(local)` tag names the file that decided.
 
-Next: [Pick and swap models](./07-models.md).
+Next: [Run multi-step work with /craft](./06-craft.md).

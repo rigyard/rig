@@ -6,7 +6,7 @@ You get three things from it:
 
 - **The same stack in every harness.** A skill you add appears once in Claude Code, Codex, omp and Cursor, with no duplicates where one harness reads another's directories.
 - **No surprise updates.** rig installs copies pinned by a sha256 tree hash in `rig.lock.json`. Nothing updates itself. Only `rig pack add`, and `rig pin check` and `rig pin set` of a pack, use the network.
-- **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, relative links, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
+- **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, relative links, unit names in the mode skill, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
 
 rig is one Node CLI with no runtime dependencies. Packs and harness targets are data files, and rig runs no code from a pack.
 
@@ -37,7 +37,7 @@ rig plan
 rig apply
 ```
 
-New here? The [rig guide](./docs/guide/README.md) walks you through setup, a first apply, the gate, packs, project scope, models, usage stats and your own overlay.
+New here? The [rig guide](./docs/guide/README.md) walks you through setup, a first apply, the gate, packs, project scope, the `/craft` mode skill, models, usage stats and your own overlay.
 
 ## Usage
 
@@ -81,4 +81,4 @@ Tests build a temporary HOME and never touch yours. Tests that run real harness 
 
 Design, decisions and research live in [docs/](./docs/README.md).
 
-rig v1 is in design. rig seeds pstack and gstack from pinned upstream commits and renders its own mode skill, `craft` (`/craft`), around pstack's hub. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI. v1 features arrive PR by PR.
+rig v1 is in progress. rig renders its own mode skill, `craft` (`/craft`), around the hub of a pack ([Run multi-step work with /craft](./docs/guide/06-craft.md)). Seeding pstack and gstack from pinned upstream commits comes next. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI. v1 features arrive PR by PR.

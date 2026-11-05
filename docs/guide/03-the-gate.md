@@ -8,7 +8,7 @@ In this page you learn what the gate checks, read a blocked plan, and ack a find
 
 When the gate blocks, `rig apply` writes nothing to your home directory. The design record is [decision 0006](../decisions/0006-one-gate-before-apply.md).
 
-## Read the nine checks
+## Read the ten checks
 
 Each finding has a severity. A `block` stops the write. A `warn` prints and lets the write go. An `info` line only reports. The table is the registry in `lib/gate/registry.ts`, with the severities that the check code emits.
 
@@ -19,6 +19,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |
 | `links` | Rendered `.md` files that rig owns: a relative Markdown link that does not resolve to a file or folder that rig plans for the same harness. Links in code, URLs, anchors and targets that are not paths, such as `url`, are skipped. | block | yes |
+| `mode` | The hub and the playbooks of the mode skill: a unit name, as `**x** skill`, `` `/x` `` or /x, that no kept unit has (`E_MODE_NAME`). See [Run multi-step work with /craft](./06-craft.md). | block | yes |
 | `license` | The `license` of every pack except core. It must be an SPDX expression of allowed licenses. | block | yes |
 | `cve` | Dependency lockfiles in a pack, against the OSV cache. A high, critical or unknown severity blocks. Moderate and low warn. No cached result blocks. | block, warn | yes |
 | `telemetry` | A `pack.json` with telemetry on by default and no opt-out variable set. | warn | no, set the variable |
@@ -34,14 +35,14 @@ This run uses a temporary HOME. The overlay `~/.config/rig/rig.json` lists one p
 $ rig plan
 block unicode demo/skills/hello/SKILL.md: zero-width character U+200B x1 at line 8: Say hello<U+200B> to the user.
   ack: {"id":"158407a35ebe6adb","check":"unicode","pack":"demo","path":"skills/hello/SKILL.md","reason":"","expires":""}
-info budget */harness:claude: always-on: 636 characters, 159 tokens
+info budget */harness:claude: always-on: 717 characters, 180 tokens
 ...
-23 changes, 1 block
+36 changes, 1 block
 $ echo $?
 1
 $ rig apply
 ...
-23 changes, 1 block
+36 changes, 1 block
 blocked: nothing written
 ```
 
@@ -76,7 +77,7 @@ $ rig plan
 ...
 block unicode demo/skills/hello/SKILL.md: zero-width character U+200B x1 at line 8: Say hello<U+200B> to the user. (acked)
 ...
-23 changes, 0 blocks
+36 changes, 0 blocks
 ```
 
 An ack holds through the end of its `expires` date in UTC. After that date, rig ignores it, and the finding blocks again. The `id` is a hash over the check, pack, path and evidence bytes. If the upstream file changes the offending line, the finding gets a new id and blocks again. The schema is in [section 2.9 of the architecture](../design/rig-architecture.md#29-auditallowjson).

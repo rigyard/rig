@@ -1,12 +1,15 @@
 // lib/stack.ts — public: compose
 
+import { adopted, compileMode } from "./mode.ts";
+import type { Mode, UnitRef } from "./mode.ts";
 import type { World } from "./world.ts";
 import type { Scope } from "./world.ts";
 
 export type Unit = {
   /** "<pack>/<name>" */
   id: string;
-  type: "skill"|"command"|"agent"|"rule"|"frame";
+  /** mode: the core skill dir skills/craft/, rendered by renderMode around the compiled mode */
+  type: "skill"|"command"|"agent"|"rule"|"frame"|"mode";
   /** installed name */
   name: string;
   scope: Scope;
@@ -17,10 +20,11 @@ export type Unit = {
   /** source files, relative to the unit */
   files: Map<string, {bytes: Uint8Array, mode: number}>;
 };
-export type Stack = {units: Unit[], errors: RigError[]};
+/** `mode` is absent only on a stack that compose did not build (gateTree, hand-built test stacks). */
+export type Stack = {units: Unit[], errors: RigError[], mode?: Mode};
 export type RigError = {code: string, message: string, path?: string, harness?: string};
 
-/** Core seal, packs, scope, disable, replace, clash rules. Pure. */
+/** Core seal, packs, scope, disable, replace, clash rules, then the mode compile. Pure. */
 export function compose(world: World): Stack {
   /** @type {RigError[]} */
   const errors = [];
@@ -117,22 +121,27 @@ export function compose(world: World): Stack {
     }
   }
 
-  return { units, errors };
+  const compiled = compileMode(units, world.packs, world.domains, world.config.fill ?? {}, (world.config.auto ?? []) as UnitRef[], dropped);
+  errors.push(...compiled.errors);
+  return { units, errors, mode: compiled.mode };
 }
 
 /** Installed-name namespaces. Skills and commands share one: Claude Code invokes both as /name, Cursor renders commands as skills. */
-const NAMESPACE = { skill: "slash", command: "slash", agent: "agent", rule: "rule", frame: "frame" };
+const NAMESPACE = { skill: "slash", mode: "slash", command: "slash", agent: "agent", rule: "rule", frame: "frame" };
 
 /**
  * Units by directory layout: skills/<name>/SKILL.md (the whole dir), commands/<name>.md, agents/<name>.md,
- * rules/<name>.md. In core also frame.md as the frame.
+ * rules/<name>.md. In core also frame.md as the frame, and skills/craft/ as the mode skill. A path that the pack's
+ * mode.adopt claims gives no unit.
  * @param {import("./world.ts").Pack} pack @param {boolean} isCore
  * @returns {{type: Unit["type"], name: string, files: Map<string, {bytes: Uint8Array, mode: number}>}[]}
  */
 function discover(pack, isCore) {
   const out = [];
   const skills = new Map();
+  const claimed = new Set(adopted(pack).map((c) => c.from));
   for (const [path, f] of pack.files) {
+    if (claimed.has(path)) continue;
     let m;
     if ((m = path.match(/^skills\/([^/]+)\/(.+)$/))) {
       if (!skills.has(m[1])) skills.set(m[1], new Map());
@@ -143,12 +152,12 @@ function discover(pack, isCore) {
   }
   for (const [name, files] of skills) {
     if (!files.has("SKILL.md")) continue;
-    out.push({ type: "skill", name, files });
+    out.push({ type: isCore && name === "craft" ? "mode" : "skill", name, files });
   }
   if (isCore && pack.files.has("frame.md")) {
     out.push({ type: "frame", name: "rig-frame", files: new Map([["frame.md", pack.files.get("frame.md")]]) });
   }
-  const rank = { frame: 0, skill: 1, command: 2, agent: 3, rule: 4 };
+  const rank = { frame: 0, skill: 1, mode: 1, command: 2, agent: 3, rule: 4 };
   return out.sort((a, b) => rank[a.type] - rank[b.type] || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 

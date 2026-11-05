@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { assertOutsideHomeDotDirs, makeFixtureHome } from "./helpers/fixture-home.ts";
@@ -294,8 +294,14 @@ describe("mirror", () => {
     assert.throws(() => harnessArgv("omp", "hi", { dir, env, home: realHome() }), /real home/);
 
     const x = harnessArgv("codex", "q", { dir, env });
+    t.after(() => {
+      x.cleanup();
+      assert.equal(existsSync(x.env.HOME!), false, "cleanup removes the codex temp HOME");
+    });
     assert.deepEqual([x.bin, x.args], ["codex", ["exec", "-s", "read-only", "--ephemeral", "--ignore-user-config", "--json", "-C", dir, "q"]]);
-    assert.equal("CODEX_HOME" in x.env, false);
+    assert.equal(x.env.CODEX_HOME, join(realHome(), ".codex"));
+    assert.notEqual(x.env.HOME, "/real");
+    assert.deepEqual(readdirSync(x.env.HOME!), []);
 
     const u = harnessArgv("cursor", "q", { dir, env, pluginDir: "/tmp/p" });
     assert.deepEqual([u.bin, u.args], ["cursor-agent", ["-p", "--mode", "ask", "--trust", "--workspace", dir, "--output-format", "json", "--plugin-dir", "/tmp/p", "q"]]);

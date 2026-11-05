@@ -66,10 +66,10 @@ rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: harnesses[0]: the repo alre
 With `"harnesses": ["claude", "codex"]` in the checkout, the plan shrinks to the files of those two harnesses:
 
 ```text
-info budget */harness:claude: always-on: 636 characters, 159 tokens
-info budget */harness:codex: always-on: 573 characters, 144 tokens
+info budget */harness:claude: always-on: 717 characters, 180 tokens
+info budget */harness:codex: always-on: 654 characters, 164 tokens
 ...
-15 changes, 0 blocks
+28 changes, 0 blocks
 ```
 
 ## Run your first doctor
@@ -77,7 +77,7 @@ info budget */harness:codex: always-on: 573 characters, 144 tokens
 `rig doctor` reads your machine and your config. It writes nothing and logs nothing. On a fresh HOME with the repo defaults, it prints:
 
 ```text
-info  drift 20 changes pending; rig plan lists them
+info  drift 33 changes pending; rig plan lists them
 0 errors, 0 warnings
 ```
 

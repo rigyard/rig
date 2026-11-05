@@ -108,14 +108,15 @@ const cmp = (a, b) => {
 
 /**
  * Smallest set of writable dirs (plus declared channels) such that each harness in unit.harnesses sees the unit
- * exactly once after its own dedupe rule, and every other installed harness sees it at most once.
+ * exactly once after its own dedupe rule, and every other installed harness sees it at most once. `anchored` maps a dir
+ * that the set must hold to the packs whose leaves there link to the unit.
  *
  * Cost order, first difference wins: harnesses that cannot hide a hidden unit, dir count, leaks, namespace cost
  * (documented before unverified), then declared candidate order. Equal-cost solutions are a tie, broken by that
  * order and never by chance.
  *
  */
-export function place(unit: {id: string, harnesses: string[], channel?: Record<string, "plugin">, digests: Record<string, string>, hidden?: boolean}, installed: string[], targets: Map<string, object>): {dirs: {path: string, owner: string, channel?: "plugin"}[], leaks: string[], copies: Record<string, number>, namespace: {harness: string, dir: string, certainty: "documented" | "unverified"}[], unhidden: string[]} | {error: {code: string, message: string, path?: string, harness?: string}} {
+export function place(unit: {id: string, harnesses: string[], channel?: Record<string, "plugin">, digests: Record<string, string>, hidden?: boolean, anchored?: Record<string, string[]>}, installed: string[], targets: Map<string, object>): {dirs: {path: string, owner: string, channel?: "plugin"}[], leaks: string[], copies: Record<string, number>, namespace: {harness: string, dir: string, certainty: "documented" | "unverified"}[], unhidden: string[]} | {error: {code: string, message: string, path?: string, harness?: string}} {
   for (const h of [...installed, ...unit.harnesses]) {
     if (!targets.has(h)) throw new TypeError(`place: no target record for harness "${h}"`);
   }
@@ -139,6 +140,12 @@ export function place(unit: {id: string, harnesses: string[], channel?: Record<s
   }
 
   const cands = candidatesFor(unit, installed, targets, records);
+  let required = 0;
+  for (const dir of Object.keys(unit.anchored ?? {})) {
+    const i = cands.findIndex((c) => c.path === dir && !c.channel);
+    if (i < 0) throw new TypeError(`place: unit "${unit.id}" must sit in ${dir}, which is no candidate dir`);
+    required |= 1 << i;
+  }
   const evaluate = (mask) => {
     const chosen = cands.filter((_, i) => mask & (1 << i));
     const copies = {};
@@ -168,6 +175,7 @@ export function place(unit: {id: string, harnesses: string[], channel?: Record<s
   let best = null;
   let nearest = null;
   for (let mask = 1; mask < 1 << cands.length; mask++) {
+    if ((mask & required) !== required) continue;
     const r = evaluate(mask);
     const order = cands.map((_, i) => (mask & (1 << i) ? i : 99)).sort((a, b) => a - b);
     if (r.failing.length === 0) {
@@ -226,6 +234,16 @@ function readsetError(unit, pack, near, installed, targets, wanted) {
   const what = wanted.has(harness)
     ? `${harness} would see unit ${unit.id} ${count === 0 ? "zero times" : `${count} times`}`
     : `${harness} is not a target of unit ${unit.id} but would see it ${count} times`;
+  const anchored = Object.entries(unit.anchored ?? {});
+  if (anchored.length) {
+    const packs = [...new Set(anchored.flatMap(([, p]) => p))].sort();
+    return {
+      code: "E_READSET",
+      harness,
+      path: dirs[0],
+      message: `${what}, via ${dirs.join(" and ")}: unit ${unit.id} must sit in ${anchored.map(([d]) => d).join(" and ")}, where vendored leaves link to it. Exits: give ${packs.map((p) => `rig.json packs.${p}.harnesses`).join(" and ")} one harness list, so the leaves share dirs.`,
+    };
+  }
   const exits = [`narrow the unit's harnesses in rig.json packs.${pack}.harnesses`];
   const canPlugin = unit.harnesses.filter(
     (h) => targets.get(h).channels?.plugin && unit.channel?.[h] !== "plugin",

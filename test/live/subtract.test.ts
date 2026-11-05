@@ -39,8 +39,12 @@ const squash = (s: string) => s.replace(/\s+/g, " ");
 
 async function ask(harness: "claude" | "omp" | "codex" | "cursor", dir: string, home?: string) {
   const a = harnessArgv(harness, PROMPT, { dir, home, maxTurns: 3 });
-  const r = await run({ ...a, bin: realBin(a.bin, a.env.PATH), timeoutMs: 180_000 });
-  return { code: r.code, reply: replyOf(harness, r) };
+  try {
+    const r = await run({ ...a, bin: realBin(a.bin, a.env.PATH), timeoutMs: 180_000 });
+    return { code: r.code, reply: replyOf(harness, r) };
+  } finally {
+    a.cleanup();
+  }
 }
 
 describe("subtract", () => {

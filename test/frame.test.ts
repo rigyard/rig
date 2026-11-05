@@ -9,14 +9,15 @@ import { gate } from "../lib/gate.ts";
 import { loadWorld } from "../lib/world.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { ROOT, fixture } from "./world.helpers.ts";
-import { HARNESSES, unit, world as renderWorld } from "./render.helpers.ts";
+import { HARNESSES, records, unit, world as renderWorld } from "./render.helpers.ts";
 
 const decoder = new TextDecoder();
 const text = (e) => decoder.decode(e.bytes);
 const MDC_HEAD = "---\nalwaysApply: true\n---\n";
 const FRAME_PATHS = { claude: "~/.claude/rules/rig-frame.md", codex: "~/.codex/AGENTS.md", omp: "~/.omp/agent/AGENTS.md", cursor: "~/.cursor/rules/rig-frame.mdc" };
 /** The frame variables whose lines differ per harness. Every other line is byte-identical across harnesses. */
-const PER_HARNESS = ["models"];
+const PER_HARNESS = ["craft", "models"];
+const CRAFT: Record<string, string> = { claude: "/craft", codex: "$craft", cursor: "/craft", omp: "/craft" };
 
 /** The real target records, which declare the frame paths (the world fixtures do not). */
 const realTargets = () => Object.fromEntries(HARNESSES.map((h) => [`targets/${h}.json`, readFileSync(join(ROOT, `targets/${h}.json`), "utf8")]));
@@ -70,16 +71,18 @@ test("frame blocks are the template byte for byte, except the declared per-harne
   assert.deepEqual([...new Set(used)].sort(), PER_HARNESS);
   const pattern = template
     .split("\n")
-    .map((line) => escape(line).replace(escape("{{models}}"), "([^\\n]+)"))
+    .map((line) => escape(line).replaceAll(escape("{{craft}}"), "([^\\n`]+)").replace(escape("{{models}}"), "([^\\n]+)"))
     .join("\n");
   const re = new RegExp(`^${pattern}$`);
-  const captures = {};
+  const models = {};
   for (const h of HARNESSES) {
     const m = re.exec(frameBody(at, h));
     assert.ok(m, `the ${h} frame differs from the template outside the per-harness lines`);
-    captures[h] = m.slice(1);
+    const [first, second, line] = m.slice(1);
+    models[h] = line;
+    assert.deepEqual([first, second], [CRAFT[h], CRAFT[h]], `${h} names craft in its typed form`);
   }
-  assert.equal(new Set(HARNESSES.map((h) => captures[h][0])).size, 4, "one distinct models line per harness");
+  assert.equal(new Set(HARNESSES.map((h) => models[h])).size, 4, "one distinct models line per harness");
 });
 
 test("no harness's frame names a provider or a slot", () => {
@@ -95,6 +98,16 @@ test("an unknown {{name}} in a core template is E_TERM_UNKNOWN and renders nothi
   assert.match(d.errors[0].message, /core\/brief.*\{\{nope\}\}/);
   const wrong = unit({ id: "core/brief", type: "command", harnesses: ["claude"], files: { "brief.md": "{{models}}\n" } });
   assert.equal(render({ units: [wrong], errors: [] }, renderWorld({ aliases: {} })).errors[0].code, "E_TERM_UNKNOWN");
+});
+
+test("a target record with no skill_prefix renders no frame for that harness and says why", () => {
+  const targets = records();
+  delete targets.get("omp").skill_prefix;
+  const frame = unit({ id: "core/rig-frame", type: "frame", files: { "frame.md": readFileSync(join(ROOT, "packs/core/frame.md"), "utf8") } });
+  const d = render({ units: [frame], errors: [] } as any, renderWorld({ targets }) as any);
+  assert.deepEqual(d.errors.map((e) => [e.code, e.harness]), [["E_INTERNAL", "omp"]]);
+  assert.match(d.errors[0].message, /targets\/omp\.json declares no skill_prefix/);
+  assert.deepEqual([...d.entries.values()].map((e) => e.unit), ["core/rig-frame", "core/rig-frame", "core/rig-frame"]);
 });
 
 test("render twice is byte-identical", () => {

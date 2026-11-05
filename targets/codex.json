@@ -17,6 +17,7 @@
   "hide": {"method": "sidecar", "file": "agents/openai.yaml", "key": "policy.allow_implicit_invocation", "value": false},
   "models": {"source": "the agent files in ~/.codex/agents"},
   "instructions": {"path": "~/.codex/AGENTS.md", "mode": "managed-block"},
+  "skill_prefix": "$",
   "effort_syntax": "separate-key",
   "model_surfaces": [
     {"path": "~/.codex/agents/{role}.toml", "consumer": "fleet", "kind": "whole",

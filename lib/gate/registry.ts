@@ -4,19 +4,21 @@ import { runCve } from "./cve.ts";
 import { runExec } from "./exec.ts";
 import { runLicense } from "./license.ts";
 import { runLinks } from "./links.ts";
+import { runModeNames } from "./mode.ts";
 import { runPin } from "./pin.ts";
 import { runSecret } from "./secret.ts";
 import { runTelemetry } from "./telemetry.ts";
 import { runUnicode } from "./unicode.ts";
 
 /**
- * `runsOn`, `finds`, `severity` and `ackNote` are the doc-table cells, verbatim. `inputs` says what `run` reads.
+ * `runsOn`, `finds`, `severity` and `ackNote` are the doc-table cells, verbatim. `inputs` says what `run` reads. `mode`
+ * is the composed mode skill files, `stack.mode.files`.
  * `ackable` is what the gate enforces. `run(ctx)` returns raw findings `{severity, pack, path, evidence, idBytes?}`.
  */
 export type CheckRow = {
   id: string;
   runsOn: string;
-  inputs: ("lock"|"sources"|"rendered"|"records")[];
+  inputs: ("lock"|"sources"|"rendered"|"records"|"mode")[];
   finds: string;
   severity: string;
   ackable: boolean;
@@ -50,6 +52,11 @@ export const REGISTRY = Object.freeze([
     id: "links", runsOn: "rendered", inputs: ["rendered"],
     finds: "a relative Markdown link in an owned `.md` file that does not resolve to an owned path of the same harness",
     severity: "block", ackable: true, ackNote: "yes", run: runLinks,
+  },
+  {
+    id: "mode", runsOn: "the hub and the playbooks of the mode skill", inputs: ["mode"],
+    finds: "a unit name (`**x** skill`, `` `/x` ``, bare /x) that no kept unit has and the allowlist does not hold (`E_MODE_NAME`)",
+    severity: "block", ackable: true, ackNote: "yes", run: runModeNames,
   },
   {
     id: "license", runsOn: "sources", inputs: ["sources"],
