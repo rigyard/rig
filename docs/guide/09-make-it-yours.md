@@ -53,7 +53,7 @@ create  owned  claude  ~/.claude/skills/notes/SKILL.md                          
 21 changes, 0 blocks
 ```
 
-Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --path <path> --into overlay` ([Add packs and seal core](./04-packs-and-pins.md)).
+Give the pack a `license`. Without one, the gate blocks with `block license mine/pack.json: license missing` and prints an ack stanza. To vendor a pack from a public repository into the overlay, use `rig pack add <repo> --sha <sha> --root <dir> --path . --into overlay` ([Add packs and seal core](./04-packs-and-pins.md)).
 
 Two units may not install one name. When `mine` adds a skill named `office-hours`, the plan blocks:
 

@@ -281,7 +281,7 @@ async function run(handler: (a: ParsedArgs, env: NodeJS.ProcessEnv, deps: Deps) 
   const code = await handler(a, env, { fetchFn, out: { write: (s: string) => ((out += s), true) } });
   return { code, out };
 }
-const packAdd = (repo: string, sha: string, path: string): ParsedArgs => ({ cmd: "pack", sub: "add", args: { repo }, flags: { sha, path: [path] } });
+const packAdd = (repo: string, sha: string, path: string): ParsedArgs => ({ cmd: "pack", sub: "add", args: { repo }, flags: { sha, root: path, path: ["."] } });
 
 /** A repo whose skill carries a package-lock.json (or nothing else when `lock` is null). */
 function depsRepo(t: TestContext, lock: string | null) {

@@ -1,4 +1,4 @@
-// rig pack add <repo> --sha <sha> --path <path>... [--into overlay].
+// rig pack add <repo> --sha <sha> [--root <dir>] --path <path>... [--exclude <path>...] [--name <name>] [--into overlay].
 
 import { refreshOsv } from "../gate.ts";
 import { osvFetch, vendor } from "../lock.ts";
@@ -15,8 +15,8 @@ import type { ParsedArgs } from "../commands.ts";
 export async function packAddCmd(a: ParsedArgs, env: NodeJS.ProcessEnv, deps: Deps = {}): Promise<0|1|2> {
   const world = loadWorld(env);
   const into = a.flags.into === "overlay" ? "overlay" : "repo";
-  const paths = /** @type {string[]} */ (a.flags.path);
-  const v = await vendor(world, { repo: a.args.repo, sha: /** @type {string} */ (a.flags.sha), paths, into });
+  const f = a.flags as {sha: string, root?: string, path: string[], exclude?: string[], name?: string};
+  const v = await vendor(world, { repo: a.args.repo, sha: f.sha, root: f.root, paths: f.path, exclude: f.exclude, name: f.name, into });
 
   // The refresh writes cache/osv before the reload, so the gate reads it and the pin check sees the lock entry vendor wrote.
   const refreshed = await refreshOsv(world, v.pack, v.files, deps.fetchFn ?? osvFetch);
@@ -31,7 +31,8 @@ export async function packAddCmd(a: ParsedArgs, env: NodeJS.ProcessEnv, deps: De
 
   const blocks = findings.filter((f) => f.severity === "block" && !f.acked).length;
   const head = v.noop ? `${v.pack} is already vendored at ${v.tree}` : `vendored ${v.pack} into packs/${v.pack}/ of the ${v.root} root, tree ${v.tree}`;
-  const lines = [head, ...findingLines(findings), `${findings.length} findings, ${blocks} blocks`];
+  const kept = `kept ${v.kept} files${v.excludedBytes === null ? "" : `, excluded ${v.excludedBytes} bytes`}`;
+  const lines = [head, kept, ...findingLines(findings), `${findings.length} findings, ${blocks} blocks`];
   (deps.out ?? process.stdout).write(`${lines.join("\n")}\n`);
   return blocked ? 1 : 0;
 }

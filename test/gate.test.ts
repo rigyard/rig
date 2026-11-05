@@ -355,6 +355,25 @@ test("pin: a non-core pack with no lock entry warns, names the pack and does not
   assert.equal(r.blocked, false);
 });
 
+test("pin: a file at or under a locked exclude blocks, even when the lock tree matches it", () => {
+  const p = goodPack("vendored", { "skills/statechart/scripts/run.sh": "echo\n", "skills/statechart-notes.md": "kept\n", "pack.json": "{}\n" });
+  const locks = lockWith({ packs: { vendored: { ...packLock(treeHash(p.files)), exclude: ["pack.json", "skills/statechart"] } } });
+  const r = run(world({ packs: [p], locks }));
+  const found = of(r, "pin");
+  assert.deepEqual(found.map((f: {severity: string, path: string}) => [f.severity, f.path]), [["block", "skills/statechart/scripts/run.sh"]]);
+  assert.match(found[0].evidence, /under the locked exclude skills\/statechart/);
+  assert.equal(found[0].stanza, null);
+  assert.equal(r.blocked, true);
+});
+
+test("pin: a hand-edited exclude with a trailing slash still blocks the files under it", () => {
+  const p = goodPack("vendored", { "docs/a.md": "x\n", "docs-extra.md": "kept\n", "pack.json": "{}\n" });
+  const locks = lockWith({ packs: { vendored: { ...packLock(treeHash(p.files)), exclude: ["docs/"] } } });
+  const found = of(run(world({ packs: [p], locks } as never)), "pin");
+  assert.deepEqual(found.map((f: {severity: string, path: string}) => [f.severity, f.path]), [["block", "docs/a.md"]]);
+  assert.match(found[0].evidence, /under the locked exclude docs$/);
+});
+
 test("pin: a changed byte under core breaks the seal", () => {
   const core = pack("core", { "frame.md": "frame\n" }, { license: undefined });
   const locks = lockWith({ core: treeHash(core.files, { core: true }) });

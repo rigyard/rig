@@ -5,13 +5,14 @@ import { writeConfig as fsWriteConfig } from "./fs.ts";
 import { treeHash } from "./tree.ts";
 import { LockError } from "./lock/errors.ts";
 import { readBlobs, withClone } from "./lock/git.ts";
+import type { TreeEntry } from "./lock/git.ts";
 import { readTreeFromDisk } from "./lock/disk.ts";
 import { readLock, encodeLock, LOCK_FILE } from "./lock/lockfile.ts";
+import { ID } from "./world.ts";
 import { NO_LICENSE, isLicenseFile, licenseFromPackageJson, licenseFromText } from "./lock/license.ts";
 
 
 const ROOTS = ["repo", "overlay"];
-const PACK_NAME = /^[a-z0-9][a-z0-9._-]*$/i;
 const canonicalJson = (v) => Buffer.from(JSON.stringify(v, null, 2) + "\n", "utf8");
 
 function rootDir(world, root) {
@@ -32,30 +33,41 @@ function normalizePath(p) {
   return n;
 }
 
-function packNameFor(repo, paths) {
-  const name = paths[0] === "." ? basename(repo.replace(/\/+$/, "")).replace(/\.git$/, "") : basename(paths[0]);
-  if (!PACK_NAME.test(name) || name === "core") throw new LockError("E_USAGE", `cannot derive a pack name from ${paths[0]}: got ${JSON.stringify(name)}`);
-  return name;
+function packNameFor(repo: string, root: string, name: string | undefined): string {
+  const n = name ?? (root === "." ? basename(repo.replace(/\/+$/, "")).replace(/\.git$/, "") : basename(root));
+  if (!ID.test(n) || n === "core") {
+    throw new LockError("E_USAGE", `bad pack name ${JSON.stringify(n)}: use lowercase letters and digits, joined by single hyphens, and not core; pass --name`);
+  }
+  return n;
 }
 
-/** Map pack-relative path -> tree entry. The contents of each named dir become the pack root; a named file keeps its basename. */
-function select(entries, paths) {
-  const picked = new Map();
+const under = (path: string, prefix: string) => prefix === "." || path === prefix || path.startsWith(prefix + "/");
+
+function select(entries: TreeEntry[], root: string, paths: string[], exclude: string[]): {picked: Map<string, TreeEntry>, excludedBytes: number} {
+  const picked = new Map<string, TreeEntry>();
   for (const p of paths) {
     let hits = 0;
     for (const e of entries) {
-      let dest;
-      if (p === ".") dest = e.path;
-      else if (e.path === p) dest = posix.basename(p);
-      else if (e.path.startsWith(p + "/")) dest = e.path.slice(p.length + 1);
-      else continue;
-      if (picked.has(dest)) throw new LockError("E_PATH_COLLISION", `two paths both provide ${dest}`, dest);
-      picked.set(dest, e);
+      if (root !== "." && !e.path.startsWith(root + "/")) continue;
+      const rel = root === "." ? e.path : e.path.slice(root.length + 1);
+      if (!under(rel, p)) continue;
+      picked.set(rel, e);
       hits++;
     }
-    if (hits === 0) throw new LockError("E_PATH_MISSING", `path ${p} is not in the repo at this commit`, p);
+    if (hits === 0) throw new LockError("E_PATH_MISSING", `path ${p} is not under ${root} in the repo at this commit`, p);
   }
-  return picked;
+  const rels = [...picked.keys()];
+  for (const x of exclude) {
+    if (!rels.some((rel) => under(rel, x))) throw new LockError("E_PATH_MISSING", `exclude ${x} matches no vendored path at this commit`, x);
+  }
+  let excludedBytes = 0;
+  for (const rel of rels) {
+    if (!exclude.some((x) => under(rel, x))) continue;
+    excludedBytes += picked.get(rel)!.size;
+    picked.delete(rel);
+  }
+  if (picked.size === 0) throw new LockError("E_USAGE", "the excludes leave no file to vendor", paths.join(", "));
+  return { picked, excludedBytes };
 }
 
 /** Read the picked blobs. Git records only 644 and 755, so the mode is deterministic across machines. */
@@ -96,19 +108,30 @@ async function detectLicense(dir, entries, paths) {
 
 const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
 
+const repoPath = (upstream: string, p: string) => (upstream === "." ? p : p === "." ? upstream : `${upstream}/${p}`);
+
 /**
- * rig pack add. Fetch the commit, copy only the named paths into `packs/<name>/` of the chosen root, write
- * `pack.json` and then the lock entry. The gate runs in the caller. A second call for the same repo, paths and
- * commit, with the pack unchanged on disk, writes nothing and fetches nothing.
+ * rig pack add. Fetch the commit, copy the named paths under `root`, minus the excludes, into `packs/<name>/` of the
+ * chosen config root, write `pack.json` and then the lock entry. Excluded files are never written. The gate runs in the
+ * caller. A second call with the same arguments, with the pack unchanged on disk, writes nothing and fetches nothing.
  * @param world  needs `roots: {repo: string, overlay?: string}`; `writeConfig(root, rel, bytes, mode?)` optional.
  *   Vendored files carry their git mode (644 or 755); the lock file keeps its current mode (fs.writeConfig).
+ * @param args  `root` (default ".") is the upstream folder the pack mirrors; `paths` and `exclude` are relative to it.
+ * @returns kept counts the vendored files without pack.json.
  */
-export async function vendor(world: object, args: {repo: string, sha: string, paths: string[], into?: "repo" | "overlay"}): Promise<{pack: string, root: string, tree: string, files: {path: string, mode: number, bytes: Uint8Array}[], noop: boolean}> {
+export async function vendor(world: object, args: {repo: string, sha: string, root?: string, paths: string[], exclude?: string[], name?: string, into?: "repo" | "overlay"}): Promise<{pack: string, root: string, tree: string, files: {path: string, mode: number, bytes: Uint8Array}[], kept: number} & ({noop: true, excludedBytes: null} | {noop: false, excludedBytes: number})> {
+  if (typeof args.sha !== "string" || !/^[0-9a-f]{40}$/i.test(args.sha)) {
+    throw new LockError("E_USAGE", `--sha must be the full 40-hex commit, got ${JSON.stringify(args.sha)}`);
+  }
+  const sha = args.sha.toLowerCase();
   const into = args.into ?? "repo";
   if (!ROOTS.includes(into)) throw new LockError("E_USAGE", `--into must be repo or overlay, got ${JSON.stringify(into)}`);
   if (!Array.isArray(args.paths) || args.paths.length === 0) throw new LockError("E_USAGE", "at least one --path is required");
-  const paths = args.paths.map(normalizePath);
-  const name = packNameFor(args.repo, paths);
+  const upstream = normalizePath(args.root ?? ".");
+  const paths = [...new Set(args.paths.map(normalizePath))].sort();
+  const exclude = [...new Set((args.exclude ?? []).map(normalizePath))].sort();
+  if (exclude.includes(".")) throw new LockError("E_USAGE", "--exclude . would exclude every path");
+  const name = packNameFor(args.repo, upstream, args.name);
   const root = rootDir(world, into);
   const packRel = `packs/${name}`;
   const packDir = join(root, packRel);
@@ -117,24 +140,27 @@ export async function vendor(world: object, args: {repo: string, sha: string, pa
   const onDisk = readTreeFromDisk(packDir);
   const present = onDisk !== null && onDisk.length > 0;
 
-  const shaOk = typeof args.sha === "string" && /^[0-9a-f]{7,40}$/i.test(args.sha);
   if (
-    entry && present && shaOk && entry.repo === args.repo && sameList(entry.paths, paths) &&
-    entry.sha.startsWith(args.sha.toLowerCase()) && onDisk.some((f) => f.path === "pack.json") &&
-    treeHash(onDisk) === entry.tree
+    entry && present && entry.repo === args.repo && entry.sha === sha && entry.root === upstream &&
+    sameList(entry.paths, paths) && sameList(entry.exclude, exclude) &&
+    onDisk.some((f) => f.path === "pack.json") && treeHash(onDisk) === entry.tree
   ) {
-    return { pack: name, root: into, tree: entry.tree, files: onDisk, noop: true };
+    return { pack: name, root: into, tree: entry.tree, files: onDisk, kept: onDisk.length - 1, excludedBytes: null, noop: true };
   }
   if (present) {
     throw new LockError("E_PACK_EXISTS", `${packRel} already exists with other content; remove it and its lock entry first`, packRel);
   }
 
   const write = writerOf(world);
-  const { files, license, commit } = await withClone(args.repo, args.sha, async ({ dir, commit, entries }) => ({
-    commit,
-    files: await collect(dir, select(entries, paths)),
-    license: await detectLicense(dir, entries, paths),
-  }));
+  const { files, license, commit, excludedBytes } = await withClone(args.repo, sha, async ({ dir, commit, entries }) => {
+    const { picked, excludedBytes } = select(entries, upstream, paths, exclude);
+    return {
+      commit,
+      excludedBytes,
+      files: await collect(dir, picked),
+      license: await detectLicense(dir, entries, paths.map((p) => repoPath(upstream, p))),
+    };
+  });
   if (files.some((f) => f.path === "pack.json")) {
     throw new LockError("E_PACK_JSON_CONFLICT", "the vendored paths already contain a pack.json at the pack root", "pack.json");
   }
@@ -144,9 +170,10 @@ export async function vendor(world: object, args: {repo: string, sha: string, pa
 
   for (const f of files) await write(root, `${packRel}/${f.path}`, f.bytes, f.mode);
   await write(root, `${packRel}/pack.json`, manifestBytes, 0o644);
-  lock.packs[name] = { repo: args.repo, sha: commit, root: ".", paths, exclude: [], license, tree, port: null, candidate: null };
+  lock.packs[name] = { repo: args.repo, sha: commit, root: upstream, paths, exclude, license, tree, port: null, candidate: null };
   await write(root, LOCK_FILE, encodeLock(lock));
-  return { pack: name, root: into, tree, files: [...files, { path: "pack.json", mode: 0o644, bytes: manifestBytes }], noop: false };
+  const all = [...files, { path: "pack.json", mode: 0o644, bytes: manifestBytes }];
+  return { pack: name, root: into, tree, files: all, kept: files.length, excludedBytes, noop: false };
 }
 
 function coreOnly(verb, name) {

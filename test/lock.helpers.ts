@@ -39,7 +39,7 @@ in the Software without restriction.
  */
 export function makeRepo(base: string, commits: Record<string, any>[], opts: {allowAnySha?: boolean} = {}) {
   const work = mkdtempSync(join(base, "work-"));
-  const bare = mkdtempSync(join(base, "bare-")) + ".git";
+  const bare = join(mkdtempSync(join(base, "bare-")), "upstream.git");
   git(work, "init", "-q", "-b", "main");
   const shas = [];
   for (const files of commits) {

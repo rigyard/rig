@@ -216,7 +216,7 @@ describe("rig apply", () => {
       "skills/kit/SKILL.md": "---\nname: kit\ndescription: Kit.\n---\nUse the kit.\n",
       "skills/kit/scripts/run.sh": { content: "#!/bin/sh\necho kit\n", mode: 0o755 },
     }]);
-    assert.equal(s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--path", "skills/kit"]).code, 1, "pack add reports the block");
+    assert.equal(s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "skills/kit", "--path", "."]).code, 1, "pack add reports the block");
     const cfg = JSON.parse(readFileSync(join(s.root, "rig.json"), "utf8"));
     writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...cfg, packs: { kit: {} } }, null, 2)}\n`);
     const before = s.fx.snapshot();

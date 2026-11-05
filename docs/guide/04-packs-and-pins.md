@@ -44,18 +44,21 @@ On a fresh temporary HOME, `rig plan` drops from 20 changes to 15: the four `/oh
 
 ## Vendor a pack at a commit
 
-`rig pack add` copies part of another repository into `packs/<name>/` at one commit:
+`rig pack add` copies one folder of another repository into `packs/<name>/` at one commit:
 
 ```text
-rig pack add https://github.com/acme/agent-skills --sha 1a2b3c4 --path skills/kit
+rig pack add https://github.com/acme/agent-skills --sha 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b --root skills/kit --path . --exclude docs
 ```
 
-rig fetches that commit into a temporary directory and reads the files from git's object store. It never checks out the tree and never runs a file from it. It copies only the `--path` entries, writes `pack.json` with the detected license, and writes the lock entry. Then it refreshes the OSV cache for the pack's lockfiles and gates the new pack. Add `--into overlay` to write into `~/.config/rig/` instead of the checkout. That directory must exist.
+`--sha` takes the full 40-hex commit. A short SHA exits 2 with `E_USAGE` before rig fetches anything. `--root` names the upstream folder that the pack mirrors, `.` by default. `--path` and `--exclude` are relative to the root, and rig keeps the folder structure under it. Repeat `--path` and `--exclude` as often as you need. An exclude that matches no vendored path fails with `E_PATH_MISSING`. The pack name is the basename of the root, or the repository name when the root is `.`. `--name` sets another name.
 
-This output comes from the test "vendors through git, keeps the exec bit, prints the gate findings with ack stanzas, exit 1 on the block". The fixture pack has an executable `scripts/run.sh`:
+rig fetches that commit into a temporary directory and reads the files from git's object store. It never checks out the tree and never runs a file from it. It writes only the files under the `--path` entries that no `--exclude` covers, then `pack.json` with the detected license, then the lock entry. Then it refreshes the OSV cache for the pack's lockfiles and gates the new pack. Add `--into overlay` to write into `~/.config/rig/` instead of the checkout. That directory must exist.
+
+This output comes from the test "vendors through git, keeps the exec bit, prints the gate findings with ack stanzas, exit 1 on the block". The fixture pack has an executable `scripts/run.sh` and an excluded 12-byte `docs/notes.md`:
 
 ```text
 vendored kit into packs/kit/ of the repo root, tree sha256:...
+kept 2 files, excluded 12 bytes
 block exec kit/scripts/run.sh: exec bit, shebang, script extension; mode 755, sha256 ...
   ack: {"id":"...","check":"exec","pack":"kit","path":"scripts/run.sh","reason":"","expires":""}
 1 findings, 1 blocks
@@ -63,7 +66,7 @@ block exec kit/scripts/run.sh: exec bit, shebang, script extension; mode 755, sh
 
 The command exits 1, and the files stay on disk so you can read them. Read `scripts/run.sh`. Then ack it as [Pass the gate](./03-the-gate.md#ack-a-finding-you-reviewed) shows, or remove the pack. `pack add` does not enable the pack. Add `"kit": {}` to `packs` in `rig.json`, then run `rig plan`.
 
-A second `pack add` with the same repo, paths and commit writes nothing and fetches nothing. A different commit fails with `E_PACK_EXISTS` while `packs/kit/` exists. To update, remove the directory and its lock entry, then add the pack again at the new commit.
+A second `pack add` with the same repo, commit, root, paths and excludes writes nothing and fetches nothing. It prints `kit is already vendored at sha256:...`. A different commit fails with `E_PACK_EXISTS` while `packs/kit/` exists. To update, remove the directory and its lock entry, then add the pack again at the new commit.
 
 ## Read rig.lock.json
 
@@ -80,7 +83,7 @@ Each config root has one `rig.lock.json`. This is the checkout's file on main:
 }
 ```
 
-A pack entry records the repo, the full commit, the root, the paths, the excludes, the license, the tree hash, the port record and the candidate. `rig pack add` writes the root as `.`, no excludes, and no port record or candidate yet. The tree hash is sha256 over the sorted lines `<path>\0<mode>\0<sha256 of bytes>`. A vendored pack leaves `pack.json` out of its hash. The core seal includes it. When the files on disk differ from the lock, `pin` blocks with `tree ... differs from locked ...`. rig has no update command and no auto-update. A new version is a new `pack add` that you run. rig writes the file in canonical JSON and refuses a hand-formatted one with `E_JSON_ROUNDTRIP`. A `rig.lock.json` with `"schema": 1` is a v0 lock. `rig plan` and the commands that read the lock refuse it with `E_SCHEMA`. The design record is [decision 0003](../decisions/0003-copies-and-lockfile.md).
+A pack entry records the repo, the full commit, the root, the paths, the excludes, the license, the tree hash, the port record and the candidate. `rig pack add` writes the root, the paths and the excludes normalized (`skills/kit/` is locked as `skills/kit`), with the paths and the excludes deduplicated and sorted, and no port record or candidate yet. When a file in a pack sits at or under a locked exclude, `pin` blocks with `under the locked exclude ...`. The tree hash is sha256 over the sorted lines `<path>\0<mode>\0<sha256 of bytes>`. A vendored pack leaves `pack.json` out of its hash. The core seal includes it. When the files on disk differ from the lock, `pin` blocks with `tree ... differs from locked ...`. rig has no update command and no auto-update. A new version is a new `pack add` that you run. rig writes the file in canonical JSON and refuses a hand-formatted one with `E_JSON_ROUNDTRIP`. A `rig.lock.json` with `"schema": 1` is a v0 lock. `rig plan` and the commands that read the lock refuse it with `E_SCHEMA`. The design record is [decision 0003](../decisions/0003-copies-and-lockfile.md).
 
 If you change core on purpose, seal it again with no network. This output comes from the test "bootstrap: pin check core, then pin set core, seals an unsealed root and doctor exits 0":
 

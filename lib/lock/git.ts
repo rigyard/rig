@@ -38,19 +38,18 @@ export function git(args: string[], opts: {cwd?: string, input?: Uint8Array} = {
 /**
  * Fetch one commit into an empty repo at `dir`. Tries a depth-1 fetch by SHA, then falls back to fetching every
  * branch and tag. Returns the full commit id.
- * @param sha  7 to 40 hex chars
  */
 export async function fetchCommit(dir: string, repo: string, sha: string) {
   if (typeof repo !== "string" || repo === "" || repo.startsWith("-") || /[\s\0]/.test(repo)) {
     throw new LockError("E_USAGE", `bad repo location: ${JSON.stringify(repo)}`);
   }
-  if (typeof sha !== "string" || !/^[0-9a-f]{7,40}$/i.test(sha)) throw new LockError("E_USAGE", `bad sha: ${JSON.stringify(sha)}`);
+  if (typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) throw new LockError("E_USAGE", `bad sha: ${JSON.stringify(sha)}`);
   await git(["init", "-q", "--template=", dir]);
   let ref = "FETCH_HEAD";
   try {
     await git(["fetch", "-q", "--depth", "1", "--no-tags", "--", repo, sha], { cwd: dir });
   } catch {
-    ref = sha.toLowerCase();
+    ref = sha;
     try {
       await git(["fetch", "-q", "--no-tags", "--", repo, "+refs/heads/*:refs/rig/heads/*", "+refs/tags/*:refs/rig/tags/*"], { cwd: dir });
     } catch (e) {
@@ -63,19 +62,22 @@ export async function fetchCommit(dir: string, repo: string, sha: string) {
   } catch {
     throw new LockError("E_FETCH", `commit ${sha} not found in ${repo}`);
   }
-  if (!full.startsWith(sha.toLowerCase())) throw new LockError("E_FETCH", `fetched commit ${full} does not match ${sha}`);
+  if (full !== sha) throw new LockError("E_FETCH", `fetched commit ${full} does not match ${sha}`);
   return full;
 }
 
+/** One entry of a commit's tree. size is the blob byte count, 0 for a submodule. */
+export type TreeEntry = {mode: string, type: string, oid: string, size: number, path: string};
+
 /** Every entry of the commit's tree. */
-export async function listTree(dir, commit): Promise<{mode: string, type: string, oid: string, path: string}[]> {
-  const out = (await git(["ls-tree", "-r", "-z", "--full-tree", commit], { cwd: dir })).toString("utf8");
+export async function listTree(dir, commit): Promise<TreeEntry[]> {
+  const out = (await git(["ls-tree", "-r", "-l", "-z", "--full-tree", commit], { cwd: dir })).toString("utf8");
   const entries = [];
   for (const rec of out.split("\0")) {
     if (!rec) continue;
     const tab = rec.indexOf("\t");
-    const [mode, type, oid] = rec.slice(0, tab).split(" ");
-    entries.push({ mode, type, oid, path: rec.slice(tab + 1) });
+    const [mode, type, oid, size] = rec.slice(0, tab).split(/ +/);
+    entries.push({ mode, type, oid, size: size === "-" ? 0 : Number(size), path: rec.slice(tab + 1) });
   }
   return entries;
 }

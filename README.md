@@ -50,7 +50,7 @@ rig has seven commands. Every command takes `--help`.
 | `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, the scope packs of the project. |
 | `rig stats [--since <dur>] [--harness <h>] [--suggest]` | Token and session metrics read from harness transcripts. `--suggest` adds a proposed diff that you apply yourself. |
 | `rig models` and `rig models set <tier> <model> --harness <h>` | Shows the model table per harness, or swaps the model of one tier and re-renders only the model cells, through the same gate and transaction as `rig apply`. |
-| `rig pack add <repo> --sha <sha> --path <path>` | Vendors a pack at one commit, gates it, and prints the ack stanzas the gate needs. |
+| `rig pack add <repo> --sha <sha> [--root <dir>] --path <path> [--exclude <path>] [--name <name>]` | Vendors one folder of a repo at a full 40-hex commit, minus the excludes, gates it, and prints the ack stanzas the gate needs. |
 | `rig pin check core` and `rig pin set core` | Gates the core tree and records its tree hash as a candidate, then promotes the candidate to the core seal in the lock. |
 
 Exit codes: `0` done, `1` blocked or failed, `2` usage or config error.

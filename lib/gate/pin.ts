@@ -1,4 +1,4 @@
-// pin: lock tree and core seal against the bytes in hand. Never ackable.
+// pin: lock tree, locked excludes and core seal against the bytes in hand. Never ackable.
 import { treeHash } from "../tree.ts";
 
 const lockOf = (world, root) => (root === "overlay" ? world.locks?.overlay : world.locks?.repo);
@@ -16,6 +16,13 @@ function packFindings(world) {
         idBytes: "no lock entry",
       });
       continue;
+    }
+    const excludes: string[] = entry.exclude.map((x: string) => x.replace(/\/+$/, ""));
+    for (const path of pack.files.keys() as Iterable<string>) {
+      const x = path === "pack.json" ? undefined : excludes.find((x) => path === x || path.startsWith(x + "/"));
+      if (x !== undefined) {
+        out.push({ severity: "block", pack: pack.name, path, evidence: `under the locked exclude ${x}`, idBytes: `exclude\0${x}` });
+      }
     }
     const actual = treeHash(pack.files);
     if (actual !== entry.tree) {

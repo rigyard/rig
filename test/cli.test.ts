@@ -32,6 +32,7 @@ const VALID = {
   "models set": ["models", "set", "strong", "m", "--harness", "omp"],
   "pack add": ["pack", "add", "file:///r", "--sha", "abc", "--path", "a", "--path", "b"],
   "pack add --into": ["pack", "add", "file:///r", "--sha", "abc", "--path", "a", "--into", "overlay"],
+  "pack add --root --exclude --name": ["pack", "add", "file:///r", "--sha", "abc", "--root", "r", "--path", ".", "--exclude", "x", "--exclude", "y", "--name", "n"],
   "pin check": ["pin", "check", "core"],
   "pin check --sha": ["pin", "check", "x", "--sha", "abc"],
   "pin set": ["pin", "set", "x"],

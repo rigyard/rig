@@ -260,10 +260,11 @@ describe("rig pack add", () => {
       LICENSE: MIT_TEXT,
       "skills/kit/SKILL.md": "---\nname: kit\ndescription: Kit.\n---\nUse the kit.\n",
       "skills/kit/scripts/run.sh": { content: "#!/bin/sh\necho kit\n", mode: 0o755 },
+      "skills/kit/docs/notes.md": "twelve bytes",
     }]);
-    const r = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--path", "skills/kit"], { env: stubs.env });
+    const r = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "skills/kit", "--path", ".", "--exclude", "docs"], { env: stubs.env });
     assert.equal(r.code, 1, r.stdout + r.stderr);
-    assert.match(r.stdout, /^vendored kit into packs\/kit\/ of the repo root, tree sha256:[0-9a-f]{64}$/m);
+    assert.match(r.stdout, /^vendored kit into packs\/kit\/ of the repo root, tree sha256:[0-9a-f]{64}\nkept 2 files, excluded 12 bytes$/m);
     assert.match(r.stdout, /^block exec kit\/scripts\/run\.sh: /m);
     assert.match(r.stdout, /^ {2}ack: \{"id":"[0-9a-f]{16}","check":"exec","pack":"kit","path":"scripts\/run\.sh","reason":"","expires":""\}$/m);
     assert.doesNotMatch(r.stdout, /^block pin /m, "the lock entry matches the files");
@@ -271,12 +272,49 @@ describe("rig pack add", () => {
     assert.ok(stubs.log().some((c) => c.name === "git"), "lock reached git through PATH");
     assert.ok(stubs.log().every((c) => !c.argv.some((x) => /^(https?|ssh|git):/.test(x))), "no network URL");
 
+    const lockBytes = readFileSync(join(s.root, "rig.lock.json"));
+    const again = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "skills/kit", "--path", ".", "--exclude", "docs"]);
+    assert.match(again.stdout, /^kit is already vendored at sha256:[0-9a-f]{64}\nkept 2 files$/m);
+    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), lockBytes, "the re-run writes no lock byte");
+
     // The lock it wrote loads, and its tree equals the files on disk once the pack is listed.
     const rigJson = JSON.parse(readFileSync(join(s.root, "rig.json"), "utf8"));
     writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...rigJson, packs: { kit: {} } }, null, 2)}\n`);
     const d = s.rig(["doctor"]);
     assert.equal(d.code, 0, d.stdout + d.stderr);
     assert.doesNotMatch(d.stdout, /^error/m);
+  });
+
+  test("a pack root with its script folder excluded vendors with 0 blocks under the name of the root", (t) => {
+    const s = setup();
+    const base = scratch();
+    t.after(() => {
+      s.fx.cleanup();
+      rmScratch(base);
+    });
+    const repo = makeRepo(base, [{
+      "pstack/LICENSE": MIT_TEXT,
+      "pstack/skills/how/SKILL.md": "---\nname: how\ndescription: How.\n---\nExplain how.\n",
+      "pstack/skills/statechart/SKILL.md": "---\nname: statechart\ndescription: S.\n---\nRun it.\n",
+      "pstack/skills/statechart/scripts/run.sh": { content: "#!/bin/sh\necho statechart\n", mode: 0o755 },
+      "other/SKILL.md": "not under the root\n",
+    }]);
+    const r = s.rig(["pack", "add", repo.url, "--sha", repo.shas[0], "--root", "pstack", "--path", ".", "--exclude", "skills/statechart"]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^vendored pstack into packs\/pstack\/ /m);
+    assert.match(r.stdout, /^kept 2 files, excluded \d+ bytes$/m);
+    assert.match(r.stdout, /^0 findings, 0 blocks$/m);
+    assert.deepEqual(filesUnder(join(s.root, "packs/pstack")).map((f: {path: string}) => f.path).sort(), ["LICENSE", "pack.json", "skills/how/SKILL.md"]);
+  });
+
+  test("a short sha exits 2 with E_USAGE before any fetch", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    const before = readFileSync(join(s.root, "rig.lock.json"));
+    const r = s.rig(["pack", "add", "file:///nowhere", "--sha", "2776ddd", "--path", "x"]);
+    assert.equal(r.code, 2, r.stdout + r.stderr);
+    assert.equal(r.stderr, 'rig pack: E_USAGE --sha must be the full 40-hex commit, got "2776ddd"\n');
+    assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
   });
 });
 
