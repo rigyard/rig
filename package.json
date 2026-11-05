@@ -5,12 +5,17 @@
   "description": "Version-pinned agent-skill stack and seeder for coding-agent harnesses",
   "type": "module",
   "bin": {
-    "rig": "bin/rig.mjs"
+    "rig": "bin/rig.ts"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "node scripts/tsc-ratchet.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3"
   }
 }

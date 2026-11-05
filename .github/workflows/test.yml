@@ -16,10 +16,29 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node: [22, 24]
+        # Each version strips TypeScript types by default: 22.18.0 is the first 22.x that does (engines floor).
+        node: ["22.18.0", 22, 24, 26]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test
+      - name: type stripping is on by default
+        run: |
+          printf 'const n: number = 1;\nconsole.log(`type stripping on in ${process.version}:`, n);\n' > "$RUNNER_TEMP/strip.ts"
+          node "$RUNNER_TEMP/strip.ts"
+      # npm test: the package.json test script (node --test, with an explicit .ts glob after the migration). No install.
+      - run: npm test
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts
+      - run: npx --no-install tsc --version
+      # Strict tsc against tsc-baseline.json: more errors than the baseline fails; equal or fewer passes.
+      - run: npm run typecheck

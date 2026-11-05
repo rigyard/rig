@@ -11,9 +11,9 @@ that throw `not implemented`.
 
 ## Tests
 
-Node 22 or later. From the repo root:
+Node 22.18.0 or later: it runs the `.ts` files directly, with no build step. From the repo root:
 
-    node --test
+    npm test
 
 Tests that call real harness CLIs are opt-in: set `RIG_LIVE=1`.
 

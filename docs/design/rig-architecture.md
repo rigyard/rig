@@ -71,13 +71,13 @@ Exit codes:
 
 Logging: `plan` and `doctor` write nothing, so they write no log either. Only `apply`, `stats`, `pack`, `pin` and `models set` append to `log/rig.log` in the state root.
 
-No skip flag exists. The parser is strict and derives from the one command table in `bin/rig.mjs`, so no parse path accepts a flag that the table does not list. Help text and dispatch derive from the same table.
+No skip flag exists. The parser is strict and derives from the one command table in `bin/rig.ts`, so no parse path accepts a flag that the table does not list. Help text and dispatch derive from the same table.
 
 Error codes:
 
 | Code | Raised by | Meaning |
 |---|---|---|
-| `E_USAGE` | `bin/rig.mjs` | Unknown command or flag, missing required flag. Exit 2. |
+| `E_USAGE` | `bin/rig.ts` | Unknown command or flag, missing required flag. Exit 2. |
 | `E_SCHEMA` | `world` | Unknown key, wrong type, missing `schema` field, bad enum value, empty ack reason, missing ack expiry. A parse error, exit 2. |
 | `E_SCOPE_MODE` | `world` | `rig.json` picks a scope that `pack.json` does not list. A parse error, exit 2. |
 | `E_STATE_ROOT` | `world` | The state root or the data root does not resolve inside `$HOME`. Exit 2. |
@@ -119,8 +119,8 @@ A run with nothing to do prints `0 changes, 0 blocks` and exits 0.
 Goal: vendor a skill pack from a public repo and install it hidden on Claude Code and Cursor.
 
 1. `rig pack add https://github.com/acme/agent-skills --sha 1a2b3c4 --path skills/review-kit`
-   - `lib/lock.mjs` clones into a temp dir, copies `skills/review-kit` into `packs/review-kit/`, hashes the tree, writes the lock entry and `packs/review-kit/pack.json` with the detected license and `"scopes": ["machine-hidden"]`.
-   - `lib/gate.mjs` runs every check on the new pack. The OSV cache refreshes here, because this command may use the network.
+   - `lib/lock.ts` clones into a temp dir, copies `skills/review-kit` into `packs/review-kit/`, hashes the tree, writes the lock entry and `packs/review-kit/pack.json` with the detected license and `"scopes": ["machine-hidden"]`.
+   - `lib/gate.ts` runs every check on the new pack. The OSV cache refreshes here, because this command may use the network.
    - Output: `block exec review-kit/scripts/fmt.sh: shebang` plus an ack stanza. Exit 1.
 2. You read `scripts/fmt.sh`. You paste the stanza into `audit.allow.json` with a reason and an expiry. rig never writes that file.
 3. You add the pack to `rig.json`: `"review-kit": {"harnesses": ["claude", "cursor"]}`. No `scope` key means `machine-hidden`.
@@ -135,10 +135,10 @@ Goal: a vendor releases a model. You move the `strong` tier on omp to it.
 
 1. `rig models` prints the table. The `strong` row on omp shows `<provider>/<model-a>`, source `tiers.json`. The Claude row shows `opus`, source `tiers.json (alias)`.
 2. `rig models set strong <provider>/<model-b> --harness omp`
-   - `lib/models.mjs` builds a new tiers object in memory.
-   - `bin/rig.mjs` runs the pipeline on that in-memory world, restricted to model-bearing ops.
+   - `lib/models.ts` builds a new tiers object in memory.
+   - `bin/rig.ts` runs the pipeline on that in-memory world, restricted to model-bearing ops.
    - If anything blocks, rig writes nothing and exits 1.
-   - Otherwise `models.mjs` writes `models/tiers.json`, and `state.apply` patches the cells: one line in `~/.omp/agent/config.yml` (kind `keys`, the `modelRoles` key mapped to `strong`). Surfaces of other harnesses do not change.
+   - Otherwise `models.ts` writes `models/tiers.json`, and `state.apply` patches the cells: one line in `~/.omp/agent/config.yml` (kind `keys`, the `modelRoles` key mapped to `strong`). Surfaces of other harnesses do not change.
    - Output: the diff of each changed cell, `1 change, 0 blocks`.
 3. You commit `models/tiers.json`.
 
@@ -497,7 +497,7 @@ Entry forms: `[tier, effort]`, a panel `[[tier, effort], ...]`, `{"literal": "<v
 
 ### 2.8 rig.lock.json
 
-One per config root. `lib/lock.mjs` writes it.
+One per config root. `lib/lock.ts` writes it.
 
 ```jsonc
 {
@@ -535,7 +535,7 @@ One per config root. Only the user writes it.
 
 ### 2.10 installed.json
 
-In the state root. `lib/state.mjs` writes it at the end of each apply.
+In the state root. `lib/state.ts` writes it at the end of each apply.
 
 ```jsonc
 {
@@ -581,7 +581,7 @@ A journal ends with `commit`, `abort` (the run stopped on `E_CHANGED_UNDER`), or
 
 ### 2.12 metrics.jsonl
 
-In the state root. `lib/metrics.mjs` appends it.
+In the state root. `lib/metrics.ts` appends it.
 
 ```jsonc
 {"schema": 1, "harness": "claude", "session_id": "<id>", "project": "sha256:3c9a...", "source": "record",
@@ -635,7 +635,7 @@ The sketch is the contract between modules. Bodies throw. `// TODO` blocks give 
 ### Config and world
 
 ```js
-// lib/world.mjs — public: loadWorld, projectDeclaration, encode
+// lib/world.ts — public: loadWorld, projectDeclaration, encode
 
 /** @typedef {"low"|"medium"|"high"|"xhigh"|"max"} Effort */
 /** @typedef {"reason"|"strong"|"fast"|"cheap"} Tier */
@@ -791,7 +791,7 @@ export function encode(kind, value) { throw new Error("not implemented"); }
 ### Stack and render
 
 ```js
-// lib/stack.mjs — public: compose
+// lib/stack.ts — public: compose
 
 /**
  * @typedef {object} Unit
@@ -812,8 +812,8 @@ export function compose(world) { throw new Error("not implemented"); }
 ```
 
 ```js
-// lib/targets.mjs — public: render, readSet, patch
-// internals: lib/targets/place.mjs, cells.mjs, formats.mjs, terms.mjs (unreachable from outside, see boundary test)
+// lib/targets.ts — public: render, readSet, patch
+// internals: lib/targets/place.ts, cells.ts, formats.ts, terms.ts (unreachable from outside, see boundary test)
 
 /**
  * What rig wants on disk, per absolute path. A `whole` surface renders as "owned"; with keep_header set,
@@ -871,7 +871,7 @@ export function patch(bytes, entry) {
 ```
 
 ```js
-// lib/targets/place.mjs — internal to targets
+// lib/targets/place.ts — internal to targets
 
 /**
  * @typedef {object} PlacementUnit
@@ -909,7 +909,7 @@ Different owner formats can render different bytes (a Codex copy may carry an `o
 ### Models
 
 ```js
-// lib/models.mjs — public: cellValues, setTier, effective
+// lib/models.ts — public: cellValues, setTier, effective
 
 /** Cell values for one surface: roles x tiers -> per-harness tokens, with ladders, clamping, aliases and pins. Pure.
  *  @param {World} world @param {ModelSurface} surface @param {string} harness @returns {CellValue[]} */
@@ -928,7 +928,7 @@ export function effective(world) { throw new Error("not implemented"); }
 ### Gate
 
 ```js
-// lib/gate.mjs — public: gate, refreshOsv
+// lib/gate.ts — public: gate, refreshOsv
 
 /** @typedef {"pin"|"exec"|"secret"|"unicode"|"license"|"cve"|"telemetry"|"budget"} CheckId */
 /** @typedef {{check: CheckId, severity: "block"|"warn"|"info", pack: string, path: string, evidence: string, id: string, acked: boolean, stanza: string | null}} Finding */
@@ -937,7 +937,7 @@ export function effective(world) { throw new Error("not implemented"); }
  *  @param {Stack} stack @param {Desired} desired @param {World} world @returns {{findings: Finding[], blocked: boolean}} */
 export function gate(stack, desired, world) { throw new Error("not implemented"); }
 
-/** Refresh cache/osv for the manifests in the stack. Called only by lib/lock.mjs, which passes its fetch.
+/** Refresh cache/osv for the manifests in the stack. Called only by lib/lock.ts, which passes its fetch.
  *  @param {Stack} stack @param {(url: string, body: string) => Promise<string>} fetchFn @returns {Promise<void>} */
 export async function refreshOsv(stack, fetchFn) { throw new Error("not implemented"); }
 ```
@@ -945,8 +945,8 @@ export async function refreshOsv(stack, fetchFn) { throw new Error("not implemen
 ### State: plan, apply, undo
 
 ```js
-// lib/state.mjs — public: plan, apply, undo
-// internals: lib/state/observe.mjs, journal.mjs, recover.mjs
+// lib/state.ts — public: plan, apply, undo
+// internals: lib/state/observe.ts, journal.ts, recover.ts
 
 /** @typedef {"create"|"update"|"patch-cells"|"adopt"|"insert-markers"|"remove-to-backup"|"forget"|"block"} OpName */
 /**
@@ -1011,7 +1011,7 @@ export function plan(desired, gated, world, opts) {
 export function apply(planned, world) {
   // TODO
   //  0. take apply.lock (O_EXCL, holds pid and run id); held by a live pid -> E_LOCKED
-  //  1. recover(): every journal without commit/abort/recovered (see recover.mjs below)
+  //  1. recover(): every journal without commit/abort/recovered (see recover.ts below)
   //  2. if recovery changed installed.json, the given plan is stale: return {replan: true} and bin calls prepare() again
   //  3. planned.blocked -> return; nothing written, no journal created
   //  4. open journal/<run>.jsonl, write the run line, fsync
@@ -1034,7 +1034,7 @@ export function undo(runId, world) { throw new Error("not implemented"); }
 ```
 
 ```js
-// lib/state/recover.mjs — internal to state
+// lib/state/recover.ts — internal to state
 
 /** @param {World} world @param {string} runId @returns {{done: number, notDone: number, conflicts: RigError[]}} */
 export function recover(world, runId) {
@@ -1055,7 +1055,7 @@ export function recover(world, runId) {
 ### Lock, metrics, fs
 
 ```js
-// lib/lock.mjs — public: vendor, pinCheck, pinSet. The only module that spawns (git) or calls fetch.
+// lib/lock.ts — public: vendor, pinCheck, pinSet. The only module that spawns (git) or calls fetch.
 
 /** @param {World} world @param {{repo: string, sha: string, paths: string[], into: "repo"|"overlay"}} args
  *  @returns {Promise<{pack: string, findings: Finding[], blocked: boolean}>} */
@@ -1070,8 +1070,8 @@ export function pinSet(world, name) { throw new Error("not implemented"); }
 ```
 
 ```js
-// lib/metrics.mjs — public: stats, recordSession. Both call the internal record().
-// internals: lib/metrics/readers/{claude-jsonl,codex-rollout,omp-jsonl,cursor-agent-jsonl}.mjs, record.mjs, propose.mjs
+// lib/metrics.ts — public: stats, recordSession. Both call the internal record().
+// internals: lib/metrics/readers/{claude-jsonl,codex-rollout,omp-jsonl,cursor-agent-jsonl}.ts, record.ts, propose.ts
 
 /** // schema: metrics.jsonl
  * @typedef {object} MetricsLine
@@ -1096,10 +1096,10 @@ export function recordSession(world, input) { throw new Error("not implemented")
 ```
 
 ```js
-// lib/fs.mjs — contained primitives. Each export has an import allowlist (boundary test).
+// lib/fs.ts — contained primitives. Each export has an import allowlist (boundary test).
 
 /** Atomic write into HOME: realpath containment, no symlinked parent, no symlink target, temp + fsync + rename, mode kept.
- *  Allowed importer: lib/state.mjs (and lib/state/*). */
+ *  Allowed importer: lib/state.ts (and lib/state/*). */
 export function writeHome(path, bytes, mode) { throw new Error("not implemented"); }
 /** Atomic write or O_APPEND under the state root. Refuses a path inside any read-set (section 2, Roots).
  *  Allowed importers: state, metrics, gate. */
@@ -1114,7 +1114,7 @@ export function log(event) { throw new Error("not implemented"); }
 ### CLI
 
 ```js
-// bin/rig.mjs — the command table. Parser, help and dispatch derive from it. No policy here.
+// bin/rig.ts — the command table. Parser, help and dispatch derive from it. No policy here.
 
 /** @typedef {{name: string, sub?: string, args?: string[], flags: Record<string, {value: boolean, required?: boolean, repeat?: boolean}>,
  *             run: (a: object, env: NodeJS.ProcessEnv) => Promise<0|1>, help: string}} Command */
@@ -1147,33 +1147,33 @@ Each module owns one body of knowledge and exports one to three functions. Files
 
 | Module | Owns the knowledge of | Exports | Files it writes (W) or parses (R) |
 |---|---|---|---|
-| `bin/rig.mjs` | the command table, strict parsing, dispatch, exit codes | none (entry point) | none |
-| `lib/world.mjs` | every config schema (closed keys, `schema` field), both roots, overlay merge (adds only, core references rejected), canonical JSON, facts pre-read, project declarations | `loadWorld`, `projectDeclaration`, `encode` | R: `rig.json`, `packs/<name>/**`, `packs/core/**`, `targets/<h>.json`, `providers/<p>.json`, `models/roles.json`, `models/tiers.json`, `rig.lock.json`, `audit.allow.json`, `facts` files, `text_from` files of model surfaces, `settings.local.json` and instruction files of `--project <dir>` |
-| `lib/stack.mjs` | core seal, packs, units, scope, the four customization operations, slots, clash rules | `compose` | none |
-| `lib/targets.mjs` | harness formats, vocabulary, read-sets and `place()`, model surfaces and their render kinds, effort syntax, managed blocks, JSON elements | `render`, `readSet`, `patch` | R: skill dirs in `reads` (for `readSet`) |
-| `lib/models.mjs` | roles x tiers, ladders, clamping, passthrough, aliases versus pinned ids | `cellValues`, `setTier`, `effective` | W: `models/tiers.json` |
-| `lib/gate.mjs` | the check registry, ack ids, OSV cache format | `gate`, `refreshOsv` | W: `cache/osv/<ecosystem>.json` |
-| `lib/state.mjs` | observe, plan, the journaled transaction, undo, recovery, the installed record | `plan`, `apply`, `undo` | W: `installed.json`, `journal/<run-id>.jsonl`, `backups/<run-id>/**`, `apply.lock`, `marketplace/**`, harness files in `Desired` |
-| `lib/lock.mjs` | the lock per root, vendoring, pin check and set, tree hashing, network | `vendor`, `pinCheck`, `pinSet` | W: `rig.lock.json`, `packs/<name>/**` (vendored) |
-| `lib/metrics.mjs` | transcript readers per format, dedupe, content-free aggregates, the store, proposals | `stats`, `recordSession` | W: `metrics.jsonl`, `proposals/<date>.patch`. R: transcripts |
-| `lib/fs.mjs` | containment, atomic write, mode preservation, the logger | `writeHome`, `writeState`, `appendState`, `writeConfig`, `log` | W: `log/rig.log` |
+| `bin/rig.ts` | the command table, strict parsing, dispatch, exit codes | none (entry point) | none |
+| `lib/world.ts` | every config schema (closed keys, `schema` field), both roots, overlay merge (adds only, core references rejected), canonical JSON, facts pre-read, project declarations | `loadWorld`, `projectDeclaration`, `encode` | R: `rig.json`, `packs/<name>/**`, `packs/core/**`, `targets/<h>.json`, `providers/<p>.json`, `models/roles.json`, `models/tiers.json`, `rig.lock.json`, `audit.allow.json`, `facts` files, `text_from` files of model surfaces, `settings.local.json` and instruction files of `--project <dir>` |
+| `lib/stack.ts` | core seal, packs, units, scope, the four customization operations, slots, clash rules | `compose` | none |
+| `lib/targets.ts` | harness formats, vocabulary, read-sets and `place()`, model surfaces and their render kinds, effort syntax, managed blocks, JSON elements | `render`, `readSet`, `patch` | R: skill dirs in `reads` (for `readSet`) |
+| `lib/models.ts` | roles x tiers, ladders, clamping, passthrough, aliases versus pinned ids | `cellValues`, `setTier`, `effective` | W: `models/tiers.json` |
+| `lib/gate.ts` | the check registry, ack ids, OSV cache format | `gate`, `refreshOsv` | W: `cache/osv/<ecosystem>.json` |
+| `lib/state.ts` | observe, plan, the journaled transaction, undo, recovery, the installed record | `plan`, `apply`, `undo` | W: `installed.json`, `journal/<run-id>.jsonl`, `backups/<run-id>/**`, `apply.lock`, `marketplace/**`, harness files in `Desired` |
+| `lib/lock.ts` | the lock per root, vendoring, pin check and set, tree hashing, network | `vendor`, `pinCheck`, `pinSet` | W: `rig.lock.json`, `packs/<name>/**` (vendored) |
+| `lib/metrics.ts` | transcript readers per format, dedupe, content-free aggregates, the store, proposals | `stats`, `recordSession` | W: `metrics.jsonl`, `proposals/<date>.patch`. R: transcripts |
+| `lib/fs.ts` | containment, atomic write, mode preservation, the logger | `writeHome`, `writeState`, `appendState`, `writeConfig`, `log` | W: `log/rig.log` |
 
-`doctor` is a command, not a module. It calls `prepare()` (drift, adopt state, pin findings), `targets.readSet` (duplicates), `models.effective` (env overrides), and `world.projectDeclaration` (with `--project`). `fs.mjs` has five exports because it is the primitive layer. The boundary test fixes who may import each one.
+`doctor` is a command, not a module. It calls `prepare()` (drift, adopt state, pin findings), `targets.readSet` (duplicates), `models.effective` (env overrides), and `world.projectDeclaration` (with `--project`). `fs.ts` has five exports because it is the primitive layer. The boundary test fixes who may import each one.
 
 ### Boundary test
 
-`test/boundaries.test.mjs` parses every file under `bin/` and `lib/` and fails on any row below.
+`test/boundaries.test.ts` parses every file under `bin/` and `lib/` and fails on any row below.
 
 | Rule | Fails when |
 |---|---|
-| Internals | a file outside `lib/<m>/` and outside `lib/<m>.mjs` imports `lib/<m>/*` (tests under `test/unit/<m>/` are exempt) |
-| HOME writes | any module other than `lib/state.mjs` and `lib/state/*` imports `writeHome` |
-| Config writes | any module other than `lib/lock.mjs` and `lib/models.mjs` imports `writeConfig` |
+| Internals | a file outside `lib/<m>/` and outside `lib/<m>.ts` imports `lib/<m>/*` (tests under `test/unit/<m>/` are exempt) |
+| HOME writes | any module other than `lib/state.ts` and `lib/state/*` imports `writeHome` |
+| Config writes | any module other than `lib/lock.ts` and `lib/models.ts` imports `writeConfig` |
 | State writes | any module other than `state`, `metrics`, `gate` imports `writeState` or `appendState` |
-| Raw fs writes | any module other than `lib/fs.mjs` imports a write function of `node:fs` (`writeFile*`, `rename*`, `unlink*`, `rm*`, `open` with a write flag, `appendFile*`, `chmod*`) |
-| Network and spawn | any module other than `lib/lock.mjs` imports `node:child_process`, `node:net`, `node:http(s)`, or references `fetch` |
+| Raw fs writes | any module other than `lib/fs.ts` imports a write function of `node:fs` (`writeFile*`, `rename*`, `unlink*`, `rm*`, `open` with a write flag, `appendFile*`, `chmod*`) |
+| Network and spawn | any module other than `lib/lock.ts` imports `node:child_process`, `node:net`, `node:http(s)`, or references `fetch` |
 | Code plugins | any dynamic `import()`, or any spawn argument built from a pack path |
-| Test hooks | any module other than `lib/state.mjs` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER` |
+| Test hooks | any module other than `lib/state.ts` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER` |
 | Logger | the `plan` and `doctor` code paths reach `log` (checked by a call-graph walk from `planCmd` and `doctorCmd`) |
 | Hand-synced lists | the check table in section 10 of this file differs from the gate registry, or the CLI README command list differs from `COMMANDS` |
 
@@ -1334,7 +1334,7 @@ The harness can still write between the before-sha re-check and the rename. That
 
 ## 10. Gate
 
-One registry table in `lib/gate.mjs`. `plan` output and this table derive from it. A test fails when they differ.
+One registry table in `lib/gate.ts`. `plan` output and this table derive from it. A test fails when they differ.
 
 | Check | Runs on | Finds | Severity | Ackable |
 |---|---|---|---|---|
@@ -1427,7 +1427,7 @@ Each row is a real delta against Draft v4. Rows marked "decision update" also di
 | 7 | The session hook goes into Claude Code `SessionEnd` and the omp, Codex and Cursor equivalents where they exist (assumption A34). It runs `rig stats --record --session <id>`. | Claude Code only in v0. Codex, omp and Cursor hold `hooks.session_end: null` until a probe shows a session-end event. The hook runs `rig stats --record` and reads the session id from stdin. `--session <id>` is for a run by hand. Decision update: 0020. | Codex `Stop` and Cursor `stop` fire once per turn, which breaks the zero per-turn injection budget. A fixed command string identifies rig's element in the JSON merge. |
 | 8 | A `packs` list plus a separate `scope` map. | One object per pack in `packs`, with its scope, projects, harnesses and channel. | One list instead of two, so a pack and its scope cannot disagree. |
 | 9 | Ten gate rows, with `injection` and `private_terms` as checks of their own. | Eight checks. Injection phrases warn inside `unicode`. `private_terms` is a sub-rule of `secret`. Decision update: 0002. | The gate has exactly eight checks. |
-| 10 | The `budget` hook meter runs each SessionStart, UserPromptSubmit and PreToolUse hook. | rig runs no hook. Hook output bytes come from transcripts in `rig stats`. Decision update: 0012. | Running a foreign hook spawns code outside `lib/lock.mjs`, which the boundary test forbids. |
+| 10 | The `budget` hook meter runs each SessionStart, UserPromptSubmit and PreToolUse hook. | rig runs no hook. Hook output bytes come from transcripts in `rig stats`. Decision update: 0012. | Running a foreign hook spawns code outside `lib/lock.ts`, which the boundary test forbids. |
 | 11 | The provider comes from an overlay `projects` entry first, which the frame renders, then the `rig-project:` line, then the default. | Only the `rig-project:` line, or its uncommitted twin, selects. The overlay `projects` map is a `doctor --project` check. The frame lists no projects. Decision update: 0008. | One selector per project, which the model reads in the project itself. |
 | 12 | Core holds `rules/working.md`, `rules/writing.md` and a `router` stub. | Core holds the frame template, the principles index, the `doc-review` and `second-opinion` stubs, the entry templates, `terms.json` and the schemas. Decision update: 0005. | Core holds what rig's own contract needs. The rules files are user prose. The router filler renders frame lines and needs no stub. |
 | 13 | pstack reaches Codex through unpinned copies in `~/.agents/skills`, and omp through a third-party port. | pstack's `entry` is null on Codex and omp in v0. | The lock pins every byte that rig installs. |
@@ -1452,7 +1452,7 @@ See section 1: the CLI README and the three traced cases. Each case touches data
 - Four kinds of desired entry: `owned`, `cells`, `block`, `json-element`. The five render kinds of decision 0011 map onto them (section 8). The cell kind is what keeps foreign bytes intact. It also removes the paraphrase risk: rig never writes condition prose, so it cannot paraphrase it.
 - Modules by knowledge (per the temporal decomposition red flag): `targets` hides all harness policy behind `render`, `readSet` and `patch`. `place()`, the render kinds, dedupe and the vocabulary are internal. `models` hides ladders, clamping and pins behind `cellValues`. `state` hides observe, adopt, drift, the journal and recovery behind `plan`, `apply` and `undo`.
 - One plan, two consumers: `plan` prints it, `apply` executes it, `doctor` reads its drift and adopt lines. `models set` is the same plan with a filter.
-- Writes go through `fs.mjs` primitives with a per-function import allowlist. A test enforces the allowlist.
+- Writes go through `fs.ts` primitives with a per-function import allowlist. A test enforces the allowlist.
 - What it deliberately does not do: infer a provider or scope, run hooks, run pack code, write `enabledPlugins`, reserialize YAML or TOML, store a hash in a file, write into a repository.
 
 ### Synthesis decision
@@ -1504,7 +1504,7 @@ One candidate, by user decision: arena and interrogate skipped. Base: the orches
 - Do the rules files that core no longer holds belong in the `own` pack?
 - Slice 0 probes (a) to (k) set the target-record values marked "probe" above. The scripts, verdicts and fields are in [v0 slices](../plan/v0-slices.md).
 - Session-end hook scope. Draft v4 says the hook also goes into the omp, Codex and Cursor equivalents where they exist (assumption A34). This design limits v0 to Claude Code, because Codex `Stop` and Cursor `stop` fire per turn. Confirm the limit.
-- Claude local marketplace registration. Draft v4 says `apply` installs the plugin with `false` at user scope. That means rig writes `enabledPlugins` and the marketplace entry into the harness settings, or calls the `claude` CLI. The alternative: `apply` prints one command block, and the user runs it. Recommendation: print. rig then writes one element into harness settings, the opt-in hook, and no more. A CLI call would need a spawn outside `lib/lock.mjs`, which the boundary test forbids. The step happens once per marketplace and once per pack. Probe (k) runs the printed commands, so its verdict covers this path. The cost is one manual step per pack.
+- Claude local marketplace registration. Draft v4 says `apply` installs the plugin with `false` at user scope. That means rig writes `enabledPlugins` and the marketplace entry into the harness settings, or calls the `claude` CLI. The alternative: `apply` prints one command block, and the user runs it. Recommendation: print. rig then writes one element into harness settings, the opt-in hook, and no more. A CLI call would need a spawn outside `lib/lock.ts`, which the boundary test forbids. The step happens once per marketplace and once per pack. Probe (k) runs the printed commands, so its verdict covers this path. The cost is one manual step per pack.
 - Config parse errors. Decided here: a config parse error (`E_SCHEMA`, `E_SCOPE_MODE`) exits 2 (section 1). Confirm.
 - Logging. Decided here: `plan` and `doctor` write nothing, so they write no log. Only `apply`, `stats`, `pack`, `pin` and `models set` log (section 1). Confirm.
 - State root location. Decided here: the state root and the data root must resolve inside `$HOME`, else exit 2 with `E_STATE_ROOT` (section 1). Confirm.
@@ -1524,7 +1524,7 @@ Write the slice 0 probe scripts, starting with probe (b) (Cursor dedupe), becaus
 | Shallow module | `targets`, `models` and `state` hide placement, render kinds, ladders, adopt, drift and recovery behind two or three calls each. `fs` exposes five primitives but no policy. |
 | Information leakage | Render kind grammar lives only in `targets`. Model resolution lives only in `models`. Config schemas live only in `world` (`encode` serves the two config writers). Provider model rules live in provider records, not in target records. |
 | Temporal decomposition | The pipeline stages are calls inside modules owned by knowledge. Observe and plan sit in `state` with the installed record they read. |
-| Pass-through method | `bin/rig.mjs` `prepare()` sequences four calls and adds the filter. No exported function only forwards. |
+| Pass-through method | `bin/rig.ts` `prepare()` sequences four calls and adds the filter. No exported function only forwards. |
 | Split ownership | Each file has one writer (section 3). `metrics.jsonl` has one writer function, called by `stats` and the hook. |
 | Two ways to do one task | `models set` and a hand edit plus `apply` run one code path with the same writer. `audit` is gone because `plan` covers it. |
 | Importable internals | `lib/<m>/*` is unreachable from outside `<m>`. The boundary test fails the build. |

@@ -54,5 +54,6 @@ rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesse
 | [0022](decisions/0022-generic-telemetry-check.md) | Accepted | A generic telemetry check in the gate. |
 | [0023](decisions/0023-repository-identity.md) | Accepted | Repository commit identity and visibility. |
 | [0024](decisions/0024-measure-per-turn-context-hook-first.md) | Accepted | Measure a per-turn context hook first, decide on disabling it later on data. |
+| [0025](decisions/0025-typescript-native-type-stripping.md) | Accepted | TypeScript through Node native type stripping, a strict tsc ratchet in CI, no runtime dependencies. |
 
 "Accepted" means the user stated or agreed to the decision. "Proposed" means the design work recommends it and the user has not confirmed it.
