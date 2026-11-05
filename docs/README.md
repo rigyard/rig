@@ -1,6 +1,6 @@
 # rig docs
 
-rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesses. These docs record the research, the decisions and the current design from the 2026-11-04 design work. A fresh planning session can start from the design draft, the decision log and the assumptions record.
+rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesses. On 2026-11-05 the direction changed to v1. rig now ports pstack and compiles its own mode skill, `rig-mode`, from data. Start a planning session from the v1 concept, the first-seed design and the first-seed plan. The v0 documents, the research and the decision log below are history. A v1 document confirms or replaces each v0 decision.
 
 To use rig, read [the rig guide](guide/README.md) and [what rig writes per harness](harnesses.md). The pages below explain why rig works the way it does.
 
@@ -8,16 +8,19 @@ To use rig, read [the rig guide](guide/README.md) and [what rig writes per harne
 
 | File | Status | Content |
 |---|---|---|
-| [design/rig-design-draft.md](design/rig-design-draft.md) | Draft design (v4), kept as history | Composition and pack scope, core, providers, model table, router and step-slots, product pack, safe seeding and checks, frame, observability and self-feedback, commands and six v0 slices, findings table. |
-| [design/rig-architecture.md](design/rig-architecture.md) | v0 architecture, mostly implemented | CLI usage and three traced cases, config and state schemas, file ownership, type sketch, module map and boundary test, pipeline, read-set placement, cells and adopt, journal and recovery, gate, scope, `/craft`, rationale, scored assumptions. |
+| [design/rig-v1-concept.md](design/rig-v1-concept.md) | v1 concept, current | Assumptions for review (Z1 to Z12, P1 to P6), the five nouns and four operations, domains and steps, artifacts, four layers, vendored versus ported content, why seeding is deterministic, roadmap, trade-off register. |
+| [design/rig-v1-first-seed.md](design/rig-v1-first-seed.md) | v1 design, current | Config repo layout after the first seed, the pack and lock data shape, the first end-to-end test, the maintainer flow on a new upstream commit, the type sketch and module map, the synthesis decision, prototype evidence. |
+| [design/rig-design-draft.md](design/rig-design-draft.md) | v0 draft design (v4), history | Composition and pack scope, core, providers, model table, router and step-slots, product pack, safe seeding and checks, frame, observability and self-feedback, commands and six v0 slices, findings table. |
+| [design/rig-architecture.md](design/rig-architecture.md) | v0 architecture, implemented. Pipeline, gate, journal and scope sections stay valid for v1 | CLI usage and three traced cases, config and state schemas, file ownership, type sketch, module map and boundary test, pipeline, read-set placement, cells and adopt, journal and recovery, gate, scope, `/craft`, rationale, scored assumptions. |
 | [assumptions-and-open-questions.md](assumptions-and-open-questions.md) | Living record | Verified facts, scored assumptions with probes, overall confidence, open questions for the user. |
 
 ## Plan
 
 | File | Status | Content |
 |---|---|---|
-| [plan/v0-slices.md](plan/v0-slices.md) | Plan, delivered through `v0-prs.md` | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
-| [plan/v0-prs.md](plan/v0-prs.md) | Program plan, in progress | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
+| [plan/v1-first-seed-prs.md](plan/v1-first-seed-prs.md) | Program plan, not started | Six PRs to the first seeded rig: `subtract`, `vendor`, `links`, `mode`, `port`, `seed`. Each PR has unit cases, live lanes on real harnesses and a `rig plan` wall-time budget. |
+| [plan/v0-slices.md](plan/v0-slices.md) | v0 plan, delivered | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
+| [plan/v0-prs.md](plan/v0-prs.md) | v0 program plan, delivered | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
 
 ## Research
 
@@ -29,6 +32,8 @@ To use rig, read [the rig guide](guide/README.md) and [what rig writes per harne
 | [research/2026-11-04-routing-and-context.md](research/2026-11-04-routing-and-context.md) | Research record | Router evidence, harness-native routing, context and caching, proposed budgets, scanner survey, observability sources. |
 
 ## Decision log
+
+The v1 concept supersedes 0007 to 0010 and 0016 (workflow providers, step-slots, the router slot, `/craft`), and changes 0013 (rig ports pstack instead of reusing an installed copy). The other records stand until a v1 document replaces them.
 
 | Record | Status | Decision |
 |---|---|---|
