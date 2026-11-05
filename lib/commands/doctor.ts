@@ -3,10 +3,12 @@
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { effective } from "../models.ts";
-import { readSet } from "../targets.ts";
+import { projectDelivery, readSet } from "../targets.ts";
 import { loadWorld, projectDeclaration } from "../world.ts";
 import { prepare, usage } from "./shared.ts";
 import type { ParsedArgs } from "../commands.ts";
+import type { RigError } from "../stack.ts";
+import type { Delivery } from "../targets.ts";
 
 export type Line = {level: "error"|"warn"|"info", topic: string, text: string};
 
@@ -50,6 +52,12 @@ function stateLines(planned) {
   for (const run of planned.interrupted) out.push({ level: "warn", topic: "drift", text: `run ${run} was interrupted; rig apply recovers it first` });
   out.push({ level: "info", topic: "drift", text: pending ? `${pending} changes pending; rig plan lists them` : "managed files match installed.json and the render" });
   return out;
+}
+
+/** Compose and render errors: each blocks rig plan, so each is an error here too. */
+function errorLines(composeErrors: RigError[], renderErrors: RigError[]): Line[] {
+  const line = (topic: string) => (e: RigError): Line => ({ level: "error", topic, text: `${e.harness ? `${e.harness} ` : ""}${e.code} ${e.message}` });
+  return [...composeErrors.map(line("compose")), ...renderErrors.map(line("render"))];
 }
 
 /** Pin facts (lock tree, core seal, installed plugins, auto-update) and telemetry env, from the gate. @returns {Line[]} */
@@ -106,12 +114,16 @@ function aliasLines(world) {
   }));
 }
 
-/** @param {object} world @param {string} dir @returns {Line[]} */
-function projectLines(world, dir) {
+/**
+ * The --project lines: the provider declaration, footprints, and per scope pack declared for this dir whether its
+ * Claude plugin is enabled here (local beats project beats user) or the repository paths that would deliver it on a
+ * harness with no project channel. Read only.
+ */
+function projectLines(world, dir: string, deliveries: Delivery[]): Line[] {
   const abs = resolve(dir);
   if (!existsSync(abs) || !statSync(abs).isDirectory()) throw usage(`--project ${dir} is not a directory`);
   const d = projectDeclaration(world, abs);
-  const out = [{ level: "info", topic: "project", text: `provider ${d.provider} source ${d.source}${d.line ? ` (${d.line})` : ""}` }];
+  const out: Line[] = [{ level: "info", topic: "project", text: `provider ${d.provider} source ${d.source}${d.line ? ` (${d.line})` : ""}` }];
   if (!world.providers.has(d.provider)) out.push({ level: "error", topic: "project", text: `provider ${d.provider} is not in rig.json providers` });
   if (d.overlay !== null) {
     // A warning, not an error: the line alone selects (decision 0008), so the map is a stale record, not a broken run.
@@ -120,13 +132,19 @@ function projectLines(world, dir) {
       : { level: "warn", topic: "project", text: `the overlay projects map says ${d.overlay}, the project declares ${d.provider} (${d.source})` });
   }
   for (const fp of d.footprints) out.push({ level: "info", topic: "footprint", text: `${fp} (info only: footprints never select a provider)` });
-  const market = world.targets.get("claude")?.channels?.plugin?.marketplace ?? null;
+  const here = deliveries.filter((x) => x.projects.includes(abs));
   for (const p of d.packs) {
-    if (p.enabled) out.push({ level: "info", topic: "scope", text: `pack ${p.name} is enabled here (${p.source})` });
+    const plugin = here.find((x) => x.pack === p.name && x.plugin)?.plugin;
+    if (!plugin) continue;
+    if (p.enabled) out.push({ level: "info", topic: "scope", text: `claude pack ${p.name} is enabled here (${p.source})` });
     else {
-      const snippet = market ? `: paste {"enabledPlugins": {"${p.name}@${market}": true}} into .claude/settings.local.json` : "";
-      out.push({ level: "warn", topic: "scope", text: `pack ${p.name} is declared for this project but not enabled${snippet}` });
+      const file = `${abs}/${plugin.enable_file}`;
+      out.push({ level: "warn", topic: "scope", text: `claude pack ${p.name} is declared for this project but not enabled${p.source ? ` (false in ${p.source})` : ""}: paste {"enabledPlugins": {"${plugin.id}": true}} into ${file}` });
     }
+  }
+  for (const x of here.filter((y) => !y.plugin || y.absent.length)) {
+    for (const c of x.commit) out.push({ level: "info", topic: "scope", text: `${x.harness} pack ${x.pack}: commit ${c.path} (a copy of ${c.from})` });
+    for (const u of x.absent) out.push({ level: "info", topic: "scope", text: `${x.harness} pack ${x.pack}: ${u} has no known project path on ${x.harness}` });
   }
   return out;
 }
@@ -137,6 +155,7 @@ export async function doctorCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<
   const p = prepare(world);
   /** @type {Line[]} */
   const lines = [
+    ...errorLines(p.stack.errors, p.desired.errors),
     ...stateLines(p.planned),
     ...duplicates(world, p.planned.installed),
     ...gateLines(p.findings),
@@ -144,7 +163,7 @@ export async function doctorCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<
     ...modelLines(world),
     ...aliasLines(world),
   ];
-  if (typeof a.flags.project === "string") lines.push(...projectLines(world, a.flags.project));
+  if (typeof a.flags.project === "string") lines.push(...projectLines(world, a.flags.project, projectDelivery(p.stack, world)));
   const width = Math.max(...lines.map((l) => l.topic.length));
   let errors = 0;
   let warnings = 0;

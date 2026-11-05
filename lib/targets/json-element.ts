@@ -28,11 +28,29 @@ const sorted = (v) =>
     : isObject(v) ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${sorted(v[k])}`).join(",")}}`
       : JSON.stringify(v);
 
+/** The first shell word of a command (bare, or single-quoted with `'\''` escapes) and the rest after one space. */
+const HEAD = /^('(?:[^']|'\\'')*'|[^\s']+) (.+)$/s;
+const unquote = (w: string): string => (w.startsWith("'") ? w.slice(1, -1).replaceAll("'\\''", "'") : w);
+const isNode = (w: string): boolean => /(^|\/)node(\.exe)?$/.test(unquote(w));
+
+/**
+ * One command identity. rig's hook command is `<node> <rig-bin> ...` and the node path carries a version (a node
+ * upgrade moves it), so two commands that differ only in a first word naming a node executable are the same element:
+ * plan updates it in place instead of reporting drift.
+ */
+export function sameCommand(a: unknown, id: string): boolean {
+  if (typeof a !== "string") return false;
+  if (a === id) return true;
+  const x = a.match(HEAD);
+  const y = id.match(HEAD);
+  return !!x && !!y && x[2] === y[2] && isNode(x[1]) && isNode(y[1]);
+}
+
 /** True when `el` is rig's element for `id`. */
 export function isOwnElement(el, id) {
   if (!isObject(el)) return false;
-  if (el.command === id) return true;
-  return Array.isArray(el.hooks) && el.hooks.length === 1 && isObject(el.hooks[0]) && el.hooks[0].command === id;
+  if (sameCommand(el.command, id)) return true;
+  return Array.isArray(el.hooks) && el.hooks.length === 1 && isObject(el.hooks[0]) && sameCommand(el.hooks[0].command, id);
 }
 
 /** @param {string} pointer @returns {string[]} */

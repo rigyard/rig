@@ -293,8 +293,8 @@ test("a project-scope pack renders no machine copy and says so per harness", () 
   const d = render(stack, world({ aliases: {} }));
   assert.equal(d.entries.size, 0);
   assert.deepEqual(d.info, [
-    "scope codex kit/p: project part absent: commit its files (doctor --project)",
-    "scope omp kit/p: project part absent: commit its files (doctor --project)",
+    "scope codex kit: project part absent: commit its files (doctor --project)",
+    "scope omp kit: project part absent: commit its files (doctor --project)",
   ]);
 });
 

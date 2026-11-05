@@ -1,10 +1,13 @@
 // rig apply [--undo <run-id>]: the pipeline, then the journaled write. state.apply and state.undo log the run.
 
+import { join } from "node:path";
 import { apply, undo } from "../state.ts";
+import { projectDelivery } from "../targets.ts";
 import { loadWorld } from "../world.ts";
 import { report } from "./plan.ts";
 import { prepare } from "./shared.ts";
 import type { ParsedArgs } from "../commands.ts";
+import type { Delivery } from "../targets.ts";
 
 /** @param {string} code @param {string} message @returns {Error & {code: string}} */
 const failure = (code, message) => Object.assign(new Error(message), { code });
@@ -66,9 +69,48 @@ function undoRun(world, runId) {
   return 0;
 }
 
-/** rig apply [--undo <run-id>]. */
+/** A word for a POSIX shell: bare when safe, else single-quoted. */
+const shellWord = (s: string): string => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'${s.replaceAll("'", "'\\''")}'`);
+
+/** The `enabledPlugins` snippet for one project's enable file. */
+const snippet = (ids: string[]): string => `{"enabledPlugins": {${ids.map((id) => `${JSON.stringify(id)}: true`).join(", ")}}}`;
+
+/**
+ * The lines apply prints for the Claude plugins of project and hybrid packs (decision 0017, doc section 14 row 16):
+ * the one-time registration commands per marketplace and pack, then one snippet per listed project. rig runs none of
+ * them and writes no enabledPlugins entry. Empty when no pack has a plugin.
+ */
+export function registrationLines(deliveries: Delivery[]): string[] {
+  const plugins = deliveries.flatMap((d) => (d.plugin ? [{ ...d, plugin: d.plugin }] : []));
+  if (!plugins.length) return [];
+  const lines = ["register claude: run once; it installs each project pack and disables it at user scope:"];
+  for (const market of [...new Set(plugins.map((d) => d.plugin.marketplace))]) {
+    lines.push(`  claude plugin marketplace add ${shellWord(market)}`);
+    for (const d of plugins.filter((x) => x.plugin.marketplace === market)) {
+      lines.push(`  claude plugin install ${d.plugin.id}`, `  claude plugin disable --scope user ${d.plugin.id}`);
+    }
+  }
+  const byProject = new Map<string, {file: string, ids: string[]}>();
+  for (const d of plugins) {
+    for (const p of d.projects) {
+      const e = byProject.get(p) ?? { file: join(p, d.plugin.enable_file), ids: [] };
+      if (!e.ids.includes(d.plugin.id)) e.ids.push(d.plugin.id);
+      byProject.set(p, e);
+    }
+  }
+  for (const [p, e] of byProject) lines.push(`enable in ${p}: paste into ${e.file} (uncommitted)`, `  ${snippet(e.ids)}`);
+  return lines;
+}
+
+/** rig apply [--undo <run-id>]. After a write that succeeded, the registration lines of the project plugins. */
 export async function applyCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<0|1|2> {
   const world = loadWorld(env);
   if (typeof a.flags.undo === "string") return undoRun(world, a.flags.undo);
-  return printApplied(applyPipeline(world));
+  const res = applyPipeline(world);
+  const code = printApplied(res);
+  if (code === 0) {
+    const lines = registrationLines(projectDelivery(res.p.stack, world));
+    if (lines.length) process.stdout.write(`${lines.join("\n")}\n`);
+  }
+  return code;
 }

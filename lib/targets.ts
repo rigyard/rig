@@ -11,6 +11,8 @@ import { substitute, substituteBytes } from "./targets/terms.ts";
 import { fill } from "./targets/vars.ts";
 import { entryLines, intakeLines, modelsLine, providerLines, slotBody, slotLines } from "./targets/providers.ts";
 import { codexAgent, cursorAgent, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
+import { absentLine, delivery, manifests, marketplaceOf, packOf, pluginDir, pluginPath } from "./targets/scope.ts";
+import type { Delivery, Plugin } from "./targets/scope.ts";
 import { renderModelSurfaces } from "./targets/models-render.ts";
 
 import type { World } from "./world.ts";
@@ -18,6 +20,7 @@ import type { ModelSurface } from "./world.ts";
 import type { TargetRecord } from "./world.ts";
 import type { Stack } from "./stack.ts";
 import type { RigError } from "./stack.ts";
+import type { Unit } from "./stack.ts";
 
 /**
  * What rig wants on disk, per absolute path. A `whole` surface renders as "owned"; with keep_header set,
@@ -30,6 +33,7 @@ export type DesiredEntry = {kind: "owned", path: string, bytes: Uint8Array, mode
 /** One cell (models.cellValues): field is model, effort, display, model_effort or literal; displays lists every display name. */
 export type CellValue = {surface: number, key: string, element: number, field: string, value: string, displays?: string[]};
 export type Desired = {entries: Map<string, DesiredEntry>, errors: RigError[], info: string[]};
+export type { Delivery } from "./targets/scope.ts";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -72,12 +76,14 @@ export function render(stack: Stack, world: World): Desired {
     never: neverWriteGlobs(world),
     entries: new Map(),
     owners: new Map(), // home-relative path -> unit id, for clash messages and the plugin manifest
+    plugins: new Map<string, Plugin>(), // project-scope plugins by "~/"-relative plugin dir (lib/targets/scope.ts)
     errors: [],
     info: [],
   };
   for (const unit of stack.units) renderUnit(ctx, unit);
   renderModels(ctx);
   renderPluginManifests(ctx);
+  renderMarketplaces(ctx);
   renderSessionHooks(ctx);
   return { entries: ctx.entries, errors: uniqueErrors(ctx.errors), info: ctx.info };
 }
@@ -90,11 +96,8 @@ function renderUnit(ctx, unit) {
   const scope = unit.scope ?? "machine-hidden";
   if (scope === "project" || scope === "hybrid") {
     for (const h of harnessesOf(ctx, unit)) {
-      if (ctx.targets.get(h).project_scope) {
-        ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: the ${h} project channel render is not implemented` });
-      } else {
-        ctx.info.push(`scope ${h} ${unit.id}: project part absent: commit its files (doctor --project)`);
-      }
+      if (ctx.targets.get(h).project_scope) renderProjectPart(ctx, unit, h);
+      else if (!ctx.info.includes(absentLine(h, packOf(unit)))) ctx.info.push(absentLine(h, packOf(unit)));
     }
     if (scope === "project") return;
   }
@@ -357,6 +360,52 @@ function renderPluginManifests(ctx) {
   }
 }
 
+// ---- project delivery: the Claude plugin of a project or hybrid pack (decision 0017, lib/targets/scope.ts)
+
+/**
+ * The project part of one unit on a harness with a project channel: a copy inside the pack's plugin dir in the
+ * rig-owned marketplace. The copy carries no hide key: in a project that enables the plugin the pack is invocable.
+ * A unit type with no plugin component (a rule) is absent, with an info line. `ctx` is render()'s context, which this
+ * file does not type yet.
+ */
+function renderProjectPart(ctx: any, unit: Unit, h: string) {
+  const market = marketplaceOf(ctx.targets.get(h), ctx.home, ctx.world.env.data);
+  if ("error" in market) {
+    ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: ${market.error}` });
+    return;
+  }
+  if (pluginPath(unit, "") === null) {
+    ctx.info.push(`absent ${h} ${unit.id}: a ${h} plugin has no ${unit.type} component`);
+    return;
+  }
+  let files;
+  if (unit.type === "skill") {
+    const copy = skillCopy(ctx, unit, null, h, false);
+    if (copy.errors.length) {
+      ctx.errors.push(...copy.errors);
+      return;
+    }
+    files = copy.files;
+  } else {
+    const src = soleFile(ctx, unit);
+    const text = src ? terms(ctx, unit, src, h) : null;
+    if (!src || text === null) return;
+    files = [{ path: src.rel, mode: FILE_MODE, bytes: encoder.encode(text) }];
+  }
+  const dir = pluginDir(market.dir, packOf(unit));
+  if (!ctx.plugins.has(dir)) ctx.plugins.set(dir, { pack: packOf(unit), harness: h, marketplace: market, files: [] });
+  for (const f of files) {
+    const path = pluginPath(unit, f.path);
+    ctx.plugins.get(dir).files.push({ path, mode: f.mode, bytes: f.bytes });
+    emit(ctx, `${dir}/${path}`, { kind: "owned", bytes: f.bytes, mode: f.mode, unit: unit.id, harness: h });
+  }
+}
+
+/** The plugin.json of every rendered plugin and the marketplace.json of every marketplace that holds one. */
+function renderMarketplaces(ctx: any) {
+  for (const m of manifests(ctx.plugins)) emit(ctx, m.path, { kind: "owned", bytes: m.bytes, mode: FILE_MODE, unit: m.unit, harness: m.harness });
+}
+
 // ---- the session-end hook
 
 const RIG_BIN = fileURLToPath(new URL("../bin/rig.ts", import.meta.url));
@@ -466,4 +515,13 @@ export function patch(bytes: Uint8Array | null, entry: DesiredEntry): {current: 
     const error = { code: e.code, message, ...(e.path ? { path: e.path } : {}) };
     return { current: null, next: bytes ?? new Uint8Array(), markers: "n/a", error };
   }
+}
+
+/**
+ * How each `project` or `hybrid` pack reaches its listed projects, per pack and harness: the Claude plugin facts for
+ * the registration commands and the `enabledPlugins` snippet, or the repository paths to commit on a harness with no
+ * project channel. Pure; apply and doctor --project print it.
+ */
+export function projectDelivery(stack: Stack, world: World): Delivery[] {
+  return delivery(stack, world);
 }
