@@ -11,7 +11,7 @@ import type { World } from "./world.ts";
 import type { Stack } from "./stack.ts";
 import type { Desired } from "./targets.ts";
 
-export type CheckId = "pin"|"exec"|"secret"|"unicode"|"license"|"cve"|"telemetry"|"budget";
+export type CheckId = "pin"|"exec"|"secret"|"unicode"|"license"|"cve"|"telemetry"|"budget"|"links";
 export type Finding = {check: CheckId, severity: "block"|"warn"|"info", pack: string, path: string, evidence: string, id: string, acked: boolean, stanza: string | null};
 
 const RANK = { block: 0, warn: 1, info: 2 };

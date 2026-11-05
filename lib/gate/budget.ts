@@ -4,6 +4,7 @@
 import { posix } from "node:path";
 import { decode } from "./ctx.ts";
 import { visible } from "./text.ts";
+import type { Rendered } from "./ctx.ts";
 
 /** Thresholds. Sources are listed in the PR and in decision 0012; only the caps are harness facts. */
 export const LIMITS = Object.freeze({
@@ -65,7 +66,26 @@ function place(ctx, path) {
   return best;
 }
 
-const hidden = (rec, fm) => rec.hide?.method === "frontmatter-key" && fmValue(fm, rec.hide.key) === String(rec.hide.value);
+/** The `inner` value line under the top-level `outer:` block of a small YAML file, as setYamlKey writes it. */
+function yamlValue(text: string, dotted: string) {
+  const [outer, inner] = dotted.split(".");
+  const lines = text.split(/\r?\n/);
+  const start = lines.indexOf(`${outer}:`);
+  if (start < 0) return null;
+  for (let i = start + 1; i < lines.length && (/^\s/.test(lines[i]) || lines[i] === ""); i++) {
+    const m = new RegExp(`^\\s+${inner}:\\s*(.*?)\\s*$`).exec(lines[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function hidden(rec: {hide?: {method: string, key?: string, file?: string, value?: unknown}}, fm: string | null, path: string, bytesAt: Map<string, Uint8Array>) {
+  const hide = rec.hide;
+  if (hide?.method === "frontmatter-key") return fmValue(fm, hide.key) === String(hide.value);
+  if (hide?.method !== "sidecar" || !hide.file || !hide.key) return false;
+  const sidecar = bytesAt.get(posix.join(posix.dirname(path), hide.file));
+  return sidecar !== undefined && yamlValue(decode(sidecar), hide.key) === JSON.stringify(hide.value);
+}
 
 const CACHE_BUST = [
   ["timestamp", /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?/],
@@ -136,6 +156,7 @@ export function runBudget(ctx: object) {
     return per.get(p.name);
   };
 
+  const bytesAt = new Map((ctx as {rendered: Rendered[]}).rendered.map((r) => [r.path, r.bytes]));
   for (const r of ctx.rendered) {
     const where = place(ctx, r.path);
     if (!where) continue;
@@ -152,7 +173,7 @@ export function runBudget(ctx: object) {
         out.push({ severity: "warn", ...base, evidence: `skill body is ${num(lines)} lines and ${num(bodyTokens)} tokens; the limits are ${LIMITS.bodyLines} lines and ${num(LIMITS.bodyTokens)} tokens`, idBytes: `body\0${lines}\0${bodyTokens}` });
       }
       const description = fmValue(fm, "description");
-      if (description === null || hidden(where.rec, fm)) continue;
+      if (description === null || hidden(where.rec, fm, r.path, bytesAt)) continue;
       h.listing += (fmValue(fm, "name") ?? posix.basename(posix.dirname(r.path))).length + description.length;
       const cap = where.rec.budget?.description_max ?? DEFAULT_DESCRIPTION_MAX[where.name];
       if (cap !== undefined && description.length > cap) {

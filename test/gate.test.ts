@@ -4,13 +4,14 @@ import { gate, registry, checkTable } from "../lib/gate.ts";
 import { parseAcks } from "../lib/gate/ack.ts";
 import { ack, desired, goodPack, HOME, lockWith, pack, stack, world } from "./gate.helpers.ts";
 import { treeHash } from "../lib/tree.ts";
+import { setup } from "./scope.helpers.ts";
 
 const run = (w, d = desired(), s = stack()) => gate(s, d, w);
 const of = (r, check) => r.findings.filter((f) => f.check === check);
 const real = (r) => r.findings.filter((f) => f.severity !== "info");
 
-test("the registry lists exactly the eight binding checks, in order", () => {
-  assert.deepEqual(registry.map((r) => r.id), ["pin", "exec", "secret", "unicode", "license", "cve", "telemetry", "budget"]);
+test("the registry lists exactly the nine binding checks, in order", () => {
+  assert.deepEqual(registry.map((r) => r.id), ["pin", "exec", "secret", "unicode", "links", "license", "cve", "telemetry", "budget"]);
   assert.deepEqual(registry.filter((r) => !r.ackable).map((r) => r.id), ["pin", "telemetry", "budget"]);
   const table = checkTable().split("\n");
   assert.equal(table.length, 2 + registry.length);
@@ -186,6 +187,86 @@ test("unicode: a hidden character that only a rendered entry carries blocks; a s
 
 // Built at run time so the repo holds no literal that a push-protection scanner flags.
 const fakeKey = () => ["AKIA", "IOSFODNN7", "EXAMPLE"].join("");
+
+const LINK_TARGETS = {
+  claude: { name: "claude", root: "~/.claude", reads: { skills: [{ path: "~/.claude/skills", writable: true }] } },
+  codex: { name: "codex", root: "~/.codex", reads: { skills: [{ path: "~/.agents/skills", writable: true }] } },
+};
+const linkWorld = world as (o: object) => ReturnType<typeof world>;
+const links = (owned: Record<string, string>, extra: object = {}) => run(linkWorld({ targets: LINK_TARGETS, ...extra }), desired(Object.fromEntries(
+  Object.entries(owned).map(([rel, text]) => [`${HOME}/${rel}`, { unit: "p/a", text }]))));
+const linkEvidence = (r: ReturnType<typeof run>) => of(r, "links").map((f: {evidence: string}) => f.evidence);
+
+test("links: a link to an owned file or folder of the same harness passes", () => {
+  const r = links({
+    ".claude/skills/a/SKILL.md": "See [the ref](references/r.md), [the refs](references/) and [b](../b/SKILL.md#use).\n",
+    ".claude/skills/a/references/r.md": "Ref.\n",
+    ".claude/skills/b/SKILL.md": "B.\n",
+  });
+  assert.deepEqual(of(r, "links"), []);
+  assert.equal(r.blocked, false);
+});
+
+test("links: a dangling link blocks with the source path, the line and the target, and an ack clears it", () => {
+  const owned = { ".claude/skills/a/SKILL.md": "# A\n\nRead [the\nother skill](../missing/SKILL.md) first.\n" };
+  const r = links(owned);
+  const [f] = of(r, "links");
+  assert.equal(f.severity, "block");
+  assert.equal(f.pack, "p");
+  assert.equal(f.path, "~/.claude/skills/a/SKILL.md");
+  assert.equal(f.evidence, "link to ../missing/SKILL.md at line 4 resolves to ~/.claude/skills/missing/SKILL.md, which rig does not plan");
+  assert.equal(r.blocked, true);
+  assert.match(f.stanza, /"check":"links"/);
+  const acked = links(owned, { acks: [ack(f)] });
+  assert.equal(of(acked, "links")[0].acked, true);
+  assert.equal(acked.blocked, false);
+});
+
+test("links: a link to a file the pack holds but rig does not plan blocks", () => {
+  const source = "See [x](references/x.md).\n";
+  const r = links({ ".claude/skills/a/SKILL.md": source }, { packs: [pack("p", { "skills/a/SKILL.md": source, "skills/a/references/x.md": "X.\n" })] });
+  assert.deepEqual(linkEvidence(r), ["link to references/x.md at line 1 resolves to ~/.claude/skills/a/references/x.md, which rig does not plan"]);
+});
+
+test("links: a link to an owned file of another harness blocks", () => {
+  const r = links({
+    ".claude/skills/a/SKILL.md": "See [b](../../../.agents/skills/b/SKILL.md).\n",
+    ".agents/skills/b/SKILL.md": "B.\n",
+  });
+  assert.deepEqual(linkEvidence(r), ["link to ../../../.agents/skills/b/SKILL.md at line 1 resolves to ~/.agents/skills/b/SKILL.md, which rig plans for codex, not claude"]);
+});
+
+test("links: anchors, URLs, non-path targets and links in code are skipped", () => {
+  const text = [
+    "Jump to [usage](#usage).",
+    "Read [the docs](https://example.com/docs.md) or [mail](mailto:a@b.c).",
+    "Open [PR #123](url) when done.",
+    "Inline `[x](missing/inline.md)` is code.",
+    "```md",
+    "[y](missing/fenced.md)",
+    "```",
+    "~~~",
+    "[z](missing/tilde.md)",
+    "~~~",
+    "",
+  ].join("\n");
+  const r = links({ ".claude/skills/a/SKILL.md": text });
+  assert.deepEqual(of(r, "links"), []);
+  const control = links({ ".claude/skills/a/SKILL.md": `${text}[w](missing/after.md)\n` });
+  assert.deepEqual(linkEvidence(control), ["link to missing/after.md at line 11 resolves to ~/.claude/skills/a/missing/after.md, which rig does not plan"]);
+});
+
+test("links: rig plan on a pack whose skill links a missing skill prints block links with the source and the target", (t) => {
+  const s = setup({ skill: "---\nname: notes\ndescription: Take meeting notes.\n---\nThen run [the tidy skill](../tidy/SKILL.md).\n" });
+  t.after(() => s.fx.cleanup());
+  const r = s.rig(["plan"]);
+  assert.equal(r.code, 1, r.all);
+  const lines = r.stdout.split("\n").filter((l) => l.startsWith("block links "));
+  assert.deepEqual(lines, [
+    "block links notes/~/.agents/skills/notes/SKILL.md: link to ../tidy/SKILL.md at line 7 resolves to ~/.agents/skills/tidy/SKILL.md, which rig does not plan",
+    "block links notes/~/.claude/skills/notes/SKILL.md: link to ../tidy/SKILL.md at line 6 resolves to ~/.claude/skills/tidy/SKILL.md, which rig does not plan",
+  ]);
+});
 
 test("secret: a cloud-key-shaped string blocks and is never printed in full", () => {
   const r = run(world({ packs: [goodPack("p", { "skills/hello/SKILL.md": `key = ${fakeKey()}\n` })] }));

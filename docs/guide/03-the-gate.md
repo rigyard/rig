@@ -8,7 +8,7 @@ In this page you learn what the gate checks, read a blocked plan, and ack a find
 
 When the gate blocks, `rig apply` writes nothing to your home directory. The design record is [decision 0006](../decisions/0006-one-gate-before-apply.md).
 
-## Read the eight checks
+## Read the nine checks
 
 Each finding has a severity. A `block` stops the write. A `warn` prints and lets the write go. An `info` line only reports. The table is the registry in `lib/gate/registry.ts`, with the severities that the check code emits.
 
@@ -18,6 +18,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 | `exec` | Pack sources: exec bit, shebang, script extension, executable or archive magic bytes, `hooks.json`, `.mcp.json`, `package.json` scripts, symlinks. | block | yes |
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |
+| `links` | Rendered `.md` files that rig owns: a relative Markdown link that does not resolve to a file or folder that rig plans for the same harness. Links in code, URLs, anchors and targets that are not paths, such as `url`, are skipped. | block | yes |
 | `license` | The `license` of every pack except core. It must be an SPDX expression of allowed licenses. | block | yes |
 | `cve` | Dependency lockfiles in a pack, against the OSV cache. A high, critical or unknown severity blocks. Moderate and low warn. No cached result blocks. | block, warn | yes |
 | `telemetry` | A `pack.json` with telemetry on by default and no opt-out variable set. | warn | no, set the variable |

@@ -6,7 +6,7 @@ You get three things from it:
 
 - **The same stack in every harness.** A skill you add appears once in Claude Code, Codex, omp and Cursor, with no duplicates where one harness reads another's directories.
 - **No surprise updates.** rig installs copies pinned by a sha256 tree hash in `rig.lock.json`. Nothing updates itself. Only `rig pack add` uses the network.
-- **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
+- **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, relative links, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
 
 rig is one Node CLI with no runtime dependencies. Packs and harness targets are data files, and rig runs no code from a pack.
 

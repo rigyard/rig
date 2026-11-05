@@ -22,6 +22,7 @@ export type Rendered = {
   pack: string;
   path: string;
   bytes: Uint8Array;
+  kind: string;
 };
 
 /** @param {object} world @returns {Source[]} */
@@ -56,7 +57,7 @@ function collectRendered(desired, home) {
   for (const [path, entry] of desired?.entries ?? []) {
     const bytes = entryBytes(entry);
     if (!bytes) continue;
-    out.push({ pack: String(entry.unit ?? "").split("/")[0] || "core", path: homeRelative(path, home), bytes });
+    out.push({ pack: String(entry.unit ?? "").split("/")[0] || "core", path: homeRelative(path, home), bytes, kind: entry.kind });
   }
   return out;
 }

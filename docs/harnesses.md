@@ -42,6 +42,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Frame: a managed block in `~/.codex/AGENTS.md`, between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->`. Your lines outside the markers keep their bytes (`test/render.test.ts`, "targets.patch: the rendered frame block appends, then converges").
 - Instructions cap: probe (d) measured a 32,768-byte limit on `AGENTS.md`. The `budget` gate blocks above that cap and warns above 8,192 bytes. The warning level is a rig choice (`test/gate-cve-budget.test.ts`, "a 33,000-byte Codex instructions file blocks and a 9,000-byte one warns").
 - Descriptions: the `budget` gate blocks a visible skill description above 1,024 characters.
+- Listing: the `budget` gate does not count a skill whose sidecar hides it (`test/gate-cve-budget.test.ts`, "a Codex skill with the sidecar hide is not listed; a sidecar with another value is").
 - Model surfaces: `~/.codex/agents/{role}.toml`, kind `whole`, with text from `~/.claude/agents/{role}.md`. `~/.codex/config.toml`, kind `block` between `rig:models` markers, the `[agents]` table with `default_subagent_model` and `default_subagent_reasoning_effort`. Markers go only around inserted blocks. That is an open decision, see [assumptions and open questions](./assumptions-and-open-questions.md).
 - Session hook: none.
 

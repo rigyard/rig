@@ -6,7 +6,7 @@ Here's what you'll learn:
 
 1. [Set up rig](./01-setup.md). Install the CLI, see where rig keeps its files, and read your first `rig doctor`.
 2. [Plan, apply, undo](./02-plan-and-apply.md). Read a plan, write it, adopt files you already have, and roll a run back.
-3. [Pass the gate](./03-the-gate.md). The eight checks, what blocks and what warns, and how to ack a finding.
+3. [Pass the gate](./03-the-gate.md). The nine checks, what blocks and what warns, and how to ack a finding.
 4. [Add packs and seal core](./04-packs-and-pins.md). Vendor a pack at a commit and seal core again after a change.
 5. [Scope packs to projects](./05-scope-and-projects.md). Machine-wide, project-only or hybrid packs, without rig writing into your repositories.
 6. [Pick and swap models](./07-models.md). Roles, tiers and a one-line model swap after a vendor release.

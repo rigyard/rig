@@ -3,6 +3,7 @@ import { runBudget } from "./budget.ts";
 import { runCve } from "./cve.ts";
 import { runExec } from "./exec.ts";
 import { runLicense } from "./license.ts";
+import { runLinks } from "./links.ts";
 import { runPin } from "./pin.ts";
 import { runSecret } from "./secret.ts";
 import { runTelemetry } from "./telemetry.ts";
@@ -44,6 +45,11 @@ export const REGISTRY = Object.freeze([
     id: "unicode", runsOn: "sources, rendered", inputs: ["sources", "rendered"],
     finds: "hidden Unicode (zero-width, bidi), pipe-to-shell, eval of fetched data (block). Injection phrases (warn)",
     severity: "block, warn", ackable: true, ackNote: "yes", run: runUnicode,
+  },
+  {
+    id: "links", runsOn: "rendered", inputs: ["rendered"],
+    finds: "a relative Markdown link in an owned `.md` file that does not resolve to an owned path of the same harness",
+    severity: "block", ackable: true, ackNote: "yes", run: runLinks,
   },
   {
     id: "license", runsOn: "sources", inputs: ["sources"],
