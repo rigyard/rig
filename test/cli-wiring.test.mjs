@@ -214,7 +214,10 @@ describe("rig models", () => {
     const r = s.rig(["models", "set", "strong", "model-z", "--harness", "claude"]);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /^models\/tiers\.json: tiers\.strong\.claude: opus -> model-z\n/);
-    assert.match(r.stdout, /^0 changes, 0 blocks$/m, "render emits no model surface yet, so the filtered plan is empty");
+    // The filtered plan holds the one model file that render emits on an empty HOME: the pstack model rules.
+    assert.match(r.stdout, /^create +owned +claude +~\/\.claude\/rules\/pstack-models\.md +pstack\/models$/m);
+    assert.match(r.stdout, /^1 change, 0 blocks$/m);
+    assert.match(readFileSync(s.fx.path(".claude/rules/pstack-models.md"), "utf8"), /^hardest tasks: model-z xhigh$/m);
     const afterText = readFileSync(file, "utf8");
     const a = beforeText.split("\n");
     const b = afterText.split("\n");
@@ -224,7 +227,7 @@ describe("rig models", () => {
     expected.tiers.strong.claude = "model-z";
     assert.deepEqual(JSON.parse(afterText), expected);
     const diff = changed(before, s.fx.snapshot());
-    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)), ["rig/models/tiers.json"]);
+    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)), [".claude/rules/pstack-models.md", "rig/models/tiers.json"]);
   });
 
   test("set refuses when the overlay has models/tiers.json: exit 2, the repo file keeps its bytes", (t) => {

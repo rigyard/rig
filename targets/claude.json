@@ -21,5 +21,7 @@
   "instructions": {"path": "~/.claude/rules/rig-frame.md", "mode": "whole-file"},
   "hooks": {"session_end": {"event": "SessionEnd", "file": "~/.claude/settings.json", "pointer": "/hooks/SessionEnd",
                             "payload": ["session_id", "transcript_path"]}},
-  "transcripts": {"format": "claude-jsonl", "root": "~/.claude/projects"}
+  "transcripts": {"format": "claude-jsonl", "root": "~/.claude/projects"},
+  "effort_syntax": "separate-key",
+  "facts": {"installed_plugins": "~/.claude/plugins/installed_plugins.json", "marketplaces": "~/.claude/plugins/known_marketplaces.json"}
 }
