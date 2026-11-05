@@ -105,16 +105,5 @@ describe("usage errors exit 2 with one line", () => {
   test("extra positional", () => usage(["plan", "extra"]));
 });
 
-/** Rows whose handler is still a stub. The wired commands have their CLI tests in test/cli-wiring.test.mjs, over a
- *  temp config root: run here, against this repo's own root, models set would write its models/tiers.json. */
-const STUBBED = ["plan", "apply", "apply --undo"];
-
-describe("dispatch", () => {
-  for (const [label, argv] of Object.entries(VALID).filter(([label]) => STUBBED.includes(label))) {
-    test(`${label} reaches its handler: exit 1, not implemented`, () => {
-      const r = rig(...argv);
-      assert.equal(r.code, 1, r.stderr);
-      assert.equal(r.stderr, `rig ${argv[0]}: not implemented\n`);
-    });
-  }
-});
+// Every handler is wired. Their CLI tests run over a temp config root in test/cli-wiring.test.mjs and
+// test/plan-apply.test.mjs: run here, against this repo's own root, models set would write its models/tiers.json.

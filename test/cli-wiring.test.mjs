@@ -211,7 +211,8 @@ describe("rig models", () => {
     const before = s.fx.snapshot();
     const r = s.rig(["models", "set", "strong", "model-z", "--harness", "claude"]);
     assert.equal(r.code, 0, r.stderr);
-    assert.match(r.stdout, /^models\/tiers\.json: tiers\.strong\.claude: opus -> model-z\nrun rig apply/);
+    assert.match(r.stdout, /^models\/tiers\.json: tiers\.strong\.claude: opus -> model-z\n/);
+    assert.match(r.stdout, /^0 changes, 0 blocks$/m, "render emits no model surface yet, so the filtered plan is empty");
     const afterText = readFileSync(file, "utf8");
     const a = beforeText.split("\n");
     const b = afterText.split("\n");
