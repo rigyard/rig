@@ -57,8 +57,8 @@ export type DomainView = {
 export type Mode = {
   hub: { pack: string } | null;
   domains: DomainView[];
-  /** Triggers with no domain. The shell lists them. */
-  triggers: { when: string; then: string }[];
+  /** Triggers with no domain. The frame lists a fill trigger, which carries `use`. The shell lists a pack trigger, which carries `then`. */
+  triggers: ({ when: string; use: UnitRef } | { when: string; then: string })[];
   adapters: Map<string, { text: string; pack: string }>;
   /** Adopted files under craft/. Render copies them with no change. `from` is the pack-relative source. */
   files: Map<string, { bytes: Uint8Array; mode: number; pack: string; from: string }>;
@@ -267,9 +267,8 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
         }
         const view = domainOf(t.domain, `rig.json fill.triggers[${i}].domain`);
         if (!keep(t.use, `rig.json fill.triggers[${i}].use`)) return;
-        const then = `Use {{skill:${t.use}}}.`;
-        if (view === null) triggers.push({ when: t.when, then });
-        else if (view) view.triggers.push({ when: t.when, then });
+        if (view === null) triggers.push({ when: t.when, use: t.use });
+        else if (view) view.triggers.push({ when: t.when, then: `Use {{skill:${t.use}}}.` });
       });
       continue;
     }
@@ -325,7 +324,7 @@ export function modeFiles(mode: Mode, template: string, view: ModeView): { files
   const vars: Record<string, () => string> = {
     hub: () => `1. Read [${HUB}](${HUB}) in full.`,
     domains: () => list(mode.domains.map((d) => `[${d.name}](references/${d.name}.md): prefix \`${d.prefix}\`.`)),
-    triggers: () => list(mode.triggers.map((t) => trigger(t, "SKILL.md"))),
+    triggers: () => list(mode.triggers.flatMap((t) => ("then" in t ? [trigger(t, "SKILL.md")] : []))),
   };
   const lines = template.split("\n").filter((l) => mode.hub !== null || l.trim() !== "{{mode:hub}}");
   put("SKILL.md", lines.join("\n").replace(MODE_VAR, (whole, name) => {

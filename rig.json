@@ -25,6 +25,22 @@
         "when": "Building or changing a CLI",
         "use": "cli-for-agent/cli-for-agents",
         "domain": "engineering"
+      },
+      {
+        "when": "Any prose surface, your reply to the user included",
+        "use": "pstack/unslop"
+      },
+      {
+        "when": "Docs, RFCs, readmes, PR descriptions, or commit messages",
+        "use": "pstack/technical-writing"
+      },
+      {
+        "when": "Before commit",
+        "use": "cursor-team-kit/deslop"
+      },
+      {
+        "when": "Before review",
+        "use": "pstack/no-comments"
       }
     ]
   },

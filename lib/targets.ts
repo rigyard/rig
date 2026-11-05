@@ -75,9 +75,11 @@ export function render(stack: Stack, world: World): Desired {
     errors: [],
     info: [],
     auto: stack.mode?.auto ?? new Set<UnitRef>(),
+    triggers: stack.mode?.triggers ?? [],
     anchored: {} as Record<string, string[]>,
   };
-  for (const unit of stack.units) if (unit.type !== "mode") renderUnit(ctx, unit);
+  for (const unit of stack.units) if (unit.type !== "mode" && unit.type !== "frame") renderUnit(ctx, unit);
+  for (const unit of stack.units) if (unit.type === "frame") renderUnit(ctx, unit);
   for (const unit of stack.units) if (unit.type === "mode") renderMode(ctx, unit, stack.mode!);
   renderModels(ctx);
   renderPluginManifests(ctx);
@@ -311,6 +313,7 @@ function renderSingle(ctx, unit, kind) {
 
 // ---- the frame
 
+/** Runs after the skill units, so the trigger lines read the leaf paths that they rendered. */
 function renderFrame(ctx, unit) {
   const file = unit.files.get(FRAME_FILE);
   if (!file) {
@@ -345,7 +348,22 @@ function frameVars(ctx, h) {
   return {
     models: () => modelsLine(ctx.targets.get(h)),
     craft: () => (prefix ? `${prefix}craft` : { error: { code: "E_INTERNAL", harness: h, message: `targets/${h}.json declares no skill_prefix, so the frame cannot name the typed form of craft` } }),
+    triggers: () => frameTriggers(ctx, h),
   };
+}
+
+/** The first read dir in record order, because a by-name harness reads the first copy of a name. */
+function frameTriggers(ctx: any, h: string): string {
+  const dirs: string[] = ctx.targets.get(h).reads.skills.map((e: {path: string}) => e.path);
+  const lines = (ctx.triggers as Mode["triggers"]).flatMap((t) => {
+    if (!("use" in t)) return [];
+    const name = t.use.split("/")[1];
+    const dir = dirs.find((d) => ctx.owners.get(`${d}/${name}/SKILL.md`) === t.use);
+    if (dir) return [`${t.when}: read ${dir}/${name}/SKILL.md and apply it.`];
+    ctx.info.push(`absent ${h} ${t.use}: no skill dir of the harness holds it, so the frame has no line for the trigger "${t.when}"`);
+    return [];
+  });
+  return lines.length ? lines.join("\n") : "None.";
 }
 
 function modelsLine(target) {

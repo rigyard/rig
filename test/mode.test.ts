@@ -152,8 +152,9 @@ describe("fills, hooks, triggers and artifacts", () => {
     assert.match(errorOf(kept, "E_MODE_REF").message, /^cursor-team-kit\/deslop: packs\/fixture\/pack\.json mode\.hooks\.eng:review\.before names no kept unit/);
   });
 
-  test("every fill address form lands in its domain file; a trigger with no domain goes in the shell", () => {
+  test("every fill address form lands in its domain file; a fill trigger with no domain goes in the frame, a pack trigger with no domain in the shell", () => {
     const b = built({
+      ...withManifest((m: any) => ({ ...m, mode: { ...m.mode, triggers: [{ when: "A boundary moves", then: "Use {{skill:fixture/architect}}." }] } })),
       rig: {
         fill: {
           "eng:design": `${PACK}/design-probe`,
@@ -173,8 +174,17 @@ describe("fills, hooks, triggers and artifacts", () => {
     assert.match(eng, /^- When Building or changing a CLI: Use \[architect\]\(\.\.\/\.\.\/architect\/SKILL\.md\)\.$/m);
     assert.match(b.text("~/.claude/skills/craft/references/upkeep.md"), /^- `upk:retire`\. Before: none\. Slot: none\. After: \[design-probe\]/m);
     const shell = b.text("~/.claude/skills/craft/SKILL.md");
-    assert.match(shell, /^- When Any task names a boundary: Use \[design-probe\]\(\.\.\/design-probe\/SKILL\.md\)\.$/m);
-    assert.doesNotMatch(shell, /Building or changing a CLI/);
+    assert.match(shell, /^- When A boundary moves: Use \[architect\]\(\.\.\/architect\/SKILL\.md\)\.$/m);
+    assert.doesNotMatch(shell, /Building or changing a CLI|Any task names a boundary/);
+    assert.deepEqual(b.stack.mode!.triggers, [{ when: "A boundary moves", then: "Use {{skill:fixture/architect}}." }, { when: "Any task names a boundary", use: `${PACK}/design-probe` }]);
+  });
+
+  test("a fill trigger that names no kept unit is E_MODE_REF; one that names a disabled unit is dropped with no error", () => {
+    const missing = built({ rig: { fill: { triggers: [{ when: "Before review", use: "fixture/nope" }] } } });
+    assert.match(errorOf(missing, "E_MODE_REF").message, /^fixture\/nope: rig\.json fill\.triggers\[0\]\.use names no kept unit$/);
+    const disabled = built({ rig: { fill: { triggers: [{ when: "Before review", use: `${PACK}/architect` }] }, disable: [`${PACK}/architect`] } });
+    assert.deepEqual(disabled.errors, []);
+    assert.deepEqual(disabled.stack.mode!.triggers, []);
   });
 
   test("disable removes a unit from every step, and auto cannot name it", () => {

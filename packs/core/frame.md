@@ -8,3 +8,5 @@ Invariants, in every task:
 4. Report with evidence per claim and an uncertainties section.
 For multi-step work, type `{{craft}}`, optionally with a domain: `{{craft}} eng: ...`.
 Models: {{models}}
+Triggers, in every task:
+{{triggers}}

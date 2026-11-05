@@ -1,4 +1,4 @@
-// Live lanes of the first seed (docs/plan/v1-first-seed-prs.md, seed, lanes 1 to 10). Opt-in: RIG_LIVE=1.
+// Live lanes of the first seed (docs/plan/v1-first-seed-prs.md, seed, lanes 1 to 10) and of the frame triggers. Opt-in: RIG_LIVE=1.
 // RIG_LIVE_PLUGINS and RIG_LIVE_GSTACK override the upstream URLs, for example with file:// clones.
 // A case reads a transcript only for tool names, file paths and the final reply. It copies no message text to disk.
 
@@ -222,6 +222,15 @@ describe("first seed", () => {
     if (noVerdict(t, "claude", r)) return;
     assert.match(text ?? "", /deslop/i, "the reply does not name deslop");
   });
+
+  for (const h of ["claude", "codex"] as const) {
+    liveTest(`${h} applies a frame trigger with no craft`, async (t) => {
+      const s = seeded(t, [h]);
+      const { r } = await ask(h, "Write a short README for this repo.", s, { maxTurns: 15 });
+      if (noVerdict(t, h, r)) return;
+      assert.ok(reads(r, "unslop/SKILL.md") || reads(r, "technical-writing/SKILL.md"), `exit ${r.code}: the ${h} transcript reads neither unslop/SKILL.md nor technical-writing/SKILL.md`);
+    });
+  }
 
   liveTest("codex runs typed craft and hides leaves", (t) => typedAndHidden(t, "codex"));
 

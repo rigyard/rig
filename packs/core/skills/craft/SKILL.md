@@ -20,4 +20,6 @@ Do these steps in this order.
 
 ## Triggers with no domain
 
+The rig frame lists the triggers of rig.json `fill` that name no domain. Every session loads it. The pack triggers with no domain follow.
+
 {{mode:triggers}}

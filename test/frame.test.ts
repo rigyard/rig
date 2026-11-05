@@ -1,13 +1,14 @@
 // The frame, rendered from the repo's own data: the target records fill the core template variables.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "../lib/targets.ts";
 import { compose } from "../lib/stack.ts";
 import { gate } from "../lib/gate.ts";
 import { loadWorld } from "../lib/world.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
+import { configCopy } from "./helpers/seed.ts";
 import { ROOT, fixture } from "./world.helpers.ts";
 import { HARNESSES, records, unit, world as renderWorld } from "./render.helpers.ts";
 
@@ -16,20 +17,37 @@ const text = (e) => decoder.decode(e.bytes);
 const MDC_HEAD = "---\nalwaysApply: true\n---\n";
 const FRAME_PATHS = { claude: "~/.claude/rules/rig-frame.md", codex: "~/.codex/AGENTS.md", omp: "~/.omp/agent/AGENTS.md", cursor: "~/.cursor/rules/rig-frame.mdc" };
 /** The frame variables whose lines differ per harness. Every other line is byte-identical across harnesses. */
-const PER_HARNESS = ["craft", "models"];
+const PER_HARNESS = ["craft", "models", "triggers"];
 const CRAFT: Record<string, string> = { claude: "/craft", codex: "$craft", cursor: "/craft", omp: "/skill:craft" };
 
 /** The real target records, which declare the frame paths (the world fixtures do not). */
 const realTargets = () => Object.fromEntries(HARNESSES.map((h) => [`targets/${h}.json`, readFileSync(join(ROOT, `targets/${h}.json`), "utf8")]));
 
-/** Render the repo's own data. Returns rendered entries keyed by "~/..." path, plus stack, desired and world. */
-function renderRepo(spec) {
+/** The four hub triggers that the default rig.json fill restates with no domain, as hub text and unit. */
+const FRAME_TRIGGERS = [
+  ["Any prose surface, your reply to the user included", "pstack/unslop"],
+  ["Docs, RFCs, readmes, PR descriptions, or commit messages", "pstack/technical-writing"],
+  ["Before commit", "cursor-team-kit/deslop"],
+  ["Before review", "pstack/no-comments"],
+];
+const TRIGGER_LINE = /^(.+): read (\S+) and apply it\.$/;
+/** The read dir that holds the seeded trigger units per harness, as docs/harnesses.md states. */
+const TRIGGER_DIR: Record<string, string> = { claude: "~/.claude/skills", codex: "~/.agents/skills", omp: "~/.agents/skills", cursor: "~/.agents/skills" };
+
+/**
+ * Render the repo's own data. Returns rendered entries keyed by "~/..." path, plus stack, desired and world.
+ * `rig` replaces top-level keys of a copy of rig.json first.
+ */
+function renderRepo(spec?: Record<string, any>, rig?: Record<string, unknown>) {
   if (!spec) {
     const fx = makeFixtureHome({});
+    const root = rig ? configCopy(ROOT) : null;
     try {
-      return run(loadWorld({ HOME: fx.home }), fx.home);
+      if (root) writeFileSync(join(root, "rig.json"), `${JSON.stringify({ ...JSON.parse(readFileSync(join(root, "rig.json"), "utf8")), ...rig }, null, 2)}\n`);
+      return run(loadWorld({ HOME: fx.home, ...(root ? { RIG_ROOT: root } : {}) }), fx.home);
     } finally {
       fx.cleanup();
+      if (root) rmSync(root, { recursive: true, force: true });
     }
   }
   const fx = fixture({ ...spec, repo: { ...realTargets(), ...(spec.repo ?? {}) } });
@@ -71,7 +89,7 @@ test("frame blocks are the template byte for byte, except the declared per-harne
   assert.deepEqual([...new Set(used)].sort(), PER_HARNESS);
   const pattern = template
     .split("\n")
-    .map((line) => escape(line).replaceAll(escape("{{craft}}"), "([^\\n`]+)").replace(escape("{{models}}"), "([^\\n]+)"))
+    .map((line) => escape(line).replaceAll(escape("{{craft}}"), "([^\\n`]+)").replace(escape("{{models}}"), "([^\\n]+)").replace(escape("{{triggers}}"), "([\\s\\S]+)"))
     .join("\n");
   const re = new RegExp(`^${pattern}$`);
   const models = {};
@@ -83,6 +101,49 @@ test("frame blocks are the template byte for byte, except the declared per-harne
     assert.deepEqual([first, second], [CRAFT[h], CRAFT[h]], `${h} names craft in its typed form`);
   }
   assert.equal(new Set(HARNESSES.map((h) => models[h])).size, 4, "one distinct models line per harness");
+});
+
+test("each frame holds the four hub triggers, each a path to the owned SKILL.md of its unit in the read set of the harness", () => {
+  const { at } = renderRepo();
+  const hub = readFileSync(join(ROOT, "packs/pstack/skills/poteto-mode/SKILL.md"), "utf8").split("\n");
+  for (const [when] of FRAME_TRIGGERS) assert.ok(hub.some((l) => l.startsWith(`- ${when} → `)), `"${when}" is the text of a hub trigger`);
+  for (const h of HARNESSES) {
+    const reads: string[] = records().get(h).reads.skills.map((e: {path: string}) => e.path);
+    assert.ok(reads.includes(TRIGGER_DIR[h]), `${h} reads ${TRIGGER_DIR[h]}`);
+    const body = frameBody(at, h).split("\n");
+    const lines = body.slice(body.indexOf("Triggers, in every task:") + 1).filter(Boolean);
+    assert.deepEqual(lines.map((l) => TRIGGER_LINE.exec(l)?.[1]), FRAME_TRIGGERS.map(([when]) => when), h);
+    lines.forEach((l, i) => {
+      const [, ref] = FRAME_TRIGGERS[i];
+      const path = TRIGGER_LINE.exec(l)![2];
+      assert.equal(path, `${TRIGGER_DIR[h]}/${ref.split("/")[1]}/SKILL.md`, h);
+      assert.equal(at.get(path)?.unit, ref, `${h}: ${path} is the rendered copy of ${ref}`);
+    });
+  }
+});
+
+test("the frame triggers are the same bytes from two HOMEs, and a disabled unit drops its line", () => {
+  const a = renderRepo();
+  const b = renderRepo();
+  for (const h of HARNESSES) assert.equal(frameBody(a.at, h), frameBody(b.at, h), h);
+  const off = renderRepo(undefined, { disable: ["pstack/unslop"] });
+  assert.deepEqual(off.desired.errors, []);
+  for (const h of HARNESSES) {
+    assert.doesNotMatch(frameBody(off.at, h), /unslop/, h);
+    assert.equal(frameBody(off.at, h).split("\n").filter((l) => TRIGGER_LINE.test(l)).length, 3, h);
+  }
+});
+
+test("a trigger unit with no copy in the read set of a harness has no frame line there, and says why", () => {
+  const frame = unit({ id: "core/rig-frame", type: "frame", files: { "frame.md": readFileSync(join(ROOT, "packs/core/frame.md"), "utf8") } });
+  const leaf = unit({ id: "own/explain", type: "skill", harnesses: ["claude"], files: { "SKILL.md": "---\nname: explain\ndescription: Explain.\n---\n" } });
+  const mode = { auto: new Set(), triggers: [{ when: "Before review", use: "own/explain" }] };
+  const d = render({ units: [frame, leaf], errors: [], mode } as any, renderWorld() as any);
+  assert.deepEqual(d.errors, []);
+  const body = (h: keyof typeof FRAME_PATHS) => text([...d.entries.values()].find((e) => e.unit === "core/rig-frame" && e.path.endsWith(FRAME_PATHS[h].slice(1)))!);
+  assert.match(body("claude"), /^Triggers, in every task:\nBefore review: read ~\/\.claude\/skills\/explain\/SKILL\.md and apply it\.\n$/m);
+  assert.match(body("codex"), /^Triggers, in every task:\nNone\.\n$/m);
+  assert.ok(d.info.includes(`absent codex own/explain: no skill dir of the harness holds it, so the frame has no line for the trigger "Before review"`), d.info.join("\n"));
 });
 
 test("no harness's frame names a provider or a slot", () => {

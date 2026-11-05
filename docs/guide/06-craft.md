@@ -58,7 +58,18 @@ The seed behaves as pstack does by default, because the model reads pstack's own
 | "Before review" | `eng:review.before` | `pstack/no-comments` | `packs/pstack/pack.json` `mode.hooks` |
 | "Before commit" | `eng:ship.before` | `cursor-team-kit/deslop` | `rig.json` `fill` |
 
-`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` in your repository. The hub's other triggers stay in the hub. `auto` is empty, so every skill stays hidden until the hub, a domain file or you name it.
+`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` in your repository.
+
+`rig.json` restates four more hub triggers with no domain. rig renders them into the frame, and every harness loads the frame in every session. So these four apply with or without `/craft`:
+
+| Hub trigger | Unit |
+|---|---|
+| "Any prose surface, your reply to the user included" | `pstack/unslop` |
+| "Docs, RFCs, readmes, PR descriptions, or commit messages" | `pstack/technical-writing` |
+| "Before commit" | `cursor-team-kit/deslop` |
+| "Before review" | `pstack/no-comments` |
+
+The hub's other triggers stay in the hub. `auto` is empty, so every skill stays hidden until the hub, a domain file, a frame trigger or you name it.
 
 Each pstack playbook carries a domain label in `packs/pstack/pack.json`. `worktree-cleanup` is upkeep, and the other 22 are engineering.
 
@@ -117,7 +128,9 @@ A step has a `before` list, one `slot` and an `after` list. `fill` addresses the
 }
 ```
 
-A hook list in `fill` replaces the pack list at the same address. A trigger with a `domain` goes in that domain file, and a trigger with none goes in the shell. `disable` removes a unit from every step. `auto` lists the units to which rig adds no hide switch, so the model may pick them. rig does not rewrite upstream frontmatter, so a unit whose source already sets the hide key of a harness, such as `disable-model-invocation: true`, stays hidden on that harness. `rig plan` then prints `info <unit> stays hidden on <harness>: its source sets <key>`. `auto` is empty by default, and an overlay `auto` adds to the repo list.
+A hook list in `fill` replaces the pack list at the same address. A trigger with a `domain` goes in that domain file. A trigger with no domain goes in the frame, described below. `disable` removes a unit from every step. `auto` lists the units to which rig adds no hide switch, so the model may pick them. rig does not rewrite upstream frontmatter, so a unit whose source already sets the hide key of a harness, such as `disable-model-invocation: true`, stays hidden on that harness. `rig plan` then prints `info <unit> stays hidden on <harness>: its source sets <key>`. `auto` is empty by default, and an overlay `auto` adds to the repo list.
+
+The frame of each harness lists the triggers with no domain under `Triggers, in every task:`. Each line has the form `<when>: read <path> and apply it.` The path names the copy of the unit in the first read dir of the harness that holds one, such as `~/.claude/skills/unslop/SKILL.md` for Claude Code. The model opens that file by its path, so the unit can stay hidden. A disabled unit has no line. A unit with no copy in the read dirs of a harness has no line there, and `rig plan` prints an `info absent` line for it. The shell section "Triggers with no domain" points to the frame and lists only the pack triggers with no domain (`test/frame.test.ts`, "each frame holds the four hub triggers, each a path to the owned SKILL.md of its unit in the read set of the harness").
 
 ## Read the vendored leaves
 
