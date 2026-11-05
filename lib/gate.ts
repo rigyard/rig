@@ -1,9 +1,11 @@
 // lib/gate.ts — public: gate, refreshOsv (plus the registry, see NEW NAMES in the module report)
 import { isExpired, ackId, parseAcks, stanza } from "./gate/ack.ts";
 import { makeCtx } from "./gate/ctx.ts";
+import { refreshOsv } from "./gate/osv.ts";
 import { REGISTRY, checkTable } from "./gate/registry.ts";
 
-export { REGISTRY as registry, checkTable };
+export { REGISTRY as registry, checkTable, refreshOsv };
+export type { FetchFn } from "./gate/osv.ts";
 
 import type { World } from "./world.ts";
 import type { Stack } from "./stack.ts";
@@ -43,11 +45,4 @@ export function gate(stack: Stack, desired: Desired, world: World): {findings: F
     order.get(a.check) - order.get(b.check) || RANK[a.severity] - RANK[b.severity] ||
     byText(a.pack, b.pack) || byText(a.path, b.path) || byText(a.evidence, b.evidence));
   return { findings, blocked: findings.some((f) => f.severity === "block" && !f.acked) };
-}
-
-/**
- * Refresh cache/osv for the manifests in the stack. Called only by lib/lock.ts, which passes its fetch.
- */
-export async function refreshOsv(stack: Stack, fetchFn: (url: string, body: string) => Promise<string>): Promise<void> {
-  throw new Error("not implemented");
 }

@@ -5,7 +5,10 @@ import { gate } from "../gate.ts";
 import { compose } from "../stack.ts";
 import { plan } from "../state.ts";
 import { patch, render } from "../targets.ts";
-import type { Finding } from "../gate.ts";
+import type { FetchFn, Finding } from "../gate.ts";
+
+/** What the two network commands accept beyond argv and env. Tests inject both fields; production passes neither. */
+export type Deps = {fetchFn?: FetchFn, out?: {write: (s: string) => unknown}};
 
 export function usage(message: string): Error & {code: string} {
   const e = /** @type {Error & {code: string}} */ (new Error(`E_USAGE ${message}`));

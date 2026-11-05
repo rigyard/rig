@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gate, refreshOsv, registry, checkTable } from "../lib/gate.ts";
+import { gate, registry, checkTable } from "../lib/gate.ts";
 import { parseAcks } from "../lib/gate/ack.ts";
 import { ack, desired, goodPack, HOME, lockWith, pack, stack, world } from "./gate.helpers.ts";
 import { treeHash } from "../lib/tree.ts";
@@ -21,10 +21,6 @@ test("a clean pack passes with no real finding", () => {
   const r = run(world({ packs: [goodPack()] }));
   assert.deepEqual(real(r), []);
   assert.equal(r.blocked, false);
-});
-
-test("refreshOsv is not implemented", async () => {
-  await assert.rejects(() => refreshOsv(stack(), async () => ""), /not implemented/);
 });
 
 test("exec: a shebang script blocks", () => {

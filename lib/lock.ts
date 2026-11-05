@@ -273,3 +273,21 @@ export function pinSet(world: object, name: string): {promoted: boolean, error?:
   write(root, LOCK_FILE, encodeLock(lock));
   return { promoted: true };
 }
+
+const OSV_PREFIX = "https://api.osv.dev/";
+
+/**
+ * The transport that rig pack add and rig pin check hand to refreshOsv: the only network call in rig besides git.
+ * A body means POST of JSON, none means GET. Refuses any URL outside api.osv.dev, answers the text, throws on a
+ * non-2xx status, a network error or a 30-second timeout.
+ */
+export async function osvFetch(url: string, body?: string): Promise<string> {
+  if (!url.startsWith(OSV_PREFIX)) throw new LockError("E_USAGE", `not an OSV URL: ${url}`, url);
+  const res = await fetch(url, {
+    method: body === undefined ? "GET" : "POST",
+    ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`${url} answered ${res.status}`);
+  return res.text();
+}
