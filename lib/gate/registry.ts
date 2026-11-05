@@ -28,7 +28,7 @@ export type CheckRow = {
 export const REGISTRY = Object.freeze([
   {
     id: "pin", runsOn: "lock, sources", inputs: ["lock", "sources"],
-    finds: "lock tree mismatch, core seal mismatch",
+    finds: "lock tree mismatch, port not reviewed (`E_PORT_STALE`), core seal mismatch",
     severity: "block", ackable: false, ackNote: "never", run: runPin,
   },
   {

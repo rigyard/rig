@@ -69,7 +69,7 @@ Put the render back from the diff, and make the change in the pack unit instead.
 
 **Setting a repo value in the overlay.** The overlay only adds. `metrics.session_hook`, `harnesses` and the Claude model cells are set in the repo's files, so an overlay value for them fails with `E_OVERLAY_CONFLICT` and exit 2. Change them in your checkout.
 
-**Acking a `pin` finding.** A `pin` block means a pack tree or the core tree differs from the lock. An ack for it fails the schema with exit 2. Restore the files, or, after a core change you meant, run `rig pin check core` and `rig pin set core`.
+**Acking a `pin` finding.** A `pin` block means a pack tree or the core tree differs from the lock, or a port is not reviewed (`E_PORT_STALE`). An ack for it fails the schema with exit 2. Restore the files, or, after a core change you meant, run `rig pin check core` and `rig pin set core`. For `E_PORT_STALE`, update the port, then run `rig pin set <pack> --ported`.
 
 **A hand-written command at a rendered path.** Your own `~/.claude/commands/oh.md` blocks the plan with `E_ADOPT_MISMATCH`, because the product pack renders `/oh` there. Rename your command, or disable `product/oh`.
 

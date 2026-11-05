@@ -134,7 +134,7 @@ describe("types, required fields and the schema version", () => {
   test("a lock pack entry needs a full commit sha", () =>
     loads({ repo: { "rig.lock.json": { schema: 2, packs: { own: { ...LOCKED, sha: "b244e6d" } } } } }, "E_SCHEMA", { file: "rig.lock.json", path: "packs.own.sha" }));
   test("a lock pack entry with a port and a candidate loads", () =>
-    withFixture({ repo: { "rig.lock.json": { schema: 2, packs: { own: { ...LOCKED, port: PORT, candidate: { sha: SHA, tree: "sha256:03", port_tree: null, checked: "2026-11-05" } } } } } }, (fx) =>
+    withFixture({ repo: { "rig.lock.json": { schema: 2, packs: { own: { ...LOCKED, port: PORT, candidate: { sha: SHA, exclude: [], tree: "sha256:03", port_tree: null, checked: "2026-11-05" } } } } } }, (fx) =>
       assert.deepEqual(fx.load().locks.repo.packs.own.port, PORT)));
   test("bad enum value", () => loads({ repo: { "targets/omp.json": { ...baseJson("targets/omp.json"), hide: { method: "hidden" } } } }, "E_SCHEMA", { path: "hide.method" }));
   test("invalid JSON", () => loads({ repo: { "models/roles.json": "{" } }, "E_SCHEMA", { file: "models/roles.json" }));

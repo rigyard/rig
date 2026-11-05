@@ -4,7 +4,7 @@ In this page you learn what the gate checks, read a blocked plan, and ack a find
 
 ## Know when the gate runs
 
-`rig plan`, `rig apply` and `rig models set` run the same pipeline: compose, render, gate, diff. `rig pack add` gates the tree it fetched, and `rig pin check core` gates the core tree. No flag skips the gate. The strict argument parser exits 2 on `--force`, `--skip-gate`, `--no-gate` and every other unknown flag.
+`rig plan`, `rig apply` and `rig models set` run the same pipeline: compose, render, gate, diff. `rig pack add` gates the tree it fetched, `rig pin check <pack>` gates the candidate tree, and `rig pin check core` gates the core tree. No flag skips the gate. The strict argument parser exits 2 on `--force`, `--skip-gate`, `--no-gate` and every other unknown flag.
 
 When the gate blocks, `rig apply` writes nothing to your home directory. The design record is [decision 0006](../decisions/0006-one-gate-before-apply.md).
 
@@ -14,7 +14,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 
 | Check | Looks at | Result | Ackable |
 |---|---|---|---|
-| `pin` | Lock tree versus pack files, and the core seal. | block | never |
+| `pin` | Lock tree versus pack files, locked excludes, the port review (`E_PORT_STALE`), and the core seal. | block | never |
 | `exec` | Pack sources: exec bit, shebang, script extension, executable or archive magic bytes, `hooks.json`, `.mcp.json`, `package.json` scripts, symlinks. | block | yes |
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |

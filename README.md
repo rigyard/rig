@@ -5,7 +5,7 @@ rig installs one pinned set of agent skills, commands, agents and rules into the
 You get three things from it:
 
 - **The same stack in every harness.** A skill you add appears once in Claude Code, Codex, omp and Cursor, with no duplicates where one harness reads another's directories.
-- **No surprise updates.** rig installs copies pinned by a sha256 tree hash in `rig.lock.json`. Nothing updates itself. Only `rig pack add` uses the network.
+- **No surprise updates.** rig installs copies pinned by a sha256 tree hash in `rig.lock.json`. Nothing updates itself. Only `rig pack add`, and `rig pin check` and `rig pin set` of a pack, use the network.
 - **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, relative links, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
 
 rig is one Node CLI with no runtime dependencies. Packs and harness targets are data files, and rig runs no code from a pack.
@@ -50,8 +50,8 @@ rig has seven commands. Every command takes `--help`.
 | `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, the scope packs of the project. |
 | `rig stats [--since <dur>] [--harness <h>] [--suggest]` | Token and session metrics read from harness transcripts. `--suggest` adds a proposed diff that you apply yourself. |
 | `rig models` and `rig models set <tier> <model> --harness <h>` | Shows the model table per harness, or swaps the model of one tier and re-renders only the model cells, through the same gate and transaction as `rig apply`. |
-| `rig pack add <repo> --sha <sha> [--root <dir>] --path <path> [--exclude <path>] [--name <name>]` | Vendors one folder of a repo at a full 40-hex commit, minus the excludes, gates it, and prints the ack stanzas the gate needs. |
-| `rig pin check core` and `rig pin set core` | Gates the core tree and records its tree hash as a candidate, then promotes the candidate to the core seal in the lock. |
+| `rig pack add <repo> --sha <sha> [--root <dir>] [--path <path>] [--exclude <path>] [--port <path>] [--name <name>]` | Vendors one folder of a repo at a full 40-hex commit, minus the excludes, gates it, and prints the ack stanzas the gate needs. `--port` records the upstream sources of a port. With `--port` and no `--path`, it adopts a pack folder that you wrote. |
+| `rig pin check <name> [--sha <sha>] [--diff] [--exclude <path>] [--no-exclude]` and `rig pin set <name> [--ported]` | For core: gates the core tree, records its tree hash as a candidate, then promotes it to the core seal. For a pack: gates the pack at a new commit with its license and exclude list, prints `port fresh` or `port stale` for its port paths, then moves the pack to that commit. `--diff` prints the port diff and records nothing. `--ported` attests a reviewed port. A stale port blocks `rig plan` with `E_PORT_STALE`. |
 
 Exit codes: `0` done, `1` blocked or failed, `2` usage or config error.
 

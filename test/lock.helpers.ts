@@ -33,7 +33,8 @@ in the Software without restriction.
 `;
 
 /**
- * Build a bare repo from a list of commits. A commit is a map of path -> string | {content, mode} | {symlink}.
+ * Build a bare repo from a list of commits. A commit is a map of path -> string | {content, mode} | {symlink} | null,
+ * where null deletes the path. A value replaces whatever is at the path, a folder included.
  * Returns the file:// URL, the bare path and the full sha of each commit.
  * @param base scratch dir
  */
@@ -46,6 +47,8 @@ export function makeRepo(base: string, commits: Record<string, any>[], opts: {al
     for (const [path, v] of Object.entries(files)) {
       const abs = join(work, path);
       mkdirSync(dirname(abs), { recursive: true });
+      rmSync(abs, { recursive: true, force: true });
+      if (v === null) continue;
       if (v.symlink) symlinkSync(v.symlink, abs);
       else {
         writeFileSync(abs, typeof v === "string" ? v : v.content);
@@ -61,7 +64,7 @@ export function makeRepo(base: string, commits: Record<string, any>[], opts: {al
   return { url: pathToFileURL(bare).href, bare, shas };
 }
 
-/** A world with a scratch repo root and a writer that records each call. */
+/** A world with a scratch repo root and a writer that records each call. Null bytes remove the file. */
 export function makeWorld(base, extra = {}) {
   const repo = join(base, "config-repo");
   const overlay = join(base, "config-overlay");
@@ -69,8 +72,9 @@ export function makeWorld(base, extra = {}) {
   mkdirSync(overlay, { recursive: true });
   const calls = [];
   const writeConfig = (root, rel, bytes, mode = 0o644) => {
-    calls.push({ root, rel, mode });
+    calls.push({ root, rel, mode, removed: bytes === null });
     const abs = join(root, rel);
+    if (bytes === null) return rmSync(abs, { force: true });
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, bytes);
     chmodSync(abs, mode);

@@ -230,12 +230,14 @@ export function appendState(rel, line, ctx) {
 }
 
 /**
- * Atomic write into a config root. The path must resolve inside the root. An omitted mode keeps the current
- * file's mode (0644 for a new file); lock passes the git mode so a vendored 755 file keeps its exec bit.
- * Allowed importers: lock, models.
+ * Atomic write into a config root, or a contained unlink when bytes is null. The unlink also removes the parent
+ * folders that it leaves empty, up to the root, so a file can take the place of a folder. The path must resolve
+ * inside the root.
+ * An omitted mode keeps the current file's mode (0644 for a new file); lock passes the git mode so a vendored 755
+ * file keeps its exec bit. Allowed importers: lock, models.
  * @param root absolute
  */
-export function writeConfig(root: string, rel: string, bytes: Uint8Array, mode?: number) {
+export function writeConfig(root: string, rel: string, bytes: Uint8Array | null, mode?: number) {
   if (typeof root !== "string" || !path.isAbsolute(root)) throw rigError("E_CONTAINMENT", "config root is not absolute");
   if (typeof rel !== "string" || rel === "" || path.isAbsolute(rel) || rel.split(/[\\/]/).some((s) => s === ".." || s === "")) {
     throw rigError("E_CONTAINMENT", `bad config path: ${rel}`, String(rel));
@@ -250,6 +252,20 @@ export function writeConfig(root: string, rel: string, bytes: Uint8Array, mode?:
     if (e.code !== "ENOENT") throw e;
   }
   if (st && !st.isFile()) throw rigError("E_CONTAINMENT", `${rel} is a symlink or not a regular file`, rel);
+  if (bytes === null) {
+    fs.rmSync(abs, { force: true });
+    let dir = path.dirname(abs);
+    for (; strictlyInside(rr, dir); dir = path.dirname(dir)) {
+      try {
+        fs.rmdirSync(dir);
+      } catch (e) {
+        if (["ENOTEMPTY", "EEXIST", "ENOENT", "ENOTDIR"].includes((e as NodeJS.ErrnoException).code ?? "")) break;
+        throw e;
+      }
+    }
+    fsyncDir(dir);
+    return;
+  }
   atomicWrite(abs, bytes, mode ?? modeOf(abs, 0o644), false);
 }
 

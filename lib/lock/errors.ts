@@ -1,6 +1,7 @@
 export class LockError extends Error {
-  /** @param {string} code @param {string} message @param {string} [path] */
-  constructor(code, message, path) {
+  code: string;
+  path?: string;
+  constructor(code: string, message: string, path?: string) {
     super(message);
     this.name = "LockError";
     this.code = code;

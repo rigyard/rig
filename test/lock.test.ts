@@ -321,16 +321,28 @@ test("a schema 1 lock is refused on its version, before any fetch", async (t) =>
   const v0 = { schema: 1, core: null, packs: {}, pins: {} };
   writeFileSync(join(world.roots.repo, "rig.lock.json"), `${JSON.stringify(v0, null, 2)}\n`);
   await assert.rejects(vendor(world, { repo: "file:///nowhere", sha: "0".repeat(40), paths: ["z"] }), { code: "E_SCHEMA", message: /schema 1 is v0, see docs\/design\/rig-v1-first-seed\.md/ });
-  assert.throws(() => pinSet(world, "core"), { code: "E_SCHEMA" });
+  await assert.rejects(pinSet(world, "core"), { code: "E_SCHEMA" });
 });
 
-test("pinCheck and pinSet take core only until pack pins land", async (t) => {
+test("pinCheck and pinSet of a pack with no lock entry are E_USAGE before any fetch or write", async (t) => {
   const base = scratch();
   t.after(() => cleanup(base));
   const world = makeWorld(base);
-  await assert.rejects(pinCheck(world, "demo", "0".repeat(40)), { code: "E_USAGE", message: /core only/ });
-  assert.throws(() => pinSet(world, "demo"), { code: "E_USAGE", message: /core only/ });
+  await assert.rejects(pinCheck(world, "demo", "0".repeat(40)), { code: "E_USAGE", message: /demo has no lock entry/ });
+  await assert.rejects(pinSet(world, "demo"), { code: "E_USAGE", message: /demo has no lock entry/ });
   assert.equal(existsSync(join(world.roots.repo, "rig.lock.json")), false);
+});
+
+test("core takes no pack flags: --sha, --diff, --exclude and --no-exclude on check, --ported on set are E_USAGE", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const world = makeWorld(base);
+  await assert.rejects(pinCheck(world, "core", "0".repeat(40)), { code: "E_USAGE", message: /does not take --sha/ });
+  await assert.rejects(pinCheck(world, "core", null, { diff: true }), { code: "E_USAGE", message: /does not take --diff/ });
+  await assert.rejects(pinCheck(world, "core", null, { exclude: ["x"] }), { code: "E_USAGE", message: /does not take --exclude/ });
+  await assert.rejects(pinSet(world, "core", { ported: true }), { code: "E_USAGE", message: /does not take --ported/ });
+  await assert.rejects(pinCheck(world, "core", null, { exclude: [] }), { code: "E_USAGE", message: /does not take --no-exclude/ });
+  assert.equal(world.calls.length, 0);
 });
 
 test("core: pinCheck hashes packs/core with no network and pinSet seals it", async (t) => {
@@ -341,12 +353,12 @@ test("core: pinCheck hashes packs/core with no network and pinSet seals it", asy
   world.writeConfig(world.roots.repo, "packs/core/frame.md", Buffer.from("frame\n"));
   world.writeConfig(world.roots.repo, "packs/core/pack.json", Buffer.from("{}\n"));
 
-  assert.equal(pinSet(world, "core").error.code, "E_PIN_UNCHECKED");
+  assert.equal((await pinSet(world, "core")).error?.code, "E_PIN_UNCHECKED");
   const r = await pinCheck(world, "core", null);
   assert.equal(r.candidate.tree, treeHash(filesOnDisk(core), { core: true }));
   assert.equal(readLockFile(world.roots.repo).core.candidate, r.candidate.tree);
 
-  assert.deepEqual(pinSet(world, "core"), { promoted: true });
+  assert.deepEqual(await pinSet(world, "core"), { promoted: true });
   assert.deepEqual(readLockFile(world.roots.repo).core, { tree: r.candidate.tree, candidate: null });
 });
 
@@ -360,7 +372,7 @@ test("core: a blocked gate keeps the candidate out of the lock, so pinSet cannot
   assert.deepEqual(seen, [["frame.md"]], "the gate sees the candidate files");
   assert.equal(r.blocked, true);
   assert.equal(existsSync(join(world.roots.repo, "rig.lock.json")), false, "no lock write on a block");
-  assert.equal(pinSet(world, "core").error.code, "E_PIN_UNCHECKED");
+  assert.equal((await pinSet(world, "core")).error?.code, "E_PIN_UNCHECKED");
   const ok = await pinCheck(world, "core", null, { gate: () => ({ findings: [], blocked: false }) });
   assert.equal(ok.blocked, false);
   assert.deepEqual(readLockFile(world.roots.repo).core, { tree: null, candidate: ok.candidate.tree }, "no seal before pin set");

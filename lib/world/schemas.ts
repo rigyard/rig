@@ -223,10 +223,11 @@ export const LOCK = schema2(S.rec(
       }, ["paths", "tree", "reviewed_sha", "reviewed_tree"])),
       candidate: S.nul(S.rec({
         sha: sha40(),
+        exclude: S.arr(text(), { unique: true }),
         tree: tree(),
         port_tree: S.nul(tree()),
         checked: S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/ }),
-      }, ["sha", "tree", "port_tree", "checked"])),
+      }, ["sha", "exclude", "tree", "port_tree", "checked"])),
     }, ["repo", "sha", "root", "paths", "exclude", "license", "tree", "port", "candidate"]), { key: id() }),
   },
   ["schema", "packs"],

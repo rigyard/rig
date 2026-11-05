@@ -36,15 +36,11 @@ export function git(args: string[], opts: {cwd?: string, input?: Uint8Array} = {
 }
 
 /**
- * Fetch one commit into an empty repo at `dir`. Tries a depth-1 fetch by SHA, then falls back to fetching every
+ * Fetch one commit into the repo at `dir`. Tries a depth-1 fetch by SHA, then falls back to fetching every
  * branch and tag. Returns the full commit id.
  */
-export async function fetchCommit(dir: string, repo: string, sha: string) {
-  if (typeof repo !== "string" || repo === "" || repo.startsWith("-") || /[\s\0]/.test(repo)) {
-    throw new LockError("E_USAGE", `bad repo location: ${JSON.stringify(repo)}`);
-  }
+async function fetchCommit(dir: string, repo: string, sha: string) {
   if (typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) throw new LockError("E_USAGE", `bad sha: ${JSON.stringify(sha)}`);
-  await git(["init", "-q", "--template=", dir]);
   let ref = "FETCH_HEAD";
   try {
     await git(["fetch", "-q", "--depth", "1", "--no-tags", "--", repo, sha], { cwd: dir });
@@ -101,14 +97,18 @@ export async function readBlobs(dir, oids: string[]): Promise<Buffer[]> {
 
 /**
  * Fetch `sha` of `repo` into a scratch repo, run `fn` on its tree listing, and always delete the scratch dir.
- * The scratch dir lies outside every config root.
- * @template T @param {string} repo @param {string} sha
- * @param {(c: {dir: string, commit: string, entries: Awaited<ReturnType<typeof listTree>>}) => Promise<T>} fn
+ * With `base`, that commit is fetched into the same repo too, so `fn` can diff against it. The scratch dir lies
+ * outside every config root.
  */
-export async function withClone(repo, sha, fn) {
+export async function withClone<T>(repo: string, sha: string, fn: (c: {dir: string, commit: string, entries: TreeEntry[]}) => Promise<T>, base: string | null = null): Promise<T> {
+  if (typeof repo !== "string" || repo === "" || repo.startsWith("-") || /[\s\0]/.test(repo)) {
+    throw new LockError("E_USAGE", `bad repo location: ${JSON.stringify(repo)}`);
+  }
   const tmp = mkdtempSync(join(tmpdir(), "rig-lock-"));
   try {
+    await git(["init", "-q", "--template=", tmp]);
     const commit = await fetchCommit(tmp, repo, sha);
+    if (base !== null && base !== commit) await fetchCommit(tmp, repo, base);
     return await fn({ dir: tmp, commit, entries: await listTree(tmp, commit) });
   } finally {
     rmSync(tmp, { recursive: true, force: true });

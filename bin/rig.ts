@@ -48,16 +48,31 @@ const COMMANDS: Command[] = [
     flags: {
       "--sha": { value: true, arg: "sha", required: true },
       "--root": { value: true, arg: "dir" },
-      "--path": { value: true, arg: "path", required: true, repeat: true },
+      "--path": { value: true, arg: "path", repeat: true },
       "--exclude": { value: true, arg: "path", repeat: true },
+      "--port": { value: true, arg: "path", repeat: true },
       "--name": { value: true, arg: "name" },
       "--into": { value: true, choices: ["overlay"] },
     },
     run: packAddCmd,
-    help: "vendor a folder of a repo at a full commit, minus excludes, gate it, print ack stanzas",
+    help: "vendor a folder of a repo at a full commit, minus excludes, gate it, print ack stanzas; --port records port sources, and without --path adopts the authored pack folder",
   },
-  { name: "pin", sub: "check", args: ["name"], flags: { "--sha": { value: true, arg: "sha" } }, run: pinCmd, help: "gate the core tree, record a candidate seal" },
-  { name: "pin", sub: "set", args: ["name"], flags: {}, run: pinCmd, help: "promote the candidate seal" },
+  {
+    name: "pin",
+    sub: "check",
+    args: ["name"],
+    flags: { "--sha": { value: true, arg: "sha" }, "--diff": { value: false }, "--exclude": { value: true, arg: "path", repeat: true }, "--no-exclude": { value: false } },
+    run: pinCmd,
+    help: "gate a candidate (core: the tree on disk; a pack: its paths at --sha) and record it with its exclude list; print port fresh or stale; --diff prints the port diff and records nothing",
+  },
+  {
+    name: "pin",
+    sub: "set",
+    args: ["name"],
+    flags: { "--ported": { value: false } },
+    run: pinCmd,
+    help: "promote the candidate with the exclude list that pin check recorded; --ported attests the current port instead, offline",
+  },
 ];
 
 const NAMES = [...new Set(COMMANDS.map((c) => c.name))];

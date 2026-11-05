@@ -1,4 +1,4 @@
-// pin: lock tree, locked excludes and core seal against the bytes in hand. Never ackable.
+// pin: lock tree, locked excludes, port review and core seal against the bytes in hand. Never ackable.
 import { treeHash } from "../tree.ts";
 
 const lockOf = (world, root) => (root === "overlay" ? world.locks?.overlay : world.locks?.repo);
@@ -30,6 +30,14 @@ function packFindings(world) {
         severity: "block", pack: pack.name, path: ".",
         evidence: `tree ${short(actual)}... differs from locked ${short(String(entry.tree))}...`,
         idBytes: `${actual}\0${entry.tree}`,
+      });
+    }
+    const port = entry.port;
+    if (port && port.tree !== port.reviewed_tree) {
+      out.push({
+        severity: "block", pack: pack.name, path: ".",
+        evidence: `E_PORT_STALE ${pack.name}: port sources ${short(port.tree)}... are not reviewed${port.reviewed_tree ? ` (reviewed ${short(port.reviewed_tree)}...)` : ""}; re-port, then rig pin set ${pack.name} --ported`,
+        idBytes: `port\0${port.tree}\0${port.reviewed_tree}`,
       });
     }
   }

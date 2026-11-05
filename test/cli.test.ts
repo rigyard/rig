@@ -33,9 +33,12 @@ const VALID = {
   "pack add": ["pack", "add", "file:///r", "--sha", "abc", "--path", "a", "--path", "b"],
   "pack add --into": ["pack", "add", "file:///r", "--sha", "abc", "--path", "a", "--into", "overlay"],
   "pack add --root --exclude --name": ["pack", "add", "file:///r", "--sha", "abc", "--root", "r", "--path", ".", "--exclude", "x", "--exclude", "y", "--name", "n"],
+  "pack add --port": ["pack", "add", "file:///r", "--sha", "abc", "--port", "a", "--port", "b"],
   "pin check": ["pin", "check", "core"],
-  "pin check --sha": ["pin", "check", "x", "--sha", "abc"],
+  "pin check --sha --diff --exclude": ["pin", "check", "x", "--sha", "abc", "--diff", "--exclude", "a", "--exclude", "b"],
   "pin set": ["pin", "set", "x"],
+  "pin set --ported": ["pin", "set", "x", "--ported"],
+  "pin check --no-exclude": ["pin", "check", "x", "--no-exclude"],
 };
 
 describe("help", () => {
@@ -94,10 +97,13 @@ describe("usage errors exit 2 with one line", () => {
   test("pack without subcommand", () => usage(["pack"]));
   test("pack with an unknown subcommand", () => usage(["pack", "remove", "x"]));
   test("pack add without --sha", () => usage(["pack", "add", "file:///r", "--path", "a"]));
-  test("pack add without --path", () => usage(["pack", "add", "file:///r", "--sha", "abc"]));
+  test("pack add --port without a value", () => usage(["pack", "add", "file:///r", "--sha", "abc", "--port"]));
   test("pack add --into with a value other than overlay", () => usage(["pack", "add", "file:///r", "--sha", "abc", "--path", "a", "--into", "repo"]));
   test("pin without subcommand", () => usage(["pin"]));
   test("pin set does not take --sha", () => usage(["pin", "set", "x", "--sha", "abc"]));
+  test("pin set does not take --exclude: pin check records the list", () => usage(["pin", "set", "x", "--exclude", "a"]));
+  test("pin set --ported takes no value", () => usage(["pin", "set", "x", "--ported=yes"]));
+  test("pin check does not take --ported", () => usage(["pin", "check", "x", "--ported"]));
   test("pin check without a name", () => usage(["pin", "check"]));
   test("missing flag value", () => usage(["apply", "--undo"]));
   test("flag value that looks like a flag", () => usage(["pack", "add", "file:///r", "--sha", "--path", "a"]));

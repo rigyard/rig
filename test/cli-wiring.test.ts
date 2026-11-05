@@ -307,6 +307,14 @@ describe("rig pack add", () => {
     assert.deepEqual(filesUnder(join(s.root, "packs/pstack")).map((f: {path: string}) => f.path).sort(), ["LICENSE", "pack.json", "skills/how/SKILL.md"]);
   });
 
+  test("pack add with neither --path nor --port exits 2 with E_USAGE", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    const r = s.rig(["pack", "add", "file:///nowhere", "--sha", "0".repeat(40)]);
+    assert.equal(r.code, 2, r.stdout + r.stderr);
+    assert.equal(r.stderr, "rig pack: E_USAGE at least one --path or --port is required\n");
+  });
+
   test("a short sha exits 2 with E_USAGE before any fetch", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
@@ -327,14 +335,14 @@ describe("rig pin", () => {
     assert.match(r.stderr, /^rig pin set: E_PIN_UNCHECKED core has no candidate/);
   });
 
-  test("pin check and pin set of a name other than core exit 2", (t) => {
+  test("pin check and pin set of a pack with no lock entry exit 2", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
     const before = readFileSync(join(s.root, "rig.lock.json"));
     for (const sub of ["check", "set"]) {
       const r = s.rig(["pin", sub, "x", ...(sub === "check" ? ["--sha", "0".repeat(40)] : [])]);
       assert.equal(r.code, 2, r.stderr);
-      assert.match(r.stderr, new RegExp(`^rig pin: E_USAGE rig pin ${sub} works on core only in this version, not on x\\n$`));
+      assert.equal(r.stderr, "rig pin: E_USAGE x has no lock entry; rig pack add writes it\n");
     }
     assert.deepEqual(readFileSync(join(s.root, "rig.lock.json")), before);
   });
