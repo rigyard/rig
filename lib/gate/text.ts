@@ -1,4 +1,5 @@
 // Shared by the checks that read text: safe display of hostile bytes, source and rendered dedupe.
+import { isBinary } from "./binary.ts";
 import { decode } from "./ctx.ts";
 
 const SHOWN = 40;
@@ -22,7 +23,7 @@ export function redact(s: string) {
 }
 
 /**
- * Run `scan` over every source file and every rendered entry. A scan item is
+ * Run `scan` over every source file and every rendered entry, except binary ones (see binary.ts). A scan item is
  * `{severity, evidence, key, idBytes}`; `key` names the offence (rule plus line text) and is what dedupe uses.
  * A rendered item is dropped when a source of the same pack has the same key or an earlier rendered entry had it,
  * so one hidden character in a source file is one finding, not one per harness copy.
@@ -31,6 +32,7 @@ export function scanTexts(ctx: object, scan: (text: string, where: {pack: string
   const out = [];
   const seen = new Set();
   for (const s of ctx.sources) {
+    if (isBinary(s.path, s.bytes)) continue;
     const keys = new Set();
     for (const item of scan(decode(s.bytes), { pack: s.pack, root: s.root, rendered: false })) {
       if (keys.has(item.key)) continue;
@@ -40,6 +42,7 @@ export function scanTexts(ctx: object, scan: (text: string, where: {pack: string
     }
   }
   for (const r of ctx.rendered) {
+    if (isBinary(r.path, r.bytes)) continue;
     const keys = new Set();
     for (const item of scan(decode(r.bytes), { pack: r.pack, root: ctx.packRoot(r.pack), rendered: true })) {
       const k = `${r.pack}\0${item.key}`;
