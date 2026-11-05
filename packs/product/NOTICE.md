@@ -17,4 +17,4 @@ Derived and modified:
 - `skills/office-hours/references/design-doc.md`: from `office-hours/sections/design-and-handoff.md.tmpl`. The design doc goes to `docs/designs/<slug>.md` in the user's repository. The closing hands off to the active rig workflow provider.
 - `commands/oh.md`: new, the `/oh` entry for the skill.
 
-rig records the provenance here because `pack.json` has no provenance field yet.
+`pack.json` records the same source and commit in `ported_from`.

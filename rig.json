@@ -6,7 +6,9 @@
     "omp",
     "cursor"
   ],
-  "packs": {},
+  "packs": {
+    "product": {}
+  },
   "pins": [],
   "providers": [
     "pstack",

@@ -16,6 +16,12 @@
     "cursor": null,
     "omp": null
   },
+  "intake": {
+    "claude": "/opsx:new <slug>, then /opsx:propose with <design-doc> as input",
+    "codex": null,
+    "cursor": null,
+    "omp": null
+  },
   "phases": [
     "explore",
     "propose",

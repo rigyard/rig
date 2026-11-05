@@ -12,7 +12,7 @@ const withPacks = (packs, files) => ({ repo: { "rig.json": rigJson({ packs }), .
 
 describe("core seal", () => {
   test("core is always in the stack, with no packs listed", () => {
-    const s = stackOf({});
+    const s = stackOf(withPacks({}, {}));
     assert.deepEqual(ids(s), ["core/rig-frame", "core/rig-doc-review", "core/rig-second-opinion", "core/craft", "core/pm"]);
     assert.deepEqual(s.errors, []);
     assert.deepEqual(unit(s, "core/rig-frame").type, "frame");

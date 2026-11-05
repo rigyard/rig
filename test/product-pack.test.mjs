@@ -4,18 +4,20 @@
 // pack come later, so the rendered-bytes budget limits are checked here against the source text.
 
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { describe, test } from "node:test";
 import { gate } from "../lib/gate.mjs";
 import { LIMITS } from "../lib/gate/budget.mjs";
 import { compose } from "../lib/stack.mjs";
+import { readSet, render } from "../lib/targets.mjs";
 import { desired } from "./gate.helpers.mjs";
 import { ROOT, rigJson, withFixture } from "./world.helpers.mjs";
 
 const PACK = join(ROOT, "packs/product");
 const SKILL = join(PACK, "skills/office-hours");
-const TERMS = Object.keys(JSON.parse(readFileSync(join(ROOT, "packs/core/terms.json"), "utf8")).terms);
+// terms.json plus intake, the term that render derives from the provider records
+const TERMS = [...Object.keys(JSON.parse(readFileSync(join(ROOT, "packs/core/terms.json"), "utf8")).terms), "intake"];
 
 /** Every file of the pack, as {rel, abs, text, mode}. */
 function packFiles() {
@@ -42,7 +44,47 @@ function productSpec() {
   return { repo: { "rig.json": rigJson({ packs: { product: {} } }) }, home };
 }
 
+/** Write every owned entry of a Desired into the fixture HOME, the way apply would. */
+function writeOwned(desired) {
+  for (const e of desired.entries.values()) {
+    if (e.kind !== "owned") continue;
+    mkdirSync(dirname(e.path), { recursive: true });
+    writeFileSync(e.path, e.bytes);
+  }
+}
+
+/** The hide control a harness reads in one copy of a skill, as a regexp over that copy's files. */
+function hideOf(record, copyDir) {
+  const h = record.hide;
+  if (h.method === "frontmatter-key") return [join(copyDir, "SKILL.md"), new RegExp(`^${h.key}: ${JSON.stringify(h.value)}$`, "m")];
+  if (h.method === "sidecar") return [join(copyDir, h.file), new RegExp(`^  ${h.key.split(".")[1]}: ${JSON.stringify(h.value)}$`, "m")];
+  return null;
+}
+
 describe("product pack", () => {
+  test("listed in rig.json, it renders on every v0 harness over the repo's own data, with no E_READSET", () =>
+    withFixture({}, (fx) => {
+      const world = fx.load();
+      assert.ok(world.packs.has("product"), "rig.json lists the product pack");
+      const stack = compose(world);
+      assert.deepEqual(stack.errors, []);
+      const d = render(stack, world);
+      assert.deepEqual(d.errors, []);
+      writeOwned(d);
+      // each harness lists office-hours exactly once after its own dedupe rule, and every copy it reads is hidden from it
+      const set = readSet(world);
+      for (const h of world.config.harnesses) {
+        const seen = set.get(h).filter((s) => s.name === "office-hours");
+        assert.equal(seen.length, 1, `${h} lists office-hours ${seen.length} times`);
+        for (const dir of world.targets.get(h).reads.skills) {
+          const copy = join(fx.home, dir.path.slice(2), "office-hours");
+          if (!existsSync(copy)) continue;
+          const [file, re] = hideOf(world.targets.get(h), copy);
+          assert.match(readFileSync(file, "utf8"), re, `${h} reads ${dir.path}/office-hours without its hide control`);
+        }
+      }
+    }));
+
   test("loads through loadWorld and composes with no errors", () =>
     withFixture(productSpec(), (fx) => {
       const world = fx.load();
@@ -50,6 +92,7 @@ describe("product pack", () => {
       assert.ok(pack, "world has the product pack");
       assert.equal(pack.manifest.license, "MIT");
       assert.equal(pack.manifest.source, null);
+      assert.deepEqual(pack.manifest.ported_from, { source: "gstack", sha: "b244e6d11a6466650c5147cd7dc023859968c4b5" });
       const stack = compose(world);
       assert.deepEqual(stack.errors, []);
       const ids = stack.units.filter((u) => u.id.startsWith("product/")).map((u) => `${u.type}:${u.id}`);
@@ -111,17 +154,32 @@ describe("product pack", () => {
     assert.match(oh, /office-hours skill/);
   });
 
-  test("the handoff resolves the provider by declaration and names an intake line for every workflow provider", () => {
-    const handoff = readFileSync(join(SKILL, "references/design-doc.md"), "utf8");
-    assert.match(handoff, /rig-project: <provider>/);
-    const providers = readdirSync(join(ROOT, "providers"))
-      .map((n) => JSON.parse(readFileSync(join(ROOT, "providers", n), "utf8")))
-      .filter((p) => p.kind === "workflow");
-    assert.deepEqual(providers.map((p) => p.name).sort(), ["openspec", "pstack"]);
-    assert.match(handoff, /- pstack: "Next: `\/craft feature docs\/designs\/<slug>\.md`"/);
-    assert.match(handoff, /- openspec: "Next: `\/opsx:new <slug>`, then `\/opsx:propose` with docs\/designs\/<slug>\.md as input"/);
-    assert.doesNotMatch(handoff, /openspec\/ directory (?:means|selects)/);
-  });
+  test("the handoff resolves the provider by declaration and renders one intake line per workflow provider", () =>
+    withFixture({}, (fx) => {
+      const handoff = readFileSync(join(SKILL, "references/design-doc.md"), "utf8");
+      assert.match(handoff, /rig-project: <provider>/);
+      assert.match(handoff, /^\{\{rig:intake\}\}$/m);
+      assert.doesNotMatch(handoff, /\/craft|\/opsx|\/prompts:/, "no provider command is hard-coded in the pack");
+      assert.doesNotMatch(handoff, /openspec\/ directory (?:means|selects)/);
+      const world = fx.load();
+      const workflow = [...world.providers.values()].filter((p) => p.kind === "workflow");
+      assert.deepEqual(workflow.map((p) => p.name), ["pstack", "openspec"]);
+      assert.equal(world.providers.get("pstack").intake.claude, "/craft feature <design-doc>");
+      assert.match(world.providers.get("openspec").intake.claude, /^\/opsx:new <slug>, then \/opsx:propose with <design-doc>/);
+      const d = render(compose(world), world);
+      const copies = [...d.entries.values()].filter((e) => e.unit === "product/office-hours" && e.path.endsWith("/references/design-doc.md"));
+      assert.equal(copies.length, 2);
+      for (const copy of copies) {
+        // terms resolve by the copy dir's format owner: the first listed harness that writes the dir
+        const dir = `~/${relative(fx.home, copy.path).replace(/\/office-hours\/references\/design-doc\.md$/, "")}`;
+        const owner = world.config.harnesses.find((h) => world.targets.get(h).reads.skills.some((e) => e.writable && e.path === dir));
+        const text = new TextDecoder().decode(copy.bytes);
+        assert.doesNotMatch(text, /\{\{/, `${dir}: leftover placeholder`);
+        const lines = text.split("\n").filter((l) => /^- [a-z0-9-]+: (Next: |no workflow provider)/.test(l));
+        const want = workflow.filter((p) => p.intake[owner]).map((p) => `- ${p.name}: Next: ${p.intake[owner]}`);
+        assert.deepEqual(lines, want.length ? want : ["- none: no workflow provider has an intake on this harness."], `${dir} (owner ${owner})`);
+      }
+    }));
 
   test("NOTICE.md and the MIT license ship with the pack", () => {
     const notice = readFileSync(join(PACK, "NOTICE.md"), "utf8");

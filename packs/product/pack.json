@@ -8,5 +8,9 @@
   ],
   "license": "MIT",
   "source": null,
+  "ported_from": {
+    "source": "gstack",
+    "sha": "b244e6d11a6466650c5147cd7dc023859968c4b5"
+  },
   "units": {}
 }

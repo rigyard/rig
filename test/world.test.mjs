@@ -26,7 +26,7 @@ describe("loadWorld on the repo's own data", () => {
       assert.deepEqual(w.config.harnesses, ["claude", "codex", "omp", "cursor"]);
       assert.equal(w.config.default_provider, "pstack");
       assert.deepEqual(w.config.aliases, { pm: "craft" });
-      assert.deepEqual([...w.packs.keys()], ["core"]);
+      assert.deepEqual([...w.packs.keys()], ["core", "product"]);
       assert.deepEqual([...w.targets.keys()], ["claude", "codex", "omp", "cursor"]);
       assert.deepEqual([...w.providers.keys()], ["pstack", "openspec"]);
       assert.deepEqual(Object.keys(w.terms), ["ask-user", "subagent"]);
@@ -83,6 +83,7 @@ describe("closed keys: an unknown key in each schema is E_SCHEMA with file and k
     ["rig.json nested", { repo: { "rig.json": rigJson({ metrics: { session_hook: false, extra: true } }) } }, "rig.json", "metrics.extra"],
     ["rig.json overlay", { overlay: { "rig.json": { schema: 1, bogus: 1 } } }, "~/.config/rig/rig.json", "bogus"],
     ["pack.json", { repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain"), { bogus: 1 }) } }, "packs/own/pack.json", "bogus"],
+    ["pack.json ported_from", { repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain"), { ported_from: { source: "gstack", sha: "0".repeat(40), repo: "x" } }) } }, "packs/own/pack.json", "ported_from.repo"],
     ["pack.json unit", { repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain"), { units: { explain: { hidden: true } } }) } }, "packs/own/pack.json", "units.explain.hidden"],
     ["targets/<h>.json", { repo: { "targets/claude.json": add(baseJson("targets/claude.json"), "bogus") } }, "targets/claude.json", "bogus"],
     ["targets read dir", { repo: { "targets/codex.json": { ...baseJson("targets/codex.json"), reads: { skills: [{ path: "~/.codex/skills", writable: true, dedupe: "none", x: 1 }], never_write: [] } } } }, "targets/codex.json", "reads.skills[0].x"],
@@ -109,6 +110,10 @@ describe("types, required fields and the schema version", () => {
   test("unsupported schema version", () => loads({ repo: { "models/tiers.json": { ...baseJson("models/tiers.json"), schema: 2 } } }, "E_SCHEMA", { path: "schema" }));
   test("bad enum value", () => loads({ repo: { "targets/omp.json": { ...baseJson("targets/omp.json"), hide: { method: "hidden" } } } }, "E_SCHEMA", { path: "hide.method" }));
   test("invalid JSON", () => loads({ repo: { "models/roles.json": "{" } }, "E_SCHEMA", { file: "models/roles.json" }));
+  test("ported_from needs a full commit sha", () => loads({ repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain"), { ported_from: { source: "gstack", sha: "b244e6d" } }) } }, "E_SCHEMA", { file: "packs/own/pack.json", path: "ported_from.sha" }));
+  test("an intake that is not text or null", () => loads({ repo: { "providers/pstack.json": { ...baseJson("providers/pstack.json"), intake: { claude: { text: "/craft" } } } } }, "E_SCHEMA", { file: "providers/pstack.json", path: "intake.claude" }));
+  test("intake on a headless provider", () =>
+    loads({ repo: { "rig.json": rigJson({ providers: ["pstack", "openspec", "judge"] }), "providers/judge.json": { schema: 1, name: "judge", kind: "headless", telemetry: null, intake: { claude: "/x" } } } }, "E_SCHEMA", { file: "providers/judge.json", path: "intake" }));
   test("a field of another provider kind", () => loads({ repo: { "providers/openspec.json": { ...baseJson("providers/openspec.json"), argv: ["x"] } } }, "E_SCHEMA", { path: "argv" }));
   test("markers on a non-markdown surface", () => loads({ overlay: { "rig.json": { schema: 1, model_surfaces: [{ path: "~/.omp/agent/config.yml", consumer: "omp", kind: "keys", markers: true }] } } }, "E_SCHEMA", { path: "model_surfaces[0]" }));
   test("an ack with an empty reason", () => loads({ repo: { "audit.allow.json": { schema: 1, acks: [{ id: "0123456789abcdef", check: "exec", pack: "own", path: "a.sh", reason: " ", expires: "2027-01-01" }] } } }, "E_SCHEMA", { path: "acks[0].reason" }));

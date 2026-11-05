@@ -166,10 +166,10 @@ The design doc feeds the active workflow provider. Find it the way the rig frame
 
 Never infer the provider from files in the repository. An `openspec/` directory, a plugin, or a config file selects nothing.
 
-End with the intake line of the active provider, with the final slug and path:
+The intake line of each workflow provider:
 
-- pstack: "Next: `/craft feature docs/designs/<slug>.md`"
-- openspec: "Next: `/opsx:new <slug>`, then `/opsx:propose` with docs/designs/<slug>.md as input"
-- Another provider: "Next: <the entry command that the rig frame lists for it>, with docs/designs/<slug>.md as input"
+{{rig:intake}}
+
+End with the "Next:" line of the active provider. Replace `<design-doc>` with `docs/designs/<slug>.md` and `<slug>` with the final slug. If the list has no line for the active provider, end with the design doc path and name the provider.
 
 Do not start the provider's workflow yourself. The hard gate holds until the skill ends: the user runs the next command.

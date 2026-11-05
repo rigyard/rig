@@ -29,10 +29,12 @@ function filesUnder(dir, rel = "") {
   return out;
 }
 
-/** The repo data that a config root holds, as fixture entries under `rig/`. */
+/** The repo data that a config root holds, as fixture entries under `rig/`: core and every pack rig.json lists. */
 function repoSpec() {
-  const spec = { "rig/rig.json": readFileSync(join(ROOT, "rig.json")) };
-  for (const dir of ["models", "providers", "targets", "packs/core"]) {
+  const rig = readFileSync(join(ROOT, "rig.json"));
+  const spec = { "rig/rig.json": rig };
+  const packs = Object.keys(JSON.parse(rig.toString("utf8")).packs).map((name) => `packs/${name}`);
+  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
   return spec;

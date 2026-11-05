@@ -400,3 +400,21 @@ test("targets.patch: the rendered frame block appends, then converges; a locator
   // an error without a code is a bug and still throws
   assert.throws(() => patch(user, null), TypeError);
 });
+
+test("{{rig:intake}} lists each workflow provider with an intake on the dir's format owner, in rig.json order", () => {
+  const stack = {
+    ...fixtureStack(),
+    units: [unit({ id: "own/handoff", type: "skill", files: { "SKILL.md": "---\nname: handoff\ndescription: Fixture.\n---\n{{rig:intake}}\n" } })],
+    providers: [
+      { schema: 1, name: "beta", kind: "workflow", intake: { claude: "/beta <design-doc>", codex: null }, telemetry: null },
+      { schema: 1, name: "cli-judge", kind: "headless", telemetry: null },
+      { schema: 1, name: "alpha", kind: "workflow", intake: { claude: "/alpha <slug>, then /alpha-go <design-doc>" }, telemetry: null },
+      { schema: 1, name: "gamma", kind: "workflow", telemetry: null },
+    ],
+  };
+  const d = render(stack, world());
+  assert.deepEqual(d.errors, []);
+  const body = (p) => text(byRel(d).get(p)).split("---\n")[2];
+  assert.equal(body("~/.claude/skills/handoff/SKILL.md"), "- beta: Next: /beta <design-doc>\n- alpha: Next: /alpha <slug>, then /alpha-go <design-doc>\n");
+  assert.equal(body("~/.agents/skills/handoff/SKILL.md"), "- none: no workflow provider has an intake on this harness.\n");
+});

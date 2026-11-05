@@ -88,7 +88,7 @@ Error codes:
 | `E_SLOT_TWICE` | `stack` | A slot has a second filler. |
 | `E_READSET` | `targets` | No placement gives each harness exactly one copy. |
 | `E_SAME_FAMILY` | `targets` | A `second-opinion` filler runs the same CLI as the current harness, and the filler record forbids it. |
-| `E_TERM_UNKNOWN`, `E_TERM_MISSING` | `targets` | A `{{rig:term}}` placeholder is not in `terms.json`, or a target has no row for it. A `{{name}}` variable in a core template is not one of that template's variables. |
+| `E_TERM_UNKNOWN`, `E_TERM_MISSING` | `targets` | A `{{rig:term}}` placeholder is not in `terms.json`, or a target has no row for it. `{{rig:intake}}` comes from the provider records, not from `terms.json`. A `{{name}}` variable in a core template is not one of that template's variables. |
 | `E_LOCATOR` | `targets` | A declared cell is absent, a cell matches twice, or a `block` has no markers while its table already exists outside them. |
 | `E_ADOPT_MISMATCH` | `state` | First run on a path, and its current bytes or values differ from the render. This covers an unmanaged file at a rendered path, for example a hand-written `/pm`. |
 | `E_DRIFT` | `state` | Current bytes or cell values differ from what rig last wrote. |
@@ -665,6 +665,7 @@ The sketch is the contract between modules. Bodies throw. `// TODO` blocks give 
  * @property {Scope[]} scopes
  * @property {string} license
  * @property {{repo: string, sha: string, paths: string[]} | null} source
+ * @property {{source: string, sha: string} | null} [ported_from]   provenance of a ported pack, info only
  * @property {Record<string, {harnesses?: string[], replaces?: string}>} units
  */
 
@@ -721,6 +722,7 @@ The sketch is the contract between modules. Bodies throw. `// TODO` blocks give 
  * @property {string} [artifacts]                                                     workflow
  * @property {ModelSurface[]} [model_surfaces]                                        workflow
  * @property {Record<string, string>} [footprint]                                     workflow, info only
+ * @property {Record<string, string | null>} [intake]                                 workflow, the {{rig:intake}} rows
  * @property {string} [family]                                                        headless, native
  * @property {string[]} [argv]                                                        headless
  * @property {string} [model_harness]                                                 headless, native

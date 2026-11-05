@@ -15,6 +15,12 @@
     },
     "omp": null
   },
+  "intake": {
+    "claude": "/craft feature <design-doc>",
+    "codex": null,
+    "cursor": "/craft feature <design-doc>",
+    "omp": null
+  },
   "phases": [
     "plan",
     "build",

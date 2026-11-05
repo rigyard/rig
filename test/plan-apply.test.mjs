@@ -33,10 +33,12 @@ function filesUnder(dir, rel = "") {
   return out;
 }
 
-/** The repo data as fixture entries under `rig/`. `coreMode` overrides the mode of every core file. */
+/** The repo data as fixture entries under `rig/`: core and every pack rig.json lists. `coreMode` overrides the mode of every core file. */
 function repoSpec(coreMode) {
-  const spec = { "rig/rig.json": readFileSync(join(ROOT, "rig.json")) };
-  for (const dir of ["models", "providers", "targets", "packs/core"]) {
+  const rig = readFileSync(join(ROOT, "rig.json"));
+  const spec = { "rig/rig.json": rig };
+  const packs = Object.keys(JSON.parse(rig.toString("utf8")).packs).map((name) => `packs/${name}`);
+  for (const dir of ["models", "providers", "targets", "packs/core", ...packs]) {
     for (const f of filesUnder(join(ROOT, dir))) {
       spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: dir === "packs/core" && coreMode ? coreMode : f.mode };
     }

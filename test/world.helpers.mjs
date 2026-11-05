@@ -1,5 +1,5 @@
 // Fixture config roots for world and stack tests. The repo root is a copy of this repo's own data (rig.json,
-// packs/core, providers, models) plus the fixture target records; tests add or replace files on top.
+// packs/core and the packs rig.json lists, providers, models, targets); tests add or replace files on top.
 // Layout inside the fixture HOME: `rig/` is the repo root (RIG_ROOT), `.config/rig/` is the overlay.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -9,7 +9,6 @@ import { makeFixtureHome } from "./helpers/fixture-home.mjs";
 import { loadWorld } from "../lib/world.mjs";
 
 export const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const FIXTURES = join(ROOT, "test/fixtures/world");
 export const NOW = "2026-11-05T12:00:00.000Z";
 
 function files(base, dir) {
@@ -25,14 +24,16 @@ function files(base, dir) {
   return out;
 }
 
-/** The repo's own config data, as {relative path: text}. Targets come from the fixtures. */
+/** The repo's own config data, as {relative path: text}: core, every pack rig.json lists, and the real target records. */
 export function repoBase() {
+  const rig = readFileSync(join(ROOT, "rig.json"), "utf8");
   return {
-    "rig.json": readFileSync(join(ROOT, "rig.json"), "utf8"),
+    "rig.json": rig,
     ...files(ROOT, "packs/core"),
+    ...Object.assign({}, ...Object.keys(JSON.parse(rig).packs).map((name) => files(ROOT, `packs/${name}`))),
     ...files(ROOT, "providers"),
     ...files(ROOT, "models"),
-    ...files(FIXTURES, "targets"),
+    ...files(ROOT, "targets"),
   };
 }
 
