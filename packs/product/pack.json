@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "name": "product",
+  "scopes": [
+    "machine-hidden",
+    "project",
+    "hybrid"
+  ],
+  "license": "MIT",
+  "source": null,
+  "units": {}
+}
