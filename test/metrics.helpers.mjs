@@ -1,4 +1,4 @@
-import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,11 @@ function makeIo(state) {
     mkdirSync(dirname(join(state, rel)), { recursive: true });
     appendFileSync(join(state, rel), text);
   };
-  return { append, log: (event) => append(join("log", "rig.log"), JSON.stringify(event) + "\n") };
+  const write = (rel, text) => {
+    mkdirSync(dirname(join(state, rel)), { recursive: true });
+    writeFileSync(join(state, rel), text);
+  };
+  return { append, write, log: (event) => append(join("log", "rig.log"), JSON.stringify(event) + "\n") };
 }
 
 /** A temp HOME with the named fixture harnesses copied in, and the minimal `world` the metrics module reads. */

@@ -21,5 +21,7 @@
                       "value": {"name": "rig", "skills": "./skills/"}},
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
   "models": {"source": "the agent files in ~/.cursor/agents"},
-  "instructions": {"path": "~/.cursor/rules/rig-frame.mdc", "mode": "whole-file"}
+  "instructions": {"path": "~/.cursor/rules/rig-frame.mdc", "mode": "whole-file"},
+  "hooks": {"session_end": null},
+  "transcripts": {"format": "cursor-agent-jsonl", "root": "~/.cursor/projects"}
 }

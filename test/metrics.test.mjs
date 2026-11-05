@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appendFileSync, chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { stats as statsWith, recordSession as recordWith } from "../lib/metrics.mjs";
 import { assertSafeSpec } from "../lib/metrics/project.mjs";
@@ -133,6 +133,24 @@ test("cursor: invocation counts, model mix and tool calls only; other files are 
   });
 });
 
+test("cursor: a session in its own directory counts once, with its subagent files", () => {
+  sandbox(["cursor"], (sb) => {
+    const dir = join(sb.home, ".cursor/projects/placeholder-proj/agent-transcripts/cur-0002");
+    const turn = (model, tool) => JSON.stringify({ role: "assistant", model, message: { content: [{ type: "text", text: CANARY }, { type: "tool_use", name: tool, input: { command: CANARY } }] } }) + "\n";
+    mkdirSync(join(dir, "subagents"), { recursive: true });
+    writeFileSync(join(dir, "cur-0002.jsonl"), turn("model-eta", "Shell"));
+    writeFileSync(join(dir, "subagents", "sub-0001.jsonl"), turn("model-eta", "Grep") + turn("model-theta", "Grep"));
+    writeFileSync(join(dir, "other.jsonl"), turn("model-other", "Shell"));
+    stats(sb.world, WIDE);
+    const line = storeLines(sb).find((l) => l.session_id === "cur-0002");
+    assert.ok(line, "the nested session is found");
+    assert.equal(storeLines(sb).length, 2, "the flat session and the nested one; no other file is a session");
+    assert.deepEqual(line.models, { "model-eta": { requests: 2 }, "model-theta": { requests: 1 } });
+    assert.deepEqual(line.tools, { Grep: [2, null], Shell: [1, null] });
+    assert.equal(allText(sb.state).includes(CANARY), false);
+  });
+});
+
 test("the canary has zero hits in the store and the log; dropped keys are reported by name", () => {
   sandbox(["claude", "codex", "omp", "cursor"], (sb) => {
     const claudeFile = join(sb.home, ".claude/projects/-placeholder-proj/sess-0001.jsonl");
@@ -223,9 +241,13 @@ test("an allowlist that names a prompt-like key is refused", () => {
   assert.doesNotThrow(() => assertSafeSpec({ message: { content: { type: true } } }));
 });
 
-test("stats --suggest is not implemented in this PR", () => {
+test("stats --suggest with nothing to propose prints the report and saves no patch", () => {
   sandbox(["claude"], (sb) => {
-    assert.throws(() => stats(sb.world, { ...WIDE, suggest: true }), /not implemented/);
+    const r = stats(sb.world, { ...WIDE, suggest: true });
+    assert.equal(r.patch, null);
+    assert.match(r.text, /^claude {2}\[claude-jsonl@1\]/m);
+    assert.match(r.text, /^suggestions \(a proposed diff; rig applies nothing\)\n {2}none\n$/m);
+    assert.equal(existsSync(join(sb.state, "proposals")), false);
   });
 });
 

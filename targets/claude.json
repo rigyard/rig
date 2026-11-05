@@ -18,5 +18,8 @@
   },
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
   "models": {"source": "the roster and effort table in the rules under ~/.claude/rules", "effort_table": true},
-  "instructions": {"path": "~/.claude/rules/rig-frame.md", "mode": "whole-file"}
+  "instructions": {"path": "~/.claude/rules/rig-frame.md", "mode": "whole-file"},
+  "hooks": {"session_end": {"event": "SessionEnd", "file": "~/.claude/settings.json", "pointer": "/hooks/SessionEnd",
+                            "payload": ["session_id", "transcript_path"]}},
+  "transcripts": {"format": "claude-jsonl", "root": "~/.claude/projects"}
 }
