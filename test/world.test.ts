@@ -68,7 +68,7 @@ describe("loadWorld on the repo's own data", () => {
       }
     }));
 
-  test("the real repo root loads with no RIG_ROOT once targets/ exists", () => {
+  test("the real repo root loads with no RIG_ROOT and holds the core pack", () => {
       const fx = makeFixtureHome({});
       try {
         const w = loadWorld({ HOME: fx.home });

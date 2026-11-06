@@ -587,6 +587,14 @@ describe("adapter, hide switch and placement", () => {
     assert.equal(eng.match(/^  Replaces the hub trigger:/gm)?.length, 1);
   });
 
+  test("the default fixture manifest's hub line is a line of its hub, and the rendered engineering.md quotes it under eng:design", () => {
+    const line = "Code crossing a function boundary → the **architect** skill.";
+    assert.ok(craftFiles()["skills/poteto-mode/SKILL.md"].split("\n").includes(`- ${line}`), "the fixture hub has no such line");
+    const b = built();
+    assert.deepEqual(b.errors, []);
+    assert.ok(b.text("~/.claude/skills/craft/references/engineering.md").includes(`- \`eng:design\`. Before: none. Slot: [design-probe](../../design-probe/SKILL.md). After: none.\n  Replaces the hub trigger: "${line}"\n`));
+  });
+
   test("a hub_triggers entry that is no line of hub.md is E_MODE_REF; one at no step address is E_FILL_UNKNOWN", () => {
     const b = built(withManifest((m: any) => ({ ...m, mode: { ...m.mode, hub_triggers: { "eng:design": "Code crossing a function boundary", "eng:nope": "x" } } })));
     assert.match(errorOf(b, "E_MODE_REF").message, /^eng:design: packs\/fixture\/pack\.json mode\.hub_triggers\.eng:design is no "- " line of craft\/hub\.md$/);
