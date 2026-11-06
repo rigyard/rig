@@ -13,6 +13,7 @@
     },
     "artifacts": {},
     "hooks": { "eng:review.before": ["fixture/architect"] },
+    "hub_triggers": { "eng:design": "Code crossing a function boundary → the **architect** skill." },
     "adapter": {
       "claude": "Map the Cursor names in the fixture skills to Claude Code. `Task` is the `Agent` tool. Run another skill with `Read` on its `SKILL.md` file, for example {{skill:fixture/architect}}.",
       "codex": "Map the Cursor names in the fixture skills to Codex. `Task` is a spawned agent. Run another skill with a read of its `SKILL.md` file, for example {{skill:fixture/architect}}."
