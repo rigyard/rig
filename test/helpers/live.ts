@@ -7,16 +7,18 @@ import { userInfo } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { TestContext } from "node:test";
+import { scrubEnv } from "./mirror.ts";
 
 export const LIVE_SKIP_REASON = "live harness test: set RIG_LIVE=1 to run (costs tokens, needs logins)";
 
 /**
  * Real user-level harness config that no live test may change, relative to the real home.
- * The first four are the files the boot recipe names. A directory is hashed as a whole tree.
+ * The first three are files the boot recipe names. It also names installed_plugins.json, which is not listed here: Claude
+ * rewrites it on its own, so guardRealConfig records its hash as a diagnostic and never fails on it.
+ * A directory is hashed as a whole tree, minus HARNESS_OWNED.
  */
 export const REAL_CONFIG_PATHS = [
   ".claude/settings.json",
-  ".claude/plugins/installed_plugins.json",
   ".codex/config.toml",
   ".omp/agent/config.yml",
   ".claude/CLAUDE.md",
@@ -27,7 +29,9 @@ export const REAL_CONFIG_PATHS = [
   ".codex/AGENTS.md",
   ".codex/skills",
   ".codex/prompts",
+  ".codex/agents",
   ".cursor/rules",
+  ".cursor/agents",
   ".cursor/skills",
   ".cursor/commands",
   ".cursor/plugins/local",
@@ -38,13 +42,48 @@ export const REAL_CONFIG_PATHS = [
   ".agents/commands",
 ];
 
+const UUID = "[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}";
+const ID = `${UUID}_${UUID}`;
+
+/**
+ * Paths under a hashed config path that the harness writes by itself in any session, so a live lane cannot tell them
+ * from a rig write by their bytes. path matches a home-relative path with "/" separators. tree: the entry and
+ * everything below it is skipped; otherwise only the entry itself is.
+ * Each shape is narrow on purpose, and a rig skill named "synced" is still hashed. A rig skill is a pack's own tree, and no
+ * seeded pstack or gstack tree holds a "<uuid>_<uuid>" folder or a ".bucket-" file. test/live-guard.test.ts pins that no path
+ * rig could place and no seeded file (test/golden/first-seed.manifest) is owned.
+ */
+export const HARNESS_OWNED: readonly { path: RegExp; tree: boolean; reason: string }[] = [
+  {
+    path: /^\.claude\/skills\/synced$/,
+    tree: false,
+    reason: "The folder Claude Code creates for the skills it syncs from the user's claude.ai account; the claude binary names ~/.claude/skills/synced. Only the folder entry is skipped, so a rig skill named synced is still hashed.",
+  },
+  {
+    path: new RegExp(`^\\.claude\\/skills\\/synced\\/\\.bucket-${ID}$`),
+    tree: true,
+    reason: "The claude binary defines the .bucket- prefix for the per-account marker file of the skill sync.",
+  },
+  {
+    path: new RegExp(`^\\.claude\\/skills\\/synced\\/${ID}(?:\\/.*)?$`),
+    tree: true,
+    reason: "One synced account bucket (manifest.json, .last-complete-round, .staging, one folder per skill). Claude Code rewrites it during any session, with no rig command running.",
+  },
+];
+
+/** @param rel home-relative path with "/" separators */
+export const isHarnessOwned = (rel: string): boolean => HARNESS_OWNED.some((e) => e.path.test(rel));
+
+/** Claude rewrites this file when it auto-updates a plugin (lastUpdated of two plugins equals the file mtime), so no lane fails on it. rig never writes under ~/.claude/plugins (targets/claude.json never_write). */
+export const PLUGIN_REGISTRY = ".claude/plugins/installed_plugins.json";
+
 /** The real home from the account database, so a test that set HOME cannot hide it. */
 export const realHome = () => realpathSync(userInfo().homedir);
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 
 /** sha256 of one path: file bytes, a symlink's target text, or every entry of a tree. Symlinks are never followed. */
-function hashPath(abs) {
+function hashPath(abs: string, top: string) {
   let st;
   try {
     st = lstatSync(abs);
@@ -60,9 +99,11 @@ function hashPath(abs) {
     for (const name of readdirSync(dir).sort()) {
       const a = join(dir, name);
       const r = rel ? `${rel}/${name}` : name;
+      const owned = HARNESS_OWNED.find((e) => e.path.test(`${top}/${r}`));
+      if (owned?.tree) continue;
       const s = lstatSync(a);
       if (s.isDirectory()) {
-        lines.push(`d ${r} ${s.mode & 0o7777}`);
+        if (!owned) lines.push(`d ${r} ${s.mode & 0o7777}`);
         walk(a, r);
       } else if (s.isSymbolicLink()) lines.push(`l ${r} ${readlinkSync(a)}`);
       else if (s.isFile()) lines.push(`f ${r} ${s.mode & 0o7777} ${sha256(readFileSync(a))}`);
@@ -78,7 +119,7 @@ function hashPath(abs) {
  * @param root defaults to the real home
  */
 export function realConfigHashes(root: string = realHome()): Record<string, string | null> {
-  return Object.fromEntries(REAL_CONFIG_PATHS.map((rel) => [rel, hashPath(join(root, rel))]));
+  return Object.fromEntries(REAL_CONFIG_PATHS.map((rel) => [rel, hashPath(join(root, rel), rel)]));
 }
 
 /** @returns changed paths */
@@ -89,16 +130,20 @@ export function changedPaths(before: Record<string, string | null>, after: Recor
 /**
  * Wrap a test fn: hash the real config before and after it, and fail when any hash changed.
  * A config change wins over the fn's own failure, which becomes the cause.
+ * The hash of PLUGIN_REGISTRY is recorded with t.diagnostic when it changed, and never fails the test.
  */
 export function guardRealConfig(fn: (t: TestContext) => unknown, root: string = realHome()) {
   return async (t) => {
     const before = realConfigHashes(root);
+    const registryBefore = hashPath(join(root, PLUGIN_REGISTRY), PLUGIN_REGISTRY);
     let failure = null;
     try {
       await fn(t);
     } catch (err) {
       failure = err;
     }
+    const registryAfter = hashPath(join(root, PLUGIN_REGISTRY), PLUGIN_REGISTRY);
+    if (registryBefore !== registryAfter) t.diagnostic?.(`${PLUGIN_REGISTRY} changed (Claude Code plugin auto-update, informational): ${registryBefore ?? "absent"} -> ${registryAfter ?? "absent"}`);
     const changed = changedPaths(before, realConfigHashes(root));
     if (changed.length) throw new Error(`live: the real harness config changed: ${changed.join(", ")}`, { cause: failure ?? undefined });
     if (failure) throw failure;
@@ -116,11 +161,13 @@ export function liveTest(name: string, fn: (t: TestContext) => unknown) {
 
 /**
  * Run one CLI to completion and collect its output. json is JSON.parse(stdout), or null when stdout is not JSON.
+ * Without env the child gets process.env through scrubEnv, so it inherits no ORCA_* key and no key that relocates its config.
+ * A passed env is used as is: harnessArgv and ompEnv scrub it already and then set HOME, CODEX_HOME or PI_CODING_AGENT_DIR on purpose.
  * On timeout the child gets SIGKILL and code is null.
  * @param {{bin: string, args?: string[], cwd?: string, env?: NodeJS.ProcessEnv, timeoutMs?: number, input?: string}} opts
  * @returns {Promise<{code: number | null, signal: string | null, stdout: string, stderr: string, json: unknown}>}
  */
-export function runHarness({ bin, args = [], cwd = process.cwd(), env = process.env, timeoutMs = 120_000, input }) {
+export function runHarness({ bin, args = [], cwd = process.cwd(), env = scrubEnv(process.env), timeoutMs = 120_000, input }) {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";

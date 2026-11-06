@@ -131,14 +131,14 @@ describe("live", () => {
 });
 
 describe("real config guard", () => {
-  test("the hash list starts with the four files the boot recipe names", () => {
-    assert.deepEqual(REAL_CONFIG_PATHS.slice(0, 4), [
+  test("the hash list starts with the three boot-recipe files that no harness rewrites by itself", () => {
+    assert.deepEqual(REAL_CONFIG_PATHS.slice(0, 3), [
       ".claude/settings.json",
-      ".claude/plugins/installed_plugins.json",
       ".codex/config.toml",
       ".omp/agent/config.yml",
     ]);
-    for (const dir of [".claude/commands", ".claude/skills", ".claude/rules", ".codex/skills", ".cursor/rules", ".omp/agent/skills", ".agents/skills"]) {
+    assert.ok(!REAL_CONFIG_PATHS.includes(".claude/plugins/installed_plugins.json"));
+    for (const dir of [".claude/commands", ".claude/skills", ".claude/rules", ".codex/skills", ".codex/agents", ".cursor/rules", ".cursor/agents", ".omp/agent/skills", ".agents/skills"]) {
       assert.ok(REAL_CONFIG_PATHS.includes(dir), dir);
     }
   });

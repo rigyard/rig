@@ -35,6 +35,17 @@ export const MIRROR_UNITS = {
  */
 const RELOCATE_ENV = ["CLAUDE_CONFIG_DIR", "CLAUDE_CODE_PLUGIN_DIRS", "CODEX_HOME", "OMP_PROFILE", "PI_PROFILE", "PI_CODING_AGENT_DIR", "COPILOT_HOME"];
 
+/**
+ * Env key prefixes a seed run never inherits. ORCA_*: Orca sets them in the operator's pane. They carry the hook endpoint
+ * and token that report a harness's events into that session, and ORCA_CLAUDE_CONFIG_DIR and ORCA_PI_SOURCE_AGENT_DIR name
+ * config dirs. A lane harness is not that pane and must not reach it.
+ */
+const RELOCATE_ENV_PREFIXES = ["ORCA_"];
+
+/** A copy of env without the keys that relocate a harness's config or tie it to the operator's session. */
+export const scrubEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv =>
+  Object.fromEntries(Object.entries(env).filter(([k]) => !RELOCATE_ENV.includes(k) && !RELOCATE_ENV_PREFIXES.some((p) => k.startsWith(p))));
+
 /** A sentinel token no model can guess: a fixed prefix plus 12 random hex chars. @param {string} [prefix] */
 export const sentinel = (prefix = "RIGSEED") => `${prefix}-${randomBytes(6).toString("hex").toUpperCase()}`;
 
@@ -130,9 +141,7 @@ export function scratchRepo(): {dir: string, cleanup: () => void} {
 export function ompEnv(home: string, agentDir: string = join(home, ".omp", "agent"), base: NodeJS.ProcessEnv = process.env) {
   assertOutsideRealHome(home);
   assertOutsideRealHome(agentDir);
-  const env = { ...base };
-  for (const k of RELOCATE_ENV) delete env[k];
-  return { ...env, HOME: home, PI_CODING_AGENT_DIR: agentDir };
+  return { ...scrubEnv(base), HOME: home, PI_CODING_AGENT_DIR: agentDir };
 }
 
 /**
@@ -147,9 +156,8 @@ export function ompEnv(home: string, agentDir: string = join(home, ".omp", "agen
  */
 export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string, cleanup: () => void} {
   const { dir } = opts;
-  const base = { ...(opts.env ?? process.env) };
+  const base = scrubEnv(opts.env ?? process.env);
   const model = opts.model ?? (harness === "omp" ? base.RIG_LIVE_OMP_MODEL || undefined : undefined);
-  for (const k of RELOCATE_ENV) delete base[k];
   const m = (flag) => (model ? [flag, model] : []);
   const out = (bin, args, env = base, cleanup = () => {}) => ({ bin, args, cwd: dir, env, input: "", cleanup });
   if (harness === "claude") return out("claude", ["-p", "--max-turns", String(opts.maxTurns ?? 3), "--output-format", "json", ...m("--model"), prompt]);
