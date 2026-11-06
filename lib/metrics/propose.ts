@@ -29,7 +29,10 @@ export function propose({ lines, units, world }) {
 
 // ---------------------------------------------------------------- rules
 
-/** A pack skill with no load in the window, on a harness that records loads, gets a rig.json `disable` entry. */
+/**
+ * A pack skill with no use in the window, on a harness that records uses, gets a rig.json `disable` entry. A use is a
+ * skill tool call or a read of a file inside the unit dir (the readers fold both into `skills`).
+ */
 function disableUnused(lines, units, world, notes) {
   const known = lines.filter((l) => l.skills && typeof l.skills === "object");
   const covered = new Set(known.map((l) => l.harness));
@@ -43,10 +46,10 @@ function disableUnused(lines, units, world, notes) {
     if (!seen.length || loads(u.name, seen) > 0) continue;
     const pack = u.id.split("/")[0];
     if (world.packs?.get(pack)?.root !== "repo") {
-      notes.push(`skill ${u.id}: no loads on ${seen.join(", ")}; its pack lives in the overlay, so disable it there by hand`);
+      notes.push(`skill ${u.id}: no use on ${seen.join(", ")}; its pack lives in the overlay, so disable it there by hand`);
       continue;
     }
-    notes.push(`skill ${u.id}: no loads on ${seen.join(", ")} in ${known.filter((l) => seen.includes(l.harness)).length} sessions: disable`);
+    notes.push(`skill ${u.id}: no use on ${seen.join(", ")} in ${known.filter((l) => seen.includes(l.harness)).length} sessions: disable`);
     unused.push(u.id);
   }
   if (!unused.length) return null;

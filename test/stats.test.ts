@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -223,19 +223,20 @@ const TRANSCRIPTS = { claude: [".claude/projects", "claude/projects"], codex: ["
 /**
  * A fixture HOME with a sealed repo root at ~/rig: this repo's models, targets and core, and the stub pstack pack. `rig`
  * overrides keys of rig.json. `pack` replaces the packs with one repo pack `own` holding one skill `idle`, so a
- * proposal names only that skill. `transcripts` lists the harnesses whose fixture transcripts land at their record's root.
+ * proposal names only that skill; `skills` adds more skills to that pack. `transcripts` lists the harnesses whose fixture transcripts land at their record's root.
  */
-function setup({ rig: rigCfg = {}, pack = false, transcripts = [], home = {} } = {}) {
+function setup({ rig: rigCfg = {}, pack = false, transcripts = [] as string[], home = {}, skills = [] as string[] } = {}) {
   const stub = stubPstack();
   const final = { ...stub.rig, ...rigCfg, ...(pack ? { packs: { own: {} } } : {}) };
-  const spec = { "rig/rig.json": canon(final), ...(pack ? {} : stub.spec) };
+  const spec: Record<string, any> = { "rig/rig.json": canon(final), ...(pack ? {} : stub.spec) };
   for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
-  const own = { "skills/idle/SKILL.md": "---\nname: idle\ndescription: A skill that no session loads.\n---\nDo nothing.\n" };
+  const own: Record<string, string> = { "skills/idle/SKILL.md": "---\nname: idle\ndescription: A skill that no session loads.\n---\nDo nothing.\n" };
+  for (const name of skills) own[`skills/${name}/SKILL.md`] = `---\nname: ${name}\ndescription: A skill that a hub reads by path.\n---\nDo something.\n`;
   if (pack) {
     spec["rig/packs/own/pack.json"] = canon({ schema: 2, name: "own", license: "MIT" });
-    spec["rig/packs/own/skills/idle/SKILL.md"] = own["skills/idle/SKILL.md"];
+    for (const [rel, text] of Object.entries(own)) spec[`rig/packs/own/${rel}`] = text;
   }
   for (const h of transcripts) {
     const [to, from] = TRANSCRIPTS[h];
@@ -358,7 +359,7 @@ describe("rig stats over the transcript roots of the target records", () => {
     t.after(() => s.fx.cleanup());
     const r = s.rig(["stats", "--since", "30d"]);
     assert.equal(r.code, 0, r.all);
-    for (const h of ["claude", "codex", "cursor", "omp"]) assert.match(r.stdout, new RegExp(`^${h} {2}\\[[a-z-]+@1\\] {2}1 session$`, "m"), r.stdout);
+    for (const h of ["claude", "codex", "cursor", "omp"]) assert.match(r.stdout, new RegExp(`^${h} {2}\\[[a-z-]+@2\\] {2}1 session$`, "m"), r.stdout);
     const store = s.fx.read(`${STATE}metrics.jsonl`).split("\n").filter(Boolean);
     assert.equal(store.length, 4);
   });
@@ -376,7 +377,7 @@ describe("rig stats --suggest", () => {
     const before = s.fx.snapshot();
     const r = s.rig(["stats", "--since", "30d", "--suggest"]);
     assert.equal(r.code, 0, r.all);
-    assert.match(r.stdout, /^ {2}skill own\/idle: no loads on claude in 1 sessions: disable$/m);
+    assert.match(r.stdout, /^ {2}skill own\/idle: no use on claude in 1 sessions: disable$/m);
     assert.match(r.stdout, /^diff --git a\/rig\.json b\/rig\.json$/m);
     assert.match(r.stdout, /^-  "disable": \[\],$/m);
     assert.match(r.stdout, /^\+    "own\/idle"$/m);
@@ -407,6 +408,143 @@ describe("rig stats --suggest", () => {
     assert.ok(files.some((f) => f.path === "metrics.jsonl") && files.some((f) => f.path.startsWith("proposals/")) && files.some((f) => f.path.startsWith("log/")));
     for (const f of files) assert.equal(f.bytes.toString("utf8").includes(CANARY), false, f.path);
   });
+});
+
+// ---------------------------------------------------------------- a read of a unit dir is a use
+
+const STAMP = "2026-11-04T10:00:00.000Z";
+const jsonl = (...lines: object[]) => `${lines.map((l) => JSON.stringify(l)).join("\n")}\n`;
+/** Per harness: its skill root, its session path, and builders for a call that points into a unit dir, in the shape that harness writes. */
+type Reader = {skills: string, file: string, calls: Record<string, (home: string, name: string) => any>, session: (content: any, call: string) => string};
+const READERS: Record<string, Reader> = {
+  claude: {
+    skills: ".claude/skills",
+    file: ".claude/projects/-proj/sess-read.jsonl",
+    calls: {
+      Read: (home, name) => [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: `${home}/.claude/skills/${name}/SKILL.md` } }],
+      Bash: (home, name) => [{ type: "tool_use", id: "t1", name: "Bash", input: { command: `sed -n '1,200p' ~/.claude/skills/${name}/SKILL.md # CANARY ${CANARY}` } }],
+    },
+    session: (block) => jsonl({ type: "assistant", timestamp: STAMP, uuid: "u1", message: { id: "m1", model: "model-alpha", role: "assistant", usage: { input_tokens: 1, output_tokens: 1 }, content: block } }),
+  },
+  codex: {
+    skills: ".agents/skills",
+    file: ".codex/sessions/2026/11/04/rollout-2026-11-04T10-00-00-cdx-read.jsonl",
+    calls: {
+      "exec custom tool": (home, name) => ({ type: "custom_tool_call", call_id: "c1", name: "exec", input: `const r = await tools.exec_command({"cmd":"sed -n '1,260p' ${home}/.agents/skills/${name}/SKILL.md","workdir":"${home}"});` }),
+      "exec_command": (home, name) => ({ type: "function_call", call_id: "c1", name: "exec_command", arguments: JSON.stringify({ cmd: `cat ~/.agents/skills/${name}/SKILL.md` }) }),
+      "$name injection": (home, name) => ({ type: "message", id: "msg1", role: "user", content: [{ type: "input_text", text: `<skill>\n<name>${name}</name>\n<path>${home}/.agents/skills/${name}/SKILL.md</path>\n---\nname: ${name}\n---\n` }] }),
+    },
+    session: (payload) => jsonl({ timestamp: STAMP, type: "session_meta", payload: { id: "cdx-read" } }, { timestamp: STAMP, type: "response_item", payload }),
+  },
+  omp: {
+    skills: ".omp/agent/skills",
+    file: ".omp/agent/sessions/-proj/omp-read.jsonl",
+    calls: {
+      read: (home, name) => [{ type: "toolCall", id: "c1", name: "read", arguments: { path: `${home}/.omp/agent/skills/${name}/SKILL.md` } }],
+      bash: (home, name) => [{ type: "toolCall", id: "c1", name: "bash", arguments: { command: `cat ~/.omp/agent/skills/${name}/SKILL.md` } }],
+    },
+    session: (content) => jsonl({ type: "message", id: "a1", timestamp: STAMP, message: { role: "assistant", model: "model-alpha", usage: { input: 1, output: 1 }, content } }),
+  },
+  cursor: {
+    skills: ".cursor/skills",
+    file: ".cursor/projects/proj/agent-transcripts/cur-read.jsonl",
+    calls: {
+      Read: (home, name) => [{ type: "tool_use", name: "Read", input: { path: `${home}/.cursor/skills/${name}/SKILL.md` } }],
+      ReadFile: (home, name) => [{ type: "tool_use", name: "ReadFile", input: { path: `${home}/.cursor/skills/${name}/references/x.md` } }],
+      Shell: (home, name) => [{ type: "tool_use", name: "Shell", input: { command: `cat ~/.cursor/skills/${name}/SKILL.md` } }],
+      attached: (home, name) => [{ type: "text", text: `<manually_attached_skills>\nThe user attached these.\n\nSkill Name: ${name}\nPath: ${home}/.cursor/skills/${name}/SKILL.md\n---\nbody\n` }],
+    },
+    session: (content, call) => jsonl({ role: call === "attached" ? "user" : "assistant", timestamp: STAMP, message: { role: call === "attached" ? "user" : "assistant", model: "model-alpha", content } }),
+  },
+};
+
+for (const [harness, h] of Object.entries(READERS)) {
+  for (const [call, build] of Object.entries(h.calls)) {
+    test(`${harness} ${call}: a path into the unit dir counts the skill as used; an unread skill is still proposed`, (t) => {
+      const s = setup({ pack: true, skills: ["how"] });
+      t.after(() => s.fx.cleanup());
+      for (const name of ["how", "idle"]) mkdirSync(s.fx.path(`${h.skills}/${name}`), { recursive: true });
+      mkdirSync(join(s.fx.path(h.file), ".."), { recursive: true });
+      writeFileSync(s.fx.path(h.file), h.session(build(s.fx.home, "how"), call));
+      const r = s.rig(["stats", "--since", "30d", "--suggest"]);
+      assert.equal(r.code, 0, r.all);
+      assert.match(r.stdout, new RegExp(`^ {2}skill own/idle: no use on ${harness} in 1 sessions: disable$`, "m"), r.stdout);
+      assert.doesNotMatch(r.stdout, /own\/how/, "the skill the model read is not proposed");
+      assert.match(r.stdout, /^\+ {4}"own\/idle"$/m);
+      const store = JSON.parse(s.fx.read(`${STATE}metrics.jsonl`).trim());
+      assert.deepEqual(store.skills, { how: 1 });
+      for (const f of filesUnder(s.fx.path(STATE.slice(0, -1)))) {
+        const text = f.bytes.toString("utf8");
+        assert.equal(text.includes(CANARY) || text.includes("SKILL.md") || text.includes(s.fx.home), false, `${f.path} holds no path and no command text`);
+      }
+    });
+  }
+
+  test(`${harness}: a session with no read and no invocation proposes both skills`, (t) => {
+    const s = setup({ pack: true, skills: ["how"] });
+    t.after(() => s.fx.cleanup());
+    for (const name of ["how", "idle"]) mkdirSync(s.fx.path(`${h.skills}/${name}`), { recursive: true });
+    const [call, build] = Object.entries(h.calls)[0];
+    mkdirSync(join(s.fx.path(h.file), ".."), { recursive: true });
+    writeFileSync(s.fx.path(h.file), h.session(build(s.fx.home, "ghost"), call));
+    const r = s.rig(["stats", "--since", "30d", "--suggest"]);
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.stdout, new RegExp(`^ {2}skill own/how: no use on ${harness} in 1 sessions: disable$`, "m"), r.stdout);
+    assert.match(r.stdout, new RegExp(`^ {2}skill own/idle: no use on ${harness} in 1 sessions: disable$`, "m"));
+    assert.deepEqual(JSON.parse(s.fx.read(`${STATE}metrics.jsonl`).trim()).skills, {}, "a path to a dir that is not installed is no use");
+  });
+}
+
+test("cursor: a read inside the dir rig writes for Cursor counts the skill as used; an unread skill is still proposed", (t) => {
+  const s = setup({ rig: { harnesses: ["cursor"] }, pack: true, skills: ["how"] });
+  t.after(() => s.fx.cleanup());
+  const dir = ".cursor/plugins/local/rig/skills";
+  for (const name of ["how", "idle"]) mkdirSync(s.fx.path(`${dir}/${name}`), { recursive: true });
+  const h = READERS.cursor;
+  mkdirSync(join(s.fx.path(h.file), ".."), { recursive: true });
+  writeFileSync(s.fx.path(h.file), h.session([{ type: "tool_use", name: "Read", input: { path: `${s.fx.home}/${dir}/how/SKILL.md` } }], "Read"));
+  const r = s.rig(["stats", "--since", "30d", "--suggest"]);
+  assert.equal(r.code, 0, r.all);
+  assert.deepEqual(JSON.parse(s.fx.read(`${STATE}metrics.jsonl`).trim()).skills, { how: 1 });
+  assert.match(r.stdout, /^ {2}skill own\/idle: no use on cursor in 1 sessions: disable$/m, r.stdout);
+  assert.doesNotMatch(r.stdout, /own\/how/, "the skill the model read is not proposed");
+});
+
+test("claude: a read inside the plugin cache, which rig does not write, is no use of the skill", (t) => {
+  const s = setup({ pack: true, skills: ["how"] });
+  t.after(() => s.fx.cleanup());
+  const dir = ".claude/plugins/cache";
+  mkdirSync(s.fx.path(`${dir}/how`), { recursive: true });
+  const h = READERS.claude;
+  mkdirSync(join(s.fx.path(h.file), ".."), { recursive: true });
+  writeFileSync(s.fx.path(h.file), h.session([{ type: "tool_use", id: "t1", name: "Read", input: { file_path: `${s.fx.home}/${dir}/how/SKILL.md` } }], "Read"));
+  const r = s.rig(["stats", "--since", "30d", "--suggest"]);
+  assert.equal(r.code, 0, r.all);
+  assert.deepEqual(JSON.parse(s.fx.read(`${STATE}metrics.jsonl`).trim()).skills, {});
+});
+
+test("a hub file inside the unit dir counts for the hub: craft/hub.md and craft/playbooks/*.md", (t) => {
+  const s = setup({ pack: true, skills: ["craft"] });
+  t.after(() => s.fx.cleanup());
+  mkdirSync(s.fx.path(".claude/skills/craft/playbooks"), { recursive: true });
+  const h = READERS.claude;
+  const file = h.file;
+  mkdirSync(join(s.fx.path(file), ".."), { recursive: true });
+  const reads = ["hub.md", "playbooks/feature.md"].map((rel, i) => ({ type: "tool_use", id: `t${i}`, name: "Read", input: { file_path: `${s.fx.home}/.claude/skills/craft/${rel}` } }));
+  writeFileSync(s.fx.path(file), h.session(reads, "Read"));
+  const r = s.rig(["stats", "--since", "30d", "--suggest"]);
+  assert.equal(r.code, 0, r.all);
+  assert.deepEqual(JSON.parse(s.fx.read(`${STATE}metrics.jsonl`).trim()).skills, { craft: 2 });
+  assert.doesNotMatch(r.stdout, /own\/craft/);
+});
+
+test("--suggest without --record writes nothing outside the state root, and nothing for the rig config", (t) => {
+  const s = setup({ pack: true, skills: ["how"], transcripts: ["claude"] });
+  t.after(() => s.fx.cleanup());
+  mkdirSync(s.fx.path(".claude/skills/how"), { recursive: true });
+  const before = s.fx.snapshot();
+  assert.equal(s.rig(["stats", "--since", "30d", "--suggest"]).code, 0);
+  assert.deepEqual(changed(before, s.fx.snapshot()).filter((p) => !p.startsWith(STATE)), []);
 });
 
 // ---------------------------------------------------------------- propose rules on store lines

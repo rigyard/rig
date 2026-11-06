@@ -3,14 +3,17 @@
 //  - usage repeats once per content block, so one message.id is one request and the LAST line wins;
 //  - every subagent file under the session directory counts once, linked or not;
 //  - usage.iterations entries of type advisor_message are other-model calls: a side bucket, never top-level usage;
-//  - skill loads come from Skill tool calls, never from attributionSkill (it is sticky per message).
+//  - skill uses come from Skill tool calls, never from attributionSkill (it is sticky per message), and from Read and
+//    Bash calls whose path or command points into an installed skill dir (the hidden skills a hub reaches by path).
 import { basename, dirname, join, relative, sep } from "node:path";
-import { assertSafeSpec, projectLine, sha256Short } from "../project.ts";
+import { assertSafeSpec, projectLine, sha256Short, units } from "../project.ts";
+import { NO_REFS } from "../unit-paths.ts";
+import type { UnitRefs } from "../unit-paths.ts";
 import { jsonlObjects, listDirs, listFiles, mtimeMs, realpathOrNull, span, toIso, walk } from "../jsonl.ts";
 import { addUsage, inc, incTool, isNum, orderModels, round6, sortKeys } from "../agg.ts";
 
 export const format = "claude-jsonl";
-export const version = 1;
+export const version = 2;
 export const costSource = "cost-state record in the transcript";
 
 const USAGE = {
@@ -21,13 +24,14 @@ export const spec = {
   message: {
     id: true, model: true, role: true,
     usage: { ...USAGE, iterations: { ...USAGE, type: true, model: true } },
-    content: { type: true, id: true, name: true, tool_use_id: true, is_error: true, input: { skill: true, subagent_type: true, effort: true } },
+    content: { type: true, id: true, name: true, tool_use_id: true, is_error: true, input: { skill: true, subagent_type: true, effort: true, file_path: units(), command: units() } },
   },
   attachment: { type: true, hookEvent: true, stdout: "LEN" },
   totalCostUSD: true,
 };
 assertSafeSpec(spec, "claude-jsonl");
 
+const PATH_TOOLS = new Set(["Read", "Bash"]);
 const hasJsonl = (name) => name.endsWith(".jsonl");
 
 export function describe(root, file) {
@@ -48,7 +52,7 @@ function usageFields(u) {
   return { input: u.input_tokens, output: u.output_tokens, cache_read: u.cache_read_input_tokens, cache_write: u.cache_creation_input_tokens };
 }
 
-export function read(desc) {
+export function read(desc, refs: UnitRefs = NO_REFS) {
   const sink = new Set();
   const sessionDir = join(dirname(desc.file), desc.session_id, "subagents");
   const files = [desc.file];
@@ -72,7 +76,7 @@ export function read(desc) {
 
   files.forEach((file, index) => {
     for (const raw of jsonlObjects(file)) {
-      const line = projectLine(raw, spec, sink);
+      const line = projectLine(raw, spec, sink, refs);
       const ts = toIso(line.timestamp);
       if (ts) stamps.push(ts);
       const message = line.message;
@@ -89,6 +93,7 @@ export function read(desc) {
           toolNames.set(block.id, name);
           incTool(tools, name, false);
           if (name === "Skill" && block.input?.skill) inc(skills, block.input.skill);
+          if (PATH_TOOLS.has(name)) for (const unit of [...(block.input?.file_path ?? []), ...(block.input?.command ?? [])]) inc(skills, unit);
           if (name === "Agent" || name === "Task") {
             const entry = (agents[block.input?.subagent_type ?? "_unknown"] ??= { dispatches: 0, effort: {} });
             entry.dispatches += 1;

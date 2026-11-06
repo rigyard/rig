@@ -7,6 +7,10 @@ export const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures"
 export const CANARY = "Canary sentence zq7x must never reach the store.";
 export const NOW = Date.parse("2026-11-05T00:00:00Z");
 
+const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
+/** The read roots of a harness exactly as targets/<name>.json records them, so the fixture cannot drift from the real target. */
+const readsOf = (name) => JSON.parse(readFileSync(join(REPO, "targets", `${name}.json`), "utf8")).reads;
+
 const TARGETS = {
   claude: { format: "claude-jsonl", root: "~/.claude/projects", from: "claude/projects" },
   codex: { format: "codex-rollout", root: "~/.codex/sessions", from: "codex/sessions" },
@@ -41,7 +45,7 @@ export function makeSandbox(harnesses) {
   for (const name of harnesses) {
     const t = TARGETS[name];
     cpSync(join(FIXTURES, t.from), join(home, t.root.slice(2)), { recursive: true });
-    targets.set(name, { name, transcripts: { format: t.format, root: t.root } });
+    targets.set(name, { name, transcripts: { format: t.format, root: t.root }, reads: readsOf(name) });
   }
   const world = { env: { home, state, data: join(base, "data"), test: true }, targets };
   IO.set(world, makeIo(state));

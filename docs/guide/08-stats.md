@@ -7,7 +7,7 @@ In this page you read token, cost and tool metrics from the transcripts that you
 ```text
 rig stats
 ...
-claude  [claude-jsonl@1]  1 session
+claude  [claude-jsonl@2]  1 session
   models
     model-alpha  requests 3  input 108  output 44  cache_read 1011  cache_write 50  cache_hit 86.5%
     model-beta  requests 1  input 20  output 5  cache_read 400  cache_write n/a  cache_hit n/a
@@ -42,7 +42,7 @@ rig reads each harness's transcript root from its target record, for example `~/
 ```text
 rig stats --harness codex --since 7d
 ...
-codex  [codex-rollout@1]  1 session
+codex  [codex-rollout@2]  1 session
   models
     model-gamma  requests 2  input 1500  output 80  cache_read 900  cache_write n/a  cache_hit 60.0%
   alias history: n/a
@@ -54,18 +54,20 @@ codex  [codex-rollout@1]  1 session
 
 ## Keep a record that outlives transcripts
 
-`rig stats` keeps one line per session per harness in `~/.local/state/rig/metrics.jsonl`. Claude Code deletes transcripts after its cleanup period, 30 days by default, and the store keeps the numbers. A second run over the same transcripts adds no line. A session that grew gets a new line, and the report reads the last one.
+`rig stats` keeps one line per session per harness in `~/.local/state/rig/metrics.jsonl`. Claude Code deletes transcripts after its cleanup period, 30 days by default, and the store keeps the numbers. A second run over the same transcripts adds no line. A session that grew gets a new line, and the report reads the last one. After an upgrade that changes how a harness is read, the first run adds one new line per session in the window. Nothing counts twice, because the report reads only the last line of a session.
 
 A store line holds counts, model names, tool names and dates. It holds no prompt text and no response text. The project directory appears as a hash, for example `"project":"sha256:7a3ede1497d578d0"`. The test `the canary has zero hits in the store and the log; dropped keys are reported by name` plants a marker in a transcript and checks that it never reaches the store or the log. Read [decision 0021](../decisions/0021-observability-and-self-feedback.md) for the design.
+
+To see a read of a skill's directory, rig matches each file-read call or shell command in the transcript against the skill folders that the harness reads, except a plugin cache that rig does not write. Examples are `~/.claude/skills` and, on Cursor, `~/.cursor/plugins/local/rig/skills`; `~/.claude/plugins/cache` is left out. The store keeps only the name of a directory that exists there, such as `how`. It never keeps the path or the command. The same match covers Claude Code `Read` and `Bash`, Codex shell calls and the `<skill>` block of an explicit `$name`, omp `read` and `bash`, and Cursor `Read`, `ReadFile`, `Shell` and a skill that you attach by hand. A command that only mentions the directory, such as `ls ~/.claude/skills/how`, counts as a use too, so the rule errs toward keeping a skill.
 
 ## Get a suggested diff
 
 ```text
 rig stats --suggest
 ...
-  skill cli-for-agent/cli-for-agents: no loads on claude, omp in 2 sessions: disable
+  skill cli-for-agent/cli-for-agents: no use on claude, omp in 2 sessions: disable
 ...
-  skill product/office-hours: no loads on claude, omp in 2 sessions: disable
+  skill product/office-hours: no use on claude, omp in 2 sessions: disable
 ...
   saved to proposals/2026-11-05.patch in the state root; apply it in the repo root with git apply, commit, then run rig apply
 diff --git a/rig.json b/rig.json
@@ -85,7 +87,7 @@ The fixture transcripts load no seeded skill, so this run proposes to disable al
 
 `--suggest` prints the report, then a section headed `suggestions (a proposed diff; rig applies nothing)` with the proposals, then a patch. It saves the patch under `~/.local/state/rig/proposals/` and changes nothing else. You decide: run `git apply` on the patch in the repo, commit it, then run `rig apply`.
 
-rig proposes two kinds of change. A skill that no session loaded gets a `disable` entry. A role that sessions escalated in two or more sessions gets one effort rung more in `models/roles.json`. One session is not enough. A harness that records no skill loads never proves a skill unused. A hook over its output budget is a report line, never a diff.
+rig proposes two kinds of change. A skill that no session used gets a `disable` entry. A session uses a skill when it calls the skill tool, or when it reads a file inside the skill's directory. The second case matters because rig hides most pstack skills from the model, and the `craft` skill reaches them by reading `<skills>/<name>/SKILL.md`. A read of `~/.claude/skills/how/SKILL.md` counts as a use of `how`, and a read of `craft/hub.md` or `craft/playbooks/feature.md` counts as a use of `craft`. A role that sessions escalated in two or more sessions gets one effort rung more in `models/roles.json`. One session is not enough. A harness that records no skill loads never proves a skill unused. A hook over its output budget is a report line, never a diff.
 
 ## Record one session by hand
 

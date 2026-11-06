@@ -1,23 +1,30 @@
 // omp sessions: <root>/**/*.jsonl, one session per file.
 // Rules (measured by the slice 0 prototype): omp records its own cost per message and logs side calls as
-// model_usage records. A side call goes to the side bucket. Lines dedupe by their own id.
+// model_usage records. A side call goes to the side bucket. Lines dedupe by their own id. Skill uses are skill-prompt
+// messages and read or bash tool calls whose path or command points into an installed skill dir.
 import { basename, dirname, relative, sep } from "node:path";
-import { assertSafeSpec, projectLine, sha256Short } from "../project.ts";
+import { assertSafeSpec, projectLine, sha256Short, units } from "../project.ts";
+import { NO_REFS } from "../unit-paths.ts";
+import type { UnitRefs } from "../unit-paths.ts";
 import { jsonlObjects, mtimeMs, span, toIso, walk } from "../jsonl.ts";
 import { addUsage, inc, incTool, isNum, orderModels, round6, sortKeys } from "../agg.ts";
 
 export const format = "omp-jsonl";
-export const version = 1;
+export const version = 2;
 export const costSource = "recorded by the harness per call";
 
 const USAGE = { input: true, output: true, cacheRead: true, cacheWrite: true, cost: { total: true } };
 export const spec = {
   type: true, id: true, timestamp: true, customType: true, model: true,
   usage: USAGE, details: { name: true },
-  message: { role: true, model: true, toolName: true, isError: true, usage: USAGE },
+  message: {
+    role: true, model: true, toolName: true, isError: true, usage: USAGE,
+    content: { type: true, name: true, arguments: { path: units(), command: units() } },
+  },
 };
 assertSafeSpec(spec, "omp-jsonl");
 
+const PATH_TOOLS = new Set(["read", "bash"]);
 const isSession = (path) => path.endsWith(".jsonl");
 
 export function describe(root, file) {
@@ -31,7 +38,7 @@ export function discover(root) {
 
 const fields = (u) => ({ input: u.input, output: u.output, cache_read: u.cacheRead, cache_write: u.cacheWrite });
 
-export function read(desc) {
+export function read(desc, refs: UnitRefs = NO_REFS) {
   const sink = new Set();
   const models = {}, side = {}, tools = {}, skills = {}, seen = new Set(), stamps = [];
   let cost = null, compactions = 0;
@@ -40,7 +47,7 @@ export function read(desc) {
   };
 
   for (const raw of jsonlObjects(desc.file)) {
-    const line = projectLine(raw, spec, sink);
+    const line = projectLine(raw, spec, sink, refs);
     const ts = toIso(line.timestamp);
     if (ts) stamps.push(ts);
     if (line.id) {
@@ -48,6 +55,12 @@ export function read(desc) {
       seen.add(line.id);
     }
     const message = line.message;
+    if (line.type === "message" && message?.role === "assistant") {
+      for (const block of Array.isArray(message.content) ? message.content : []) {
+        if (block.type !== "toolCall" || !PATH_TOOLS.has(block.name)) continue;
+        for (const unit of [...(block.arguments?.path ?? []), ...(block.arguments?.command ?? [])]) inc(skills, unit);
+      }
+    }
     if (line.type === "message" && message?.role === "assistant" && message.usage) {
       addUsage(models, message.model ?? "_unknown", fields(message.usage));
       addCost(message.usage);

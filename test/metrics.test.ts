@@ -56,7 +56,7 @@ test("claude: tools, skills, agents, compactions, hook bytes, cost and dates", (
     assert.equal(line.end, "2026-11-04T18:40:57Z");
     assert.match(line.project, /^sha256:[0-9a-f]{16}$/);
     assert.equal(line.source, "stats");
-    assert.equal(line.reader, "claude-jsonl@1");
+    assert.equal(line.reader, "claude-jsonl@2");
   });
 });
 
@@ -245,7 +245,7 @@ test("stats --suggest with nothing to propose prints the report and saves no pat
   sandbox(["claude"], (sb) => {
     const r = stats(sb.world, { ...WIDE, suggest: true });
     assert.equal(r.patch, null);
-    assert.match(r.text, /^claude {2}\[claude-jsonl@1\]/m);
+    assert.match(r.text, /^claude {2}\[claude-jsonl@2\]/m);
     assert.match(r.text, /^suggestions \(a proposed diff; rig applies nothing\)\n {2}none\n$/m);
     assert.equal(existsSync(join(sb.state, "proposals")), false);
   });
@@ -263,6 +263,22 @@ test("hook mode: a valid payload records one line, twice leaves one, prints noth
     const { text } = stats(sb.world, WIDE);
     assert.match(text, /1 session\b/);
     assert.equal(storeLines(sb).length, 1, "stats finds the same fact the hook wrote");
+  });
+});
+
+test("hook mode and by-hand record count a read of an installed unit dir, and only that", () => {
+  sandbox(["claude"], (sb) => {
+    mkdirSync(join(sb.home, ".claude/skills/how"), { recursive: true });
+    const dir = join(sb.home, ".claude/projects/-placeholder-proj");
+    const call = (id, file_path) => ({ type: "assistant", timestamp: "2026-11-04T10:00:00Z", uuid: id, message: { id, model: "model-alpha", role: "assistant", usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: "tool_use", id, name: "Read", input: { file_path } }] } });
+    const write = (id, ...paths) => writeFileSync(join(dir, `${id}.jsonl`), paths.map((p, i) => JSON.stringify(call(`${id}-${i}`, p))).join("\n") + "\n");
+    write("sess-hook", join(sb.home, ".claude/skills/how/SKILL.md"), join(sb.home, ".claude/skills/ghost/SKILL.md"));
+    write("sess-hand", join(sb.home, ".claude/skills/how/references/x.md"));
+    assert.equal(recordSession(sb.world, { stdin: hookPayload(sb, "sess-hook") }), 0);
+    const { out } = captureStdout(() => recordSession(sb.world, { session: "sess-hand" }));
+    assert.equal(out, "recorded claude sess-hand\n");
+    const bySession = Object.fromEntries(storeLines(sb).map((l) => [l.session_id, l.skills]));
+    assert.deepEqual(bySession, { "sess-hook": { how: 1 }, "sess-hand": { how: 1 } });
   });
 });
 

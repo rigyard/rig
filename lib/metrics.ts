@@ -1,5 +1,5 @@
 // lib/metrics.ts — public: stats, recordSession. Both go through the internal record().
-import type { World } from "./world.ts";
+import type { ReadDir, World } from "./world.ts";
 // Store line fields beyond the doc's MetricsLine: `side_usage`, the same shape as `models`, for usage billed on calls
 // outside the main conversation (Claude advisor iterations, omp model_usage records). Omitted when empty.
 // Transcripts are the source; metrics.jsonl in the state root is the content-free store (decision 0021).
@@ -12,6 +12,8 @@ import * as cursor from "./metrics/readers/cursor-agent-jsonl.ts";
 import { record } from "./metrics/record.ts";
 import { renderReport } from "./metrics/report.ts";
 import { propose } from "./metrics/propose.ts";
+import { unitRefs } from "./metrics/unit-paths.ts";
+import type { UnitRefs } from "./metrics/unit-paths.ts";
 import { readStore } from "./metrics/store.ts";
 import { appendState, log, writeState } from "./fs.ts";
 import { realpathOrNull } from "./metrics/jsonl.ts";
@@ -58,12 +60,17 @@ function parseSince(text) {
 
 const expandRoot = (home, root) => (root.startsWith("~/") ? join(home, root.slice(2)) : root);
 
-/** The harnesses of `world` that name a transcript format with a reader. */
+/**
+ * The harnesses of `world` that name a transcript format with a reader. `refs` resolves a path or command in a
+ * transcript to the skill dirs the harness reads that rig can install into: every read root except a plugin cache rig does not write.
+ */
 function transcriptTargets(world) {
   const out = [];
   for (const [harness, target] of world.targets ?? []) {
     const reader = READERS.get(target.transcripts?.format);
-    if (reader) out.push({ harness, reader, root: expandRoot(world.env.home, target.transcripts.root) });
+    if (!reader) continue;
+    const skillRoots = ((target.reads?.skills ?? []) as ReadDir[]).filter((d) => !d.plugin || d.writable).map((d) => expandRoot(world.env.home, d.path));
+    out.push({ harness, reader, root: expandRoot(world.env.home, target.transcripts.root), refs: unitRefs(skillRoots, world.env.home) });
   }
   return out;
 }
@@ -85,12 +92,12 @@ export function stats(world: object, opts: {since?: string, harness?: string, su
   const dropped = new Map();
   let read = 0, written = 0, failed = 0;
 
-  for (const { harness, reader, root } of transcriptTargets(world)) {
+  for (const { harness, reader, root, refs } of transcriptTargets(world)) {
     if (opts.harness && opts.harness !== harness) continue;
     for (const desc of reader.discover(root)) {
       if (desc.mtimeMs < cutoffMs) continue;
       try {
-        const session = reader.read(desc);
+        const session = reader.read(desc, refs);
         if (!session.end || Date.parse(session.end) < cutoffMs) continue;
         read += 1;
         for (const path of session.dropped) (dropped.get(harness) ?? dropped.set(harness, new Set()).get(harness)).add(path);
@@ -129,27 +136,27 @@ function suggest(world, { lines, units, nowMs, text }, io) {
 function findByPath(world, transcriptPath) {
   const file = realpathOrNull(transcriptPath);
   if (!file || !statSync(file).isFile()) throw new MetricsError("E_TRANSCRIPT_PATH");
-  for (const { harness, reader, root } of transcriptTargets(world)) {
+  for (const { harness, reader, root, refs } of transcriptTargets(world)) {
     const rootReal = realpathOrNull(root);
     if (!rootReal) continue;
     const rel = relative(rootReal, file);
     if (rel.startsWith("..") || isAbsolute(rel)) continue;
     const desc = reader.describe(rootReal, file);
-    if (desc) return { harness, reader, desc };
+    if (desc) return { harness, reader, refs, desc };
   }
   throw new MetricsError("E_TRANSCRIPT_PATH");
 }
 
 function findBySession(world, id) {
-  for (const { harness, reader, root } of transcriptTargets(world)) {
+  for (const { harness, reader, root, refs } of transcriptTargets(world)) {
     const desc = reader.discover(root).find((d) => sessionMatches(d, id));
-    if (desc) return { harness, reader, desc };
+    if (desc) return { harness, reader, refs, desc };
   }
   throw new MetricsError("E_SESSION_NOT_FOUND");
 }
 
-function recordOne(world, { harness, reader, desc }, io) {
-  const session = reader.read(desc);
+function recordOne(world, { harness, reader, refs, desc }: {harness: string, reader: any, refs: UnitRefs, desc: any}, io) {
+  const session = reader.read(desc, refs);
   return record({ harness, reader: readerId(reader), session, source: "record", latest: readStore(world.env.state), io });
 }
 
