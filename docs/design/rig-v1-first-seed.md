@@ -13,7 +13,7 @@ Status: design, from an architect run on 2026-11-05 (two candidates, one synthes
 | D5 | Each vendored leaf copy gets a two-line anchor that links to `../craft/references/adapter.md`. |
 | D6 | The Claude adapter is a port of upstream `docs/harness/claude-code.md`. The Codex, Cursor and omp adapters are rig-authored in the first seed. |
 | D7 | The seed keeps the hub and `agents/poteto-agent.md`, and vendors `control-cli` and `control-ui`. The only pstack port source is `docs/harness/claude-code.md`. |
-| D8 | The checks `E_MODE_NAME`, `E_PLAYBOOK_UNLABELED` and `E_ANCHOR_MISSING` screen a hub change at a pin move. |
+| D8 | The checks `E_MODE_NAME`, `E_PLAYBOOK_UNLABELED` and `E_ANCHOR_MISSING` screen a hub change at plan time. `pin check` and `pack add` gate with an empty stack, so the mode checks do not run there; they first run at `rig plan`, after `pin set` wrote `packs/`. |
 | D9 | rig always renders `craft/references/adapter.md`. In a skill dir that several harnesses read, the file holds one section for each of them. |
 | D10 | `packs/core/frame.md` gains one line, ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.`` |
 
@@ -61,7 +61,7 @@ packs/
   cli-for-agent/            vendored: LICENSE, skills/cli-for-agents
   product/                  rig-authored port of gstack office-hours
     pack.json               mode block: the brief artifact
-    NOTICE.md  licenses/  skills/office-hours/...  commands/oh.md
+    NOTICE.md  licenses/  skills/office-hours/...
 .claude/skills/rig-port/SKILL.md            maintainer-only repo skill, never seeded
 ```
 
@@ -79,7 +79,7 @@ packs/
 | `craft/references/adapter.md` | pack `mode.adapter` for each harness that reads the dir | rig-rendered, one section per harness that reads the dir, always present (D9) |
 | `<leaf>/SKILL.md` and its other files | a vendored leaf | upstream bytes, plus the hide keys of every harness that reads the dir and the adapter anchor (A8) |
 
-rig renders `craft/references/adapter.md` in every skill dir that holds a `craft` copy. The file holds one section for each harness that reads the dir. Each section starts with a heading that names the harness, for example `## Codex`, so every reader finds its own mapping. A section holds the `mode.adapter` text of its harness. When no pack supplies an adapter for a harness, its section says that the skills use the harness's own names, and it lists no mapping. The adapter file therefore always exists, and the anchor of a leaf never dangles.
+rig renders `craft/references/adapter.md` in every skill dir that holds a `craft` copy. The file holds one section for each harness that reads the dir. Each section starts with a heading that names the harness, for example `## codex`, so every reader finds its own mapping. A section holds the `mode.adapter` text of its harness. When no pack supplies an adapter for a harness, its section says that the skills use the harness's own names, and it lists no mapping. The adapter file therefore always exists, and the anchor of a leaf never dangles.
 
 The shell `craft/SKILL.md` says these things, in this order:
 
@@ -205,7 +205,7 @@ GB=b244e6d11a6466650c5147cd7dc023859968c4b5    # the commit packs/product was po
 rig pack add $G --sha $GB --name product \
   --port office-hours/SKILL.md --port office-hours/sections --port LICENSE
 rig pin set product --ported            # attest the existing hand port at b244e6d
-rig pin check product --sha $GS         # "port fresh": office-hours did not change
+rig pin check product --sha $GS         # prints "port fresh: <port paths>": office-hours did not change
 rig pin set product                     # moves product to b406820 with no agent
 # /rig-port pstack writes packs/pstack/pack.json mode (the Claude adapter is the port) and model_surfaces once, then:
 rig pin set pstack --ported
@@ -281,7 +281,7 @@ The live transcript of `test/live/first-seed.test.ts`:
 ```sh
 RIG_ROOT=$T/cfg rig pack add ...        # the commands above, into a dir with rig.json, the pack.json files and packs/product
 # L1 $T/cfg/rig.lock.json tree hashes == committed rig.lock.json tree hashes
-rig pin check pstack --sha $PS          # L2 "unchanged, port fresh", exit 0
+rig pin check pstack --sha $PS          # L2 prints "0 files changed" and "port fresh: <port paths>", exit 0
 rig pin check product --sha $GS         # L2 same
 # L3 claude -p in a scratch repo with the seeded units: /craft routes a bug report to the Bug fix playbook
 # L4 codex, cursor-agent, omp: typed craft reads craft/hub.md, and the model-visible listing names no leaf
@@ -292,8 +292,8 @@ rig pin check product --sha $GS         # L2 same
 ```sh
 rig pin check pstack --sha <new 40-hex>
 #  fetches, gates the candidate tree, hashes the vendored tree and the port sources,
-#  records lock.packs.pstack.candidate, prints "14 files changed, port stale: docs/harness/claude-code.md"
-rig pin set pstack                       # writes the new bytes, keeps pack.json; port.tree moves, reviewed_tree stays
+#  records lock.packs.pstack.candidate, prints "14 files changed" and "port stale: docs/harness/claude-code.md" on separate lines (the declared port paths)
+rig pin set pstack                       # writes the new bytes, keeps pack.json; port.tree moves, reviewed_tree stays; prints "port stale: run /rig-port pstack, then rig pin set pstack --ported"
 rig plan                                 # BLOCK pin E_PORT_STALE pstack. Not ackable.
 /rig-port pstack                         # in Claude Code, in the config repo: edits packs/pstack/pack.json mode.adapter
 rig pin set pstack --ported              # reviewed_sha and reviewed_tree := sha and port.tree. No fetch.
