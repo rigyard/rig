@@ -21,7 +21,7 @@
 .agents/skills/control-ui/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/correct/SKILL.md	644	84bd38e53284f8144604ef7a26e2ab33cbc1779b395f6b18f1a05decbfda6218
 .agents/skills/correct/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
-.agents/skills/craft/SKILL.md	644	d7a907971944d040a25c88e35eb25e98f682011ada9d65f1951ae4e08f68fdf8
+.agents/skills/craft/SKILL.md	644	fe97225582208aa43ed1784c84af48740f06b39bd8307a9024abab290d288b4b
 .agents/skills/craft/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/craft/hub.md	644	ee1848c973a112026f09ba12ea7a13c1654006e7bf170d1c34bf5d5816bc439b
 .agents/skills/craft/playbooks/authoring-a-skill.md	644	f6a13a445c360b48d6cd72780ac01955f45b82826476efe0e67c7559329407aa
@@ -177,7 +177,7 @@
 .claude/agents/comment-sicko.md	644	3e239e40b7b4b9beb2cf7f3ccc57f2388eb8b69bd1ba8ae888ef87ef6e0e2116
 .claude/agents/poteto-agent.md	644	979f18abd000d185a0b4c41a2a4111c0910596a7f5c81cbb571885bc721b2bf7
 .claude/rules/pstack-models.md	644	12cf72fd9a232228ed04c09a5dac527ecb864b715a4a97ae4e916540900c734f
-.claude/rules/rig-frame.md	644	23440bc220ad3d651649ac814356a84d44004fdc3b6558ce60650eb5c2d9c44c
+.claude/rules/rig-frame.md	644	d801626fe45a658865c2e767446a77aab9c41bb92100b2b34bea8fd0e9b06d77
 .claude/skills/architect/SKILL.md	644	5adbbe6872dc562cb058d053749669fe6e3a7ec3ed4ebc706a03297f2546f8e6
 .claude/skills/architect/references/design-red-flags.md	644	d0e639e4cc588ec865f930d3a4111faad60987ae36925917e319d7ceca7c69ce
 .claude/skills/architect/references/rationale-template.md	644	0cedfccdc7b47fc881febd5a8293eecbc542c20f8df825639904a8102d2eb5d3
@@ -191,7 +191,7 @@
 .claude/skills/control-cli/SKILL.md	644	f1db6654ef804ae6689576570e850e1abacd74bb7e9b59afc7bfce504b5868d9
 .claude/skills/control-ui/SKILL.md	644	b1bc3efd8243d0cee5ce8b8f68ca16193fe4cb96e1f080eed02c81a8580c6ca8
 .claude/skills/correct/SKILL.md	644	63bee70a988570b59e96e50f3ce8cdd590425ea43ecd1933c04befd0bf936bbc
-.claude/skills/craft/SKILL.md	644	c90babe082002f1a84fb41c9477561195acf5f5867cb7350747c2a75cc131cd7
+.claude/skills/craft/SKILL.md	644	7b3b004e5ff9c01db841e52b30c5b52e9d64a5ed44e490b04004107357a16739
 .claude/skills/craft/hub.md	644	ee1848c973a112026f09ba12ea7a13c1654006e7bf170d1c34bf5d5816bc439b
 .claude/skills/craft/playbooks/authoring-a-skill.md	644	f6a13a445c360b48d6cd72780ac01955f45b82826476efe0e67c7559329407aa
 .claude/skills/craft/playbooks/autonomous-run.md	644	e74323411b5a760ffa7393d908d07fed420c68f8dc2aed1267505eaeadf130f2
@@ -296,7 +296,7 @@
 .claude/skills/why/references/sources/sentry.md	644	2d4f83048eac1df530b399e2aed75dd7c9c18577b7665420aaeb96d0ceb0b702
 .claude/skills/why/references/sources/slack.md	644	3bc6309f5c7b26ace3b919dbd7f7b048861dd2020f910fe24f656cc74b3b661c
 .claude/skills/why/references/synthesizer-prompt.md	644	11c62671aa7b7a6e3d36929ffe2b59bf95e6ca664eee4d93e6ee527dd3390ddb
-.codex/AGENTS.md	644	b9a3e857bce55a910b1217cc28689bbb783488ce10716748afa769c2ab078bdf
+.codex/AGENTS.md	644	a12bf60f528f7abeb46472d56689402edbac0b3e6887ddd59b16565046f1adc8
 .codex/agents/comment-sicko.toml	644	8202cdd3e280fcee6b2fe183a9aab4b8b217295c1ccdcaacd0099d613337fa36
 .codex/agents/poteto-agent.toml	644	cacafb47c312ee03dbcd24d0d367f6b8e10201592df039ab41c8b1bc2ae9f3d8
 .codex/config.toml	644	148f0a4dae031fb0626a2fa2c0ce51e1041945e26e20626061973ab94f931083
@@ -304,6 +304,6 @@
 .cursor/agents/comment-sicko.md	644	3e239e40b7b4b9beb2cf7f3ccc57f2388eb8b69bd1ba8ae888ef87ef6e0e2116
 .cursor/agents/poteto-agent.md	644	36a17dd8199e7239c863df22e3911cbf0bd1fa64bc97058552968f06357a2c9e
 .cursor/rules/pstack-models.mdc	644	24250dd67ee7e4dfff6a6a8a3579738c6d89a33102cdd4310950f236eeb986b2
-.cursor/rules/rig-frame.mdc	644	7141cc69f76f48871b798d39dd8e2cc6c06bb5ecad4481a02837543b2cbac681
-.omp/agent/AGENTS.md	644	afcdde4907c58fa0be80a4a4fb243a3b76b031194b4a31b2baebbffa59be5102
+.cursor/rules/rig-frame.mdc	644	80a112a1ccc982487655953af2de48764dff36be1f6525650ee390e22b4058f5
+.omp/agent/AGENTS.md	644	7fe1b6de2a81ea971d356784a1eddfba07ba465018b5075d55e905b4f839766d
 .omp/agent/pstack-models.md	644	a22e14f41eefd1dadeab9ab393049e0af1e0585d718fb87e0f64c6cd9ca5874e

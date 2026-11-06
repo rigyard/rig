@@ -161,7 +161,7 @@ describe("the first seed over the committed config", () => {
     const skills = join(run.h1.home, ".claude/skills/craft");
     const shell = readFileSync(join(skills, "SKILL.md"), "utf8");
     for (const d of ["business", "product", "engineering", "upkeep"]) assert.match(shell, new RegExp(`\\[${d}\\]\\(references/${d}\\.md\\)`));
-    assert.match(shell, /If a step of the domain file has a `Replaces the hub trigger:` line, run that step and not the hub trigger that the line quotes\./);
+    assert.match(shell, /A step of the domain file can have a `Replaces the hub trigger:` line or a `Replaces the frame trigger:` line\. Run that step in place of the line it quotes, inside `\/craft`\./);
     const eng = readFileSync(join(skills, "references/engineering.md"), "utf8");
     assert.match(eng, /^- `eng:ground`\. Before: none\. Slot: \[how\]\(\.\.\/\.\.\/how\/SKILL\.md\)\. After: none\.$/m);
     assert.match(eng, /^- `eng:design`\. Before: none\. Slot: \[architect\]\(\.\.\/\.\.\/architect\/SKILL\.md\)\. After: none\.$/m);

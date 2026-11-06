@@ -96,9 +96,10 @@ test("frame blocks are the template byte for byte, except the declared per-harne
   for (const h of HARNESSES) {
     const m = re.exec(frameBody(at, h));
     assert.ok(m, `the ${h} frame differs from the template outside the per-harness lines`);
-    const [first, second, line] = m.slice(1);
+    const [first, second, line, third] = m.slice(1);
     models[h] = line;
-    assert.deepEqual([first, second], [CRAFT[h], CRAFT[h]], `${h} names craft in its typed form`);
+    assert.deepEqual([first, second, third], Array(3).fill(CRAFT[h]), `${h} names craft in its typed form`);
+    assert.match(frameBody(at, h), /Inside `[^`]+`, a domain step that says `Replaces the frame trigger:` runs in place of the trigger it quotes\./, `${h} frame lets a domain step replace a frame trigger`);
   }
   assert.equal(new Set(HARNESSES.map((h) => models[h])).size, 4, "one distinct models line per harness");
 });

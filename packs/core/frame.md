@@ -8,5 +8,6 @@ Invariants, in every task:
 4. Report with evidence per claim and an uncertainties section.
 For multi-step work, type `{{craft}}`, optionally with a domain: `{{craft}} eng: ...`.
 Models: {{models}}
+Inside `{{craft}}`, a domain step that says `Replaces the frame trigger:` runs in place of the trigger it quotes.
 Triggers, in every task:
 {{triggers}}

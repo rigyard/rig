@@ -558,7 +558,7 @@ describe("adapter, hide switch and placement", () => {
     const b = built();
     const shell = b.text("~/.claude/skills/craft/SKILL.md");
     assert.match(shell, /^1\. Read \[hub\.md\]\(hub\.md\) in full\.$/m);
-    assert.match(shell, /^1\. Hub triggers are keyed by situation, not by step\. If a step of the domain file has a `Replaces the hub trigger:` line, run that step and not the hub trigger that the line quotes\. Every other hub trigger still applies\.$/m);
+    assert.match(shell, /^1\. Hub triggers are keyed by situation, not by step\. A step of the domain file can have a `Replaces the hub trigger:` line or a `Replaces the frame trigger:` line\. Run that step in place of the line it quotes, inside `\/craft`\. Every other hub and frame trigger still applies\.$/m);
     assert.match(shell, /^1\. An optional first argument names a domain, for example `eng: \.\.\.`\./m);
     assert.doesNotMatch(shell, /\/craft eng:/);
     for (const d of ["business", "product", "engineering", "upkeep"]) assert.match(shell, new RegExp(`\\[${d}\\]\\(references/${d}\\.md\\)`));
