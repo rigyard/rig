@@ -176,7 +176,25 @@ describe("fills, hooks, triggers and artifacts", () => {
     const shell = b.text("~/.claude/skills/craft/SKILL.md");
     assert.match(shell, /^- When A boundary moves: Use \[architect\]\(\.\.\/architect\/SKILL\.md\)\.$/m);
     assert.doesNotMatch(shell, /Building or changing a CLI|Any task names a boundary/);
+    assert.match(shell, /^The rig frame lists the triggers of rig\.json `fill` that name no domain\. Every session loads it\. The pack triggers with no domain follow\.$/m);
     assert.deepEqual(b.stack.mode!.triggers, [{ when: "A boundary moves", then: "Use {{skill:fixture/architect}}." }, { when: "Any task names a boundary", use: `${PACK}/design-probe` }]);
+  });
+
+  test("a step that holds the unit of a frame trigger quotes that trigger under the step, so the model runs the step and not the frame line", () => {
+    const text = (b: Built) => b.text("~/.claude/skills/craft/references/engineering.md");
+    const probe = `${PACK}/design-probe`;
+    const triggers = [{ when: "Before commit", use: probe }, { when: "Any task names a boundary", use: `${PACK}/architect` }];
+    const b = built({ rig: { fill: { "eng:ship.before": [probe], triggers } } });
+    assert.deepEqual(b.errors, []);
+    assert.ok(text(b).includes("- `eng:ship`. Before: [design-probe](../../design-probe/SKILL.md). Slot: none. After: none.\n  Replaces the frame trigger: \"Before commit\"\n"), text(b));
+    assert.ok(text(b).includes("- `eng:review`. Before: [architect](../../architect/SKILL.md). Slot: none. After: none.\n  Replaces the frame trigger: \"Any task names a boundary\"\n"), "a pack hook counts too");
+    assert.equal(text(b).match(/^  Replaces the frame trigger:/gm)?.length, 2);
+    const slot = built({ rig: { fill: { "eng:design": probe, triggers: [{ when: "Before commit", use: probe }] } } });
+    assert.match(text(slot), /^- `eng:design`\. Before: none\. Slot: \[design-probe\].*\n(?:  Replaces the hub trigger: .*\n)?  Replaces the frame trigger: "Before commit"$/m);
+    const apart = built({ rig: { fill: { "eng:ship.before": [`${PACK}/architect`], triggers: [{ when: "Before commit", use: probe }] } } });
+    assert.doesNotMatch(text(apart), /^  Replaces the frame trigger/m);
+    const domain = built({ rig: { fill: { "eng:ship.before": [probe], triggers: [{ when: "Before commit", use: probe, domain: "engineering" }] } } });
+    assert.doesNotMatch(text(domain), /^  Replaces the frame trigger/m);
   });
 
   test("a fill trigger that names no kept unit is E_MODE_REF; one that names a disabled unit is dropped with no error", () => {
@@ -552,7 +570,7 @@ describe("adapter, hide switch and placement", () => {
 
   test("a domain with a playbook or an artifact gets the playbook start rule; a domain with neither starts at the first step", () => {
     const b = built();
-    const precedence = "Read this file after `hub\\.md`\\. A step below with a `Replaces the hub trigger:` line runs in place of the hub trigger that it quotes\\. Every other hub trigger still applies\\.";
+    const precedence = "Read this file after `hub\\.md`\\. A step below with a `Replaces the hub trigger:` line runs in place of the hub trigger that it quotes\\. A step with a `Replaces the frame trigger:` line runs in place of the line of the rig frame for that trigger\\. Every other hub trigger still applies\\.";
     const playbook = "Follow the playbook that the hub selects\\. If the hub selects no playbook, skip each step whose artifact for this task already exists, and start at the first step left\\.";
     for (const [d, rule] of [["engineering", playbook], ["product", playbook], ["business", "Start at the first step\\."], ["upkeep", "Start at the first step\\."]]) {
       assert.match(b.text(`~/.claude/skills/craft/references/${d}.md`), new RegExp(`^${precedence}\\n\\n${rule}$`, "m"), d);

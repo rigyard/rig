@@ -76,6 +76,7 @@ export function render(stack: Stack, world: World): Desired {
     info: [],
     auto: stack.mode?.auto ?? new Set<UnitRef>(),
     triggers: stack.mode?.triggers ?? [],
+    types: new Map(stack.units.map((u) => [u.id, u.type])),
     anchored: {} as Record<string, string[]>,
   };
   for (const unit of stack.units) if (unit.type !== "mode" && unit.type !== "frame") renderUnit(ctx, unit);
@@ -360,7 +361,9 @@ function frameTriggers(ctx: any, h: string): string {
     const name = t.use.split("/")[1];
     const dir = dirs.find((d) => ctx.owners.get(`${d}/${name}/SKILL.md`) === t.use);
     if (dir) return [`${t.when}: read ${dir}/${name}/SKILL.md and apply it.`];
-    ctx.info.push(`absent ${h} ${t.use}: no skill dir of the harness holds it, so the frame has no line for the trigger "${t.when}"`);
+    const type: string = ctx.types.get(t.use) ?? "skill";
+    const why = type === "skill" ? "no skill dir of the harness holds it" : `the unit has type ${type}, not skill`;
+    ctx.info.push(`absent ${h} ${t.use}: ${why}, so the frame has no line for the trigger "${t.when}"`);
     return [];
   });
   return lines.length ? lines.join("\n") : "None.";

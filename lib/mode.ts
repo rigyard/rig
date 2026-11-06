@@ -339,9 +339,11 @@ export function modeFiles(mode: Mode, template: string, view: ModeView): { files
     const from = `references/${d.name}.md`;
     const refs = (rs: string[]) => (rs.length ? rs.map((r) => skill(r, from)).join(", ") : "none");
     const filled = (at: string, s: Step) => [[at, s.slot !== null], [`${at}.before`, s.before.length > 0], [`${at}.after`, s.after.length > 0]] as const;
+    const frameTriggers = mode.triggers.flatMap((t) => ("use" in t ? [t] : []));
     const steps = [...d.steps].map(([at, s]) => [
       `\`${at}\`. Before: ${refs(s.before)}. Slot: ${s.slot ? skill(s.slot, from) : "none"}. After: ${refs(s.after)}.`,
       ...filled(at, s).flatMap(([key, set]) => (set && d.replaces.has(key) ? [`  Replaces the hub trigger: "${d.replaces.get(key)}"`] : [])),
+      ...frameTriggers.filter((t) => s.slot === t.use || s.before.includes(t.use) || s.after.includes(t.use)).map((t) => `  Replaces the frame trigger: "${t.when}"`),
     ].join("\n"));
     const start = d.playbooks.length > 0 || d.artifacts.size > 0
       ? "Follow the playbook that the hub selects. If the hub selects no playbook, skip each step whose artifact for this task already exists, and start at the first step left."
@@ -360,7 +362,7 @@ export function modeFiles(mode: Mode, template: string, view: ModeView): { files
       "",
       `Prefix: \`${d.prefix}\`. Stages: ${[...d.steps.keys()].map((s) => s.split(":")[1]).join(", ")}.`,
       "",
-      `Read this file after \`${HUB}\`. A step below with a \`Replaces the hub trigger:\` line runs in place of the hub trigger that it quotes. Every other hub trigger still applies.`,
+      `Read this file after \`${HUB}\`. A step below with a \`Replaces the hub trigger:\` line runs in place of the hub trigger that it quotes. A step with a \`Replaces the frame trigger:\` line runs in place of the line of the rig frame for that trigger. Every other hub trigger still applies.`,
       "",
       start,
       "",

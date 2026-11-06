@@ -146,6 +146,16 @@ test("a trigger unit with no copy in the read set of a harness has no frame line
   assert.ok(d.info.includes(`absent codex own/explain: no skill dir of the harness holds it, so the frame has no line for the trigger "Before review"`), d.info.join("\n"));
 });
 
+test("a trigger unit that is not a skill has no frame line, and the info line says it is not a skill", () => {
+  const frame = unit({ id: "core/rig-frame", type: "frame", files: { "frame.md": readFileSync(join(ROOT, "packs/core/frame.md"), "utf8") } });
+  const helper = unit({ id: "own/helper", type: "agent", harnesses: ["claude"], files: { "helper.md": "---\nname: helper\ndescription: Help.\n---\n" } });
+  const mode = { auto: new Set(), triggers: [{ when: "Before review", use: "own/helper" }] };
+  const d = render({ units: [frame, helper], errors: [], mode } as any, renderWorld() as any);
+  assert.deepEqual(d.errors, []);
+  assert.ok(d.info.includes(`absent claude own/helper: the unit has type agent, not skill, so the frame has no line for the trigger "Before review"`), d.info.join("\n"));
+  assert.ok(!d.info.some((l) => l.includes("own/helper") && l.includes("no skill dir")), d.info.join("\n"));
+});
+
 test("no harness's frame names a provider or a slot", () => {
   const { at } = renderRepo();
   for (const h of HARNESSES) assert.doesNotMatch(frameBody(at, h), /provider|slot/i, h);

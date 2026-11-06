@@ -90,7 +90,7 @@ The shell `craft/SKILL.md` says these things, in this order:
 5. A named skill that is not installed is skipped with one line that names it.
 6. Leaf skills call this skill poteto-mode. It is this skill.
 
-The shell also lists each domain file, and each trigger with no domain. With no pack that adopts `hub.md`, the shell leaves out item 2.
+The shell also lists each domain file and each pack trigger with no domain. A `rig.json` `fill` trigger with no domain goes in the frame of each harness, not in the shell. With no pack that adopts `hub.md`, the shell leaves out item 2.
 
 A domain file holds, for its domain, the stages from `domains.json`, the slot and the `before` and `after` hooks of each step, the artifacts whose `write_at` is in the domain, the playbooks that carry the domain label, and the triggers of the domain.
 
@@ -139,7 +139,9 @@ The default fills restate four step-anchored hub triggers, so the domain file an
 | "Before review" | `eng:review.before` | `packs/pstack/pack.json` `mode.hooks` |
 | "Before commit" | `eng:ship.before` | `rig.json` `fill`, because `deslop` is in another pack |
 
-A team fill that differs from the hub wins, by item 4 of the shell. The hub's situational triggers stay in the hub.
+A team fill that differs from the hub wins, by item 4 of the shell. The hub's other situational triggers stay in the hub.
+
+The default `rig.json` also lists "Before review" and "Before commit" as `fill` triggers with no domain, so the frame names `no-comments` and `deslop` in every session. Inside `/craft` the step and the frame line would name the same unit twice. The domain file therefore prints `Replaces the frame trigger: "<when>"` under a step whose slot or hook holds the unit of a domain-less fill trigger, and the model runs the step in place of that line of the frame (`test/mode.test.ts`, "a step that holds the unit of a frame trigger quotes that trigger under the step, so the model runs the step and not the frame line"). Outside `/craft` the frame line is the only instruction.
 
 Pack hooks are the defaults. A hook list in `rig.json` `fill` replaces the pack list at the same address. A slot comes only from `rig.json` `fill`. `disable` removes a unit from every step.
 
@@ -261,7 +263,7 @@ More assertions:
 | A9 | Every relative Markdown link in every owned file resolves to an owned file of the same harness. This covers the anchor link of each leaf to `../craft/references/adapter.md`. The links check skips targets that are not paths, such as `url` in `skills/why/references/synthesizer-prompt.md:65`. |
 | A10 | The Codex skill listing counts only visible units, which are the units in `auto`. With `auto` empty it counts none, and it stays under 8,000 characters. |
 | A11 | Warns match a list committed from the first green run. Hidden skills get no description warns (`lib/gate/budget.ts:82`, applied at `:176`), and `craft` is hidden too. The committed list holds two `budget` warns, both reference chains inside upstream pstack skills: `skills/ketchup-video/SKILL.md` and `skills/principle-attack-the-premise/SKILL.md`, each 2 levels deep. Any other warn fails. |
-| A12 | `craft/SKILL.md` names each domain file and the precedence rule. `references/engineering.md` names each `eng` fill of `rig.json`, the pack hook `eng:review.before`, and the `bug-fix` playbook. `references/product.md` names `prod:discover` and the `brief` artifact. |
+| A12 | `craft/SKILL.md` names each domain file and the precedence rule. `references/engineering.md` names each `eng` fill of `rig.json`, the pack hook `eng:review.before`, and the `bug-fix` playbook. Under `eng:review` and `eng:ship` it prints `Replaces the frame trigger:` for "Before review" and "Before commit", and the frame names `no-comments` and `deslop` once. `references/product.md` names `prod:discover` and the `brief` artifact. |
 | A13 | The degraded list matches. It holds 8 kept files. They are the `show-me-your-work` skill (no `scripts/`), the `multi-phase-plan` playbook (step 6 calls `check-plan.mjs`, and lines 37, 65 and 152 name repo-root `pstack/skills/<x>/SKILL.md` paths), the `worktree-cleanup` playbook (step 1 calls `worktree-audit.sh`), the `babysit` playbook (`scripts/watch-pr`), the `shipping` playbook (step 5 at line 9 runs `scripts/watch-pr/watch-pr`), the `figure-it-out` skill (line 13 names the Principles section of the **poteto-mode** skill), the `maintain-formal-verification-skill` skill (lines 9 and 28 name the excluded skill), and the `poteto-agent` agent (its fallback search for `skills/poteto-mode/SKILL.md` finds no file, and it reads `hub.md` only through the path its parent gives). The test pins the list with the A13 grep below this table. At `2776ddd` the grep gives exactly these 8 files, so an upstream change fails the test. |
 | A14 | No file in a pack sits under a locked exclude prefix. |
 | A15 | `rig plan` gives 0 `E_MODE_NAME` findings and 0 acks. Every unit that the hub and the playbooks name is kept or on the allowlist. |
@@ -435,8 +437,8 @@ export type DomainView = {
 export type Mode = {
   hub: { pack: string } | null;
   domains: DomainView[];
-  /** Triggers with no domain. The shell lists them. */
-  triggers: { when: string; then: string }[];
+  /** Triggers with no domain. The frame lists a fill trigger, which carries `use`. The shell lists a pack trigger, which carries `then`. */
+  triggers: ({ when: string; use: UnitRef } | { when: string; then: string })[];
   adapters: Map<string, { text: string; pack: string }>;
   /** Adopted files under craft/. Render copies them with no change. */
   files: Map<string, { bytes: Uint8Array; mode: number; pack: string }>;
@@ -576,7 +578,7 @@ Grafts from B:
 | Leaves work on Codex and omp through the rig-authored adapters | 4 | No upstream adapter exists for them | Leaves misfire on Codex and omp | `mode` lane 7. `$architect` typed on Codex reads the adapter. A live run of a leaf that says `AskQuestion` stays open. |
 | `craft/SKILL.md` stays under the skill body budget | 7 | The shell is short. The 5,336-token hub is a separate file that the model reads on each `/craft`. | A budget warn, and a read cost on every `/craft` | Render it and count |
 | Pack hooks as defaults, replaced by a `fill` at the same address | 6 | The user named "default hooks" but no merge rule | A team cannot add one hook without repeating the defaults | A team config that adds a second `eng:review.before` hook |
-| A fill trigger carries an optional `domain`, and a trigger with no domain goes in the shell | 6 | The domain files hold "domain triggers", and v0 triggers had no domain | The CLI trigger lands in the wrong file | Render the seed and read `references/engineering.md` |
+| A fill trigger carries an optional `domain`, and a fill trigger with no domain goes in the frame | 6 | The domain files hold "domain triggers", and v0 triggers had no domain. A pack trigger with no domain still goes in the shell. | The CLI trigger lands in the wrong file | Render the seed and read `references/engineering.md` and the frame |
 | The typed skill form on Cursor and omp is `/craft` | 5 | Only Claude Code (`/craft`) and Codex (`$craft`) are known | The `mode` lanes 4 and 5 test the wrong input | The lane records the form that worked in `versions.txt` |
 | The product port sources are complete | 7 | Resolver changes upstream move the generated outputs | A stale port goes unnoticed | Diff a resolver-only change upstream and check the outputs move |
 | The exclude list is link-closed | 8 | The reviewer found no kept link to an excluded skill at `2776ddd` | `plan` blocks | Run the links check on the vendored tree first |

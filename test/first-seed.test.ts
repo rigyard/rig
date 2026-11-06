@@ -151,6 +151,12 @@ describe("the first seed over the committed config", () => {
     assert.match(eng, /^- `eng:review`\. Before: \[no-comments\]\(\.\.\/\.\.\/no-comments\/SKILL\.md\)\. Slot: none\. After: none\.$/m);
     assert.match(eng, /^- `eng:ship`\. Before: \[deslop\]\(\.\.\/\.\.\/deslop\/SKILL\.md\)\. Slot: none\. After: none\.$/m);
     assert.match(eng, /^- When Building or changing a CLI: Use \[cli-for-agents\]\(\.\.\/\.\.\/cli-for-agents\/SKILL\.md\)\.$/m);
+    assert.deepEqual([...eng.matchAll(/^- `(eng:[a-z]+)`\..*\n(?:  Replaces the hub trigger: .*\n)?  Replaces the frame trigger: "(.*)"$/gm)].map((m) => [m[1], m[2]]), [["eng:review", "Before review"], ["eng:ship", "Before commit"]]);
+    const frame = readFileSync(join(run.h1.home, ".claude/rules/rig-frame.md"), "utf8");
+    for (const [unit, when] of [["no-comments", "Before review"], ["deslop", "Before commit"]]) {
+      assert.equal(frame.split("\n").filter((l) => l.includes(`/${unit}/SKILL.md`)).length, 1, `the frame names ${unit} once`);
+      assert.ok(frame.includes(`${when}: read ~/.claude/skills/${unit}/SKILL.md and apply it.`), unit);
+    }
     const hubLines = readFileSync(join(skills, "hub.md"), "utf8").split("\n");
     const quoted = [...eng.matchAll(/^- `(eng:[a-z]+)`\..*\n  Replaces the hub trigger: "(.*)"$/gm)].map((m) => [m[1], hubLines.indexOf(`- ${m[2]}`) + 1]);
     assert.deepEqual(quoted, [["eng:ground", 20], ["eng:design", 23], ["eng:review", 30], ["eng:ship", 29]]);
