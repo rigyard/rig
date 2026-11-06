@@ -192,3 +192,21 @@ export function runHarness({ bin, args = [], cwd = process.cwd(), env = scrubEnv
     child.stdin.end(input ?? "");
   });
 }
+
+const OMP_MODEL_SKIP_REASON = "omp live test: set RIG_LIVE_OMP_MODEL to a model omp can call, for example provider/model (without it omp falls back to a provider that can hit its daily cap)";
+
+/**
+ * The omp argv fragment that selects the model, from RIG_LIVE_OMP_MODEL (omp --model takes a fuzzy name or provider/model).
+ * With the variable unset or blank, args is empty and skip holds the reason.
+ */
+export function ompModelArgs(env: NodeJS.ProcessEnv = process.env): { args: string[]; skip: string | null } {
+  const model = env.RIG_LIVE_OMP_MODEL?.trim();
+  return model ? { args: ["--model", model], skip: null } : { args: [], skip: OMP_MODEL_SKIP_REASON };
+}
+
+/** liveTest for a case that calls an omp model: with RIG_LIVE=1 and no RIG_LIVE_OMP_MODEL it is reported as skipped, with the reason. */
+export function liveOmpTest(name: string, fn: (t: TestContext) => unknown) {
+  const { skip } = ompModelArgs();
+  if (process.env.RIG_LIVE === "1" && skip) return test(name, { skip }, () => {});
+  return liveTest(name, fn);
+}

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "node:test";
-import { liveTest, runHarness } from "../helpers/live.ts";
+import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { harnessArgv, mirrorProject, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
 
@@ -66,7 +66,7 @@ describe("subtract", () => {
     assert.ok(r.reply && squash(r.reply).includes(quote), `exit ${r.code}: the reply does not quote the first invariant`);
   });
 
-  liveTest("omp reads the frame", async (t) => {
+  liveOmpTest("omp reads the frame", async (t) => {
     const { fx, dir } = seeded(t);
     const quote = firstInvariant(fx.read(".omp/agent/AGENTS.md"));
     const r = await ask("omp", dir, fx.home);

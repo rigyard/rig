@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "node:test";
 import type { TestContext } from "node:test";
-import { liveTest, runHarness } from "../helpers/live.ts";
+import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { harnessArgv, mirrorProject, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
 import { craftFiles, craftFixture } from "../mode.helpers.ts";
 
@@ -155,7 +155,7 @@ describe("mode", () => {
 
   liveTest("cursor runs typed craft and hides the leaf", (t) => typedAndHidden(t, "cursor"));
 
-  liveTest("omp runs typed craft and hides the leaf", async (t) => {
+  liveOmpTest("omp runs typed craft and hides the leaf", async (t) => {
     const first = await typedAndHidden(t, "omp");
     if (first === null) return;
     assert.equal(loads(first.r, "craft"), 1, "omp does not load craft exactly once");

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { describe } from "node:test";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
-import { liveTest } from "../helpers/live.ts";
+import { liveOmpTest, liveTest } from "../helpers/live.ts";
 import { mirrorProject, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
 
 /** A fixture HOME and a scratch repo, both removed after the test. */
@@ -23,7 +23,7 @@ describe("seedkit", () => {
     assert.ok(r.reply?.includes(tok), `exit ${r.code}: no sentinel in the reply`);
   });
 
-  liveTest("omp sees a fixture agent dir", async (t) => {
+  liveOmpTest("omp sees a fixture agent dir", async (t) => {
     const tok = sentinel();
     const { fx, dir } = world(t, { ".omp/agent/commands/rigseed-cmd.md": `Say ${tok} and nothing else.\n` });
     const r = await runSeed("omp", "/rigseed-cmd", { dir, home: fx.home });

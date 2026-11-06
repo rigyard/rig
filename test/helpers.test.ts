@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, readlinkSy
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { assertOutsideHomeDotDirs, makeFixtureHome } from "./helpers/fixture-home.ts";
-import { changedPaths, guardRealConfig, liveTest, REAL_CONFIG_PATHS, realConfigHashes, realHome, runHarness } from "./helpers/live.ts";
+import { changedPaths, guardRealConfig, liveTest, ompModelArgs, REAL_CONFIG_PATHS, realConfigHashes, realHome, runHarness } from "./helpers/live.ts";
 import { assertOutsideRealHome, harnessArgv, mirrorProject, realBin, replyOf, scratchRepo, sentinel } from "./helpers/mirror.ts";
 import { makeStubs } from "./helpers/stubs.ts";
 
@@ -127,6 +127,15 @@ describe("live", () => {
 
   liveTest("liveTest skips unless RIG_LIVE=1", () => {
     assert.equal(process.env.RIG_LIVE, "1");
+  });
+
+  test("ompModelArgs gives a skip reason that names the variable when it is unset or blank, and the model in argv when it is set", () => {
+    for (const env of [{}, { RIG_LIVE_OMP_MODEL: "" }, { RIG_LIVE_OMP_MODEL: "  " }]) {
+      const r = ompModelArgs(env);
+      assert.deepEqual(r.args, []);
+      assert.match(r.skip ?? "", /RIG_LIVE_OMP_MODEL/);
+    }
+    assert.deepEqual(ompModelArgs({ RIG_LIVE_OMP_MODEL: " prov/m " }), { args: ["--model", "prov/m"], skip: null });
   });
 });
 
@@ -290,6 +299,7 @@ describe("mirror", () => {
     assert.equal("OMP_PROFILE" in o.env, false);
     assert.equal(o.input, "");
     assert.deepEqual(harnessArgv("omp", "hi", { dir, env: { PATH: "/bin" }, home: fx.home }).args, ["-p", "--mode", "json", "--no-session", "hi"]);
+    assert.deepEqual(harnessArgv("omp", "hi", { dir, env, home: fx.home, model: "other/m" }).args.slice(0, 2), ["--model", "other/m"]);
     assert.throws(() => harnessArgv("omp", "hi", { dir, env }), /fixture home/);
     assert.throws(() => harnessArgv("omp", "hi", { dir, env, home: realHome() }), /real home/);
 

@@ -8,7 +8,7 @@ import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync,
 import { tmpdir } from "node:os";
 import { basename, delimiter, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { assertOutsideHomeDotDirs } from "./fixture-home.ts";
-import { realHome, runHarness } from "./live.ts";
+import { ompModelArgs, realHome, runHarness } from "./live.ts";
 
 /** Per harness: [fixture-HOME-relative source, project-relative destination]. Two sources may share one destination dir. */
 export const MIRROR_UNITS = {
@@ -150,20 +150,19 @@ export function ompEnv(home: string, agentDir: string = join(home, ".omp", "agen
  * its login but cannot see ~/.agents/skills: codex lists a same-name user skill there over the project unit, and
  * --ignore-user-config does not hide it. `cleanup` removes that temp HOME; call it after the run. The other harnesses
  * keep the real HOME and its login.
- * The omp model defaults to $RIG_LIVE_OMP_MODEL, because the omp default model can hit a provider spending limit.
+ * The omp model comes from ompModelArgs (RIG_LIVE_OMP_MODEL), because the omp default model can hit a provider spending limit.
  * @param opts
  *        dir: the scratch project (cwd); home: the fixture HOME (omp)
  */
 export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string, cleanup: () => void} {
   const { dir } = opts;
   const base = scrubEnv(opts.env ?? process.env);
-  const model = opts.model ?? (harness === "omp" ? base.RIG_LIVE_OMP_MODEL || undefined : undefined);
-  const m = (flag) => (model ? [flag, model] : []);
+  const m = (flag) => (opts.model ? [flag, opts.model] : []);
   const out = (bin, args, env = base, cleanup = () => {}) => ({ bin, args, cwd: dir, env, input: "", cleanup });
   if (harness === "claude") return out("claude", ["-p", "--max-turns", String(opts.maxTurns ?? 3), "--output-format", "json", ...m("--model"), prompt]);
   if (harness === "omp") {
     if (!opts.home) throw new Error("mirror: omp needs the fixture home");
-    return out("omp", [...m("--model"), "-p", "--mode", "json", "--no-session", prompt], ompEnv(opts.home, opts.agentDir, base));
+    return out("omp", [...(opts.model ? m("--model") : ompModelArgs(base).args), "-p", "--mode", "json", "--no-session", prompt], ompEnv(opts.home, opts.agentDir, base));
   }
   if (harness === "codex") {
     const home = mkdtempSync(join(tmpdir(), "rig-codex-home-"));

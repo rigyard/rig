@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe } from "node:test";
 import { undo } from "../../lib/state.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
-import { liveTest, runHarness } from "../helpers/live.ts";
+import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { mirrorProject, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
 import { converge, journalLines, journals, makeWorld, snapshot } from "../state.helpers.ts";
 
@@ -64,7 +64,7 @@ describe("state", () => {
     assert.deepEqual(snapshot(home), before);
   });
 
-  liveTest("crash, recover, omp sees one copy", async (t) => {
+  liveOmpTest("crash, recover, omp sees one copy", async (t) => {
     const { home, world, dir } = seed(t);
     const name = `rigseed-${sentinel("x").slice(2).toLowerCase()}`;
     const files = {
