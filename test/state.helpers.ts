@@ -120,6 +120,12 @@ export function snapshot(home) {
 }
 export const asObj = (m) => Object.fromEntries([...m].sort(([a], [b]) => (a < b ? -1 : 1)));
 
+/** The run id of an apply result that wrote something. */
+export function runOf(r: {run: string | null}): string {
+  if (r.run === null) throw new Error("apply wrote no run");
+  return r.run;
+}
+
 /** Temp files of a write in HOME, outside the state root. */
 export const litter = (home: string): string[] => [...snapshot(home).keys()].filter((rel) => rel.endsWith(".rig-tmp"));
 

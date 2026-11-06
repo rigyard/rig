@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -294,6 +294,145 @@ describe("rig apply --undo", () => {
     assert.equal(u.code, 1, u.all);
     assert.match(u.stdout, /E_UNDO_CONFLICT .*no journal for run/);
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
+  });
+});
+
+describe("rig apply --repair", () => {
+  const FRAME = ".claude/rules/rig-frame.md";
+  const OMP = ".omp/agent/AGENTS.md";
+  const applied = (t: TestContext, home = {}) => {
+    const s = setup({ home });
+    t.after(s.cleanup);
+    assert.equal(s.rig(["apply"]).code, 0);
+    return s;
+  };
+
+  test("a removed managed file: plan --repair shows a create and writes nothing; apply --repair restores it and the next plan is empty", (t) => {
+    const s = applied(t);
+    const bytes = s.fx.read(FRAME);
+    rmSync(s.fx.path(FRAME));
+    const before = s.fx.snapshot();
+    const p = s.rig(["plan", "--repair"]);
+    assert.equal(p.code, 0, p.all);
+    assert.match(p.stdout, /^create +owned +claude +~\/\.claude\/rules\/rig-frame\.md +\S+ \(repair\)$/m);
+    assert.match(p.stdout, /^1 change, 0 blocks$/m);
+    assert.deepEqual(changed(before, s.fx.snapshot()), [], "plan --repair writes nothing");
+    const r = s.rig(["apply", "--repair"]);
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.stdout, /^run \S+: 1 ops applied$/m);
+    assert.equal(s.fx.read(FRAME), bytes);
+    const next = s.rig(["plan"]);
+    assert.equal(next.code, 0, next.all);
+    assert.match(next.stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("an edited managed file: restored with its mode, the diff shows in the plan, and --undo brings the edit back", (t) => {
+    const s = applied(t);
+    const bytes = s.fx.read(FRAME);
+    const mode = statSync(s.fx.path(FRAME)).mode & 0o777;
+    writeFileSync(s.fx.path(FRAME), "edited by hand\n", { mode: 0o600 });
+    chmodSync(s.fx.path(FRAME), 0o600);
+    const p = s.rig(["plan", "--repair"]);
+    assert.equal(p.code, 0, p.all);
+    assert.match(p.stdout, /^update +owned +claude +~\/\.claude\/rules\/rig-frame\.md +\S+ \(repair, diff below\)$/m);
+    assert.match(p.stdout, /^-edited by hand$/m);
+    const r = s.rig(["apply", "--repair"]);
+    assert.equal(r.code, 0, r.all);
+    const run = runOf(r.stdout);
+    assert.equal(s.fx.read(FRAME), bytes);
+    assert.equal(statSync(s.fx.path(FRAME)).mode & 0o777, mode);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+    const u = s.rig(["apply", "--undo", run]);
+    assert.equal(u.code, 0, u.all);
+    assert.equal(s.fx.read(FRAME), "edited by hand\n");
+    assert.equal(statSync(s.fx.path(FRAME)).mode & 0o777, 0o600);
+  });
+
+  test("a drifted block region is restored and the user's text around it stays", (t) => {
+    const s = applied(t, { [OMP]: "my notes above\n" });
+    const text = s.fx.read(OMP);
+    assert.match(text, /^my notes above\n/);
+    const start = text.indexOf("<!-- rig:frame:start -->");
+    const end = text.indexOf("<!-- rig:frame:end -->");
+    assert.ok(start >= 0 && end > start, text);
+    const inner = text.slice(start, end);
+    writeFileSync(s.fx.path(OMP), `${text.slice(0, start)}${inner.replace("# rig frame", "# my frame")}${text.slice(end)}my notes below\n`);
+    const blocked = s.rig(["plan"]);
+    assert.equal(blocked.code, 1, blocked.all);
+    assert.match(blocked.stdout, /^block +block +omp +~\/\.omp\/agent\/AGENTS\.md +E_DRIFT /m);
+    const r = s.rig(["apply", "--repair"]);
+    assert.equal(r.code, 0, r.all);
+    assert.equal(s.fx.read(OMP), `${text}my notes below\n`);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("an unmanaged file at a rendered path still blocks with E_ADOPT_MISMATCH, and no repair overwrites it", (t) => {
+    const s = setup({ home: { [FRAME]: "my own frame\n" } });
+    t.after(s.cleanup);
+    const before = s.fx.snapshot();
+    const p = s.rig(["plan", "--repair"]);
+    assert.equal(p.code, 1, p.all);
+    assert.match(p.stdout, /^block +owned +claude +~\/\.claude\/rules\/rig-frame\.md +E_ADOPT_MISMATCH /m);
+    const a = s.rig(["apply", "--repair"]);
+    assert.equal(a.code, 1, a.all);
+    assert.match(a.stdout, /^blocked: nothing written$/m);
+    assert.deepEqual(changed(before, s.fx.snapshot()), []);
+  });
+
+  test("an unmanaged collision beside a drifted managed file blocks the whole run", (t) => {
+    const s = applied(t);
+    const installedPath = s.fx.path(`${STATE}installed.json`);
+    const installed = JSON.parse(readFileSync(installedPath, "utf8"));
+    const otherTilde = Object.keys(installed.entries).find((k) => installed.entries[k].kind === "owned" && k !== `~/${FRAME}`);
+    assert.ok(otherTilde);
+    const other = otherTilde.slice(2);
+    delete installed.entries[otherTilde];
+    writeFileSync(installedPath, `${JSON.stringify(installed, null, 2)}\n`);
+    writeFileSync(s.fx.path(FRAME), "edited by hand\n");
+    writeFileSync(s.fx.path(other), "unmanaged now\n");
+    const before = s.fx.snapshot();
+    const a = s.rig(["apply", "--repair"]);
+    assert.equal(a.code, 1, a.all);
+    assert.ok(a.stdout.split("\n").some((l) => /^block +owned /.test(l) && l.includes(otherTilde) && l.includes("E_ADOPT_MISMATCH")), a.stdout);
+    assert.match(a.stdout, /^update +owned +claude +~\/\.claude\/rules\/rig-frame\.md .*\(repair, diff below\)$/m);
+    assert.match(a.stdout, /^blocked: nothing written$/m);
+    assert.deepEqual(changed(before, s.fx.snapshot()), []);
+  });
+
+  test("without --repair a removed or edited file still blocks with E_DRIFT, and the plan names the flag", (t) => {
+    const s = applied(t);
+    rmSync(s.fx.path(FRAME));
+    const before = s.fx.snapshot();
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 1, p.all);
+    assert.match(p.stdout, /E_DRIFT managed file ~\/\.claude\/rules\/rig-frame\.md was removed/);
+    assert.match(p.stdout, /^info rig apply --repair rewrites drifted managed entries to the render$/m);
+    const a = s.rig(["apply"]);
+    assert.equal(a.code, 1, a.all);
+    assert.deepEqual(changed(before, s.fx.snapshot()), []);
+  });
+
+  test("apply --repair on a HOME without drift writes nothing and combining it with --undo is a usage error", (t) => {
+    const s = applied(t);
+    const before = s.fx.snapshot();
+    const r = s.rig(["apply", "--repair"]);
+    assert.equal(r.code, 0, r.all);
+    assert.match(r.stdout, /^0 changes, 0 blocks$/m);
+    assert.doesNotMatch(r.stdout, /^run /m);
+    assert.deepEqual(changed(before, s.fx.snapshot()), []);
+    const u = s.rig(["apply", "--repair", "--undo", "20260101T000000.000Z-1"]);
+    assert.equal(u.code, 2, u.all);
+    assert.match(u.stderr, /E_USAGE .*--repair/);
+    assert.match(u.stderr, /rig apply --undo <run-id>/);
+    assert.match(u.stderr, /rig apply --repair\b/);
+    assert.match(u.stderr, /separate runs/);
+  });
+
+  test("the apply synopsis shows --undo and --repair as alternatives", (t) => {
+    const s = applied(t);
+    const h = s.rig(["apply", "--help"]);
+    assert.equal(h.code, 0, h.all);
+    assert.match(h.stdout, /rig apply \[--undo <run-id> \| --repair\]/);
   });
 });
 

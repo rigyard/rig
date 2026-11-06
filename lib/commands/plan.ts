@@ -38,20 +38,22 @@ export function report(p: ReturnType<typeof prepare>): string {
   const paths = Math.max(0, ...ops.map((o) => o.path.length));
   const diffs = [];
   for (const o of ops) {
-    const detail = o.op === "block" ? `${o.error?.code ?? "E_INTERNAL"} ${o.error?.message ?? ""}${o.diff ? " (diff below)" : ""}` : o.unit;
+    const detail = o.op === "block" ? `${o.error?.code ?? "E_INTERNAL"} ${o.error?.message ?? ""}${o.diff ? " (diff below)" : ""}`
+      : o.repair ? `${o.unit} (repair${o.diff ? ", diff below" : ""})` : o.unit;
     lines.push(`${o.op.padEnd(width)}  ${o.kind.padEnd(kinds)}  ${o.harness.padEnd(harnesses)}  ${o.path.padEnd(paths)}  ${detail}`.trimEnd());
-    if (o.op === "block" && o.diff) diffs.push(o.diff.endsWith("\n") ? o.diff.slice(0, -1) : o.diff);
+    if ((o.op === "block" || o.repair) && o.diff) diffs.push(o.diff.endsWith("\n") ? o.diff.slice(0, -1) : o.diff);
   }
   lines.push(...diffs);
+  if (ops.some((o) => o.repairable)) lines.push("info rig apply --repair rewrites drifted managed entries to the render");
   const changes = ops.filter((o) => o.op !== "block").length;
   const blocks = ops.length - changes + p.errors.length + p.findings.filter((f) => f.severity === "block" && !f.acked).length;
   lines.push(`${count(changes, "change")}, ${count(blocks, "block")}`);
   return `${lines.join("\n")}\n`;
 }
 
-/** rig plan. Exit 1 on an unacked block, drift, an adopt mismatch, or a compose or render error. */
+/** rig plan [--repair]. Exit 1 on an unacked block, drift, an adopt mismatch, or a compose or render error. */
 export async function planCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<0|1|2> {
-  const p = prepare(loadWorld(env));
+  const p = prepare(loadWorld(env), { repair: a.flags.repair === true });
   process.stdout.write(report(p));
   return p.planned.blocked ? 1 : 0;
 }

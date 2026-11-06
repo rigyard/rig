@@ -11,8 +11,8 @@ Measured values come from one machine. They show shapes, not targets.
 rig is one Node ESM CLI with zero npm dependencies. It composes packs, runs one gate, and writes pinned copies into Claude Code, Codex, omp and Cursor.
 
 ```
-rig plan                                       compose, render, gate, diff against disk and state; writes nothing
-rig apply [--undo <run-id>]                    plan, then the journaled write; the only writer into ~
+rig plan [--repair]                            compose, render, gate, diff against disk and state; writes nothing
+rig apply [--undo <run-id> | --repair]         plan, then the journaled write; the only writer into ~
 rig doctor [--project <dir>]                   read-only diagnosis of the machine, or of one project
 rig stats [--since <dur>] [--harness <h>] [--suggest]
                                                metrics from transcripts; --suggest adds a proposed diff
@@ -30,6 +30,7 @@ Top-level commands: `plan`, `apply`, `doctor`, `stats`, `models`, `pack`, `pin`.
 |---|---|---|---|
 | `rig plan` | Compose, render, gate, observe, plan. Prints one line per op and every finding. Warns on each effective duplicate per harness (section 7). Exit 1 on an unacked block, drift, an adopt mismatch or a compose error. It replaces the draft's `audit` command: plan writes nothing, so plan is the audit. | nothing | no |
 | `rig apply` | The same pipeline, then the journaled transaction. Recovers an interrupted run first. | harness files under `~`, the state root, the local marketplace | no |
+| `rig apply --repair` | The same pipeline with each drifted recorded entry planned as a write: a removed file as a create, an edited file as an update, a block or cells region rewritten without the user's text around it. Not a fifth operation: `apply` with a flag. | as apply | no |
 | `rig apply --undo <run-id>` | Restores the pre-images of one run, newest op first, only where the current bytes equal that run's post-image. One conflicting path stops the undo before any write. Journaled as a new run. | the same | no |
 | `rig doctor` | Drift of managed files and cells, effective duplicates per harness, pins against installed plugins, auto-update marketplaces, a marketplace plugin that shadows the rig local plugin on Cursor, env overrides of models, the `/pm` alias reminder, telemetry env, stale model names in prose. | nothing | no |
 | `rig doctor --project <dir>` | Adds: the declared provider (`rig-project:` line) and its source, agreement with the overlay `projects` map, footprints as info, the scope packs declared for the directory and whether the user enabled them, and the paths to commit for a pack that is absent on Codex, omp or Cursor. | nothing | no |
@@ -47,7 +48,8 @@ Flags:
 
 | Flag | Command | Rule |
 |---|---|---|
-| `--undo <run-id>` | `apply` | The run must have a journal. |
+| `--undo <run-id>` | `apply` | The run must have a journal. Excludes `--repair`. |
+| `--repair` | `plan`, `apply` | Plans each drifted owned, block or cells entry that `installed.json` records as a write of the render; an unmanaged collision keeps `E_ADOPT_MISMATCH`. On `apply` the writes use the same journal and backups, so `--undo` restores the edited bytes. |
 | `--project <dir>` | `doctor` | Read-only. rig never writes into `<dir>`. |
 | `--since <dur>` | `stats` | `7d`, `24h`, `30m`. Default `30d`. |
 | `--harness <h>` | `stats`, `models set` | A harness id from `targets/*.json`. Required for `models set`. |

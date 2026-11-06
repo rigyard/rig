@@ -1,11 +1,12 @@
-// rig apply [--undo <run-id>]: the pipeline, then the journaled write. state.apply and state.undo log the run.
+// rig apply [--undo <run-id> | --repair]: the pipeline, then the journaled write. state.apply and state.undo log the run.
 
 import { join } from "node:path";
 import { apply, undo } from "../state.ts";
+import type { EntryFilter } from "../state.ts";
 import { projectDelivery } from "../targets.ts";
 import { loadWorld } from "../world.ts";
 import { report } from "./plan.ts";
-import { prepare } from "./shared.ts";
+import { prepare, usage } from "./shared.ts";
 import type { ParsedArgs } from "../commands.ts";
 import type { Delivery } from "../targets.ts";
 
@@ -15,18 +16,18 @@ const failure = (code, message) => Object.assign(new Error(message), { code });
 /**
  * prepare, then state.apply when nothing blocks. A plan that recovery made stale is prepared once more; a second
  * stale plan is a bug. `beforeWrite` runs once, after the first plan that does not block and before state.apply.
- * @param {object} world @param {{filter?: (e: object) => boolean, beforeWrite?: () => void}} [opts]
+ * @param {object} world @param {{filter?: EntryFilter, beforeWrite?: () => void, repair?: boolean}} [opts]
  * @returns {{p: ReturnType<typeof prepare>, r: ReturnType<typeof apply> | null}}  r is null when the plan blocks
  */
-export function applyPipeline(world, { filter, beforeWrite } = {}) {
-  let p = prepare(world, { filter });
+export function applyPipeline(world, { filter, beforeWrite, repair }: {filter?: EntryFilter, beforeWrite?: () => void, repair?: boolean} = {}) {
+  let p = prepare(world, { filter, repair });
   for (let attempt = 0; ; attempt++) {
     if (p.planned.blocked) return { p, r: null };
     if (attempt === 0) beforeWrite?.();
     const r = apply(p.planned, world);
     if (!r.replan) return { p, r };
     if (attempt > 0) throw failure("E_INTERNAL", "the plan was stale twice after recovery");
-    p = prepare(world, { filter });
+    p = prepare(world, { filter, repair });
   }
 }
 
@@ -102,11 +103,13 @@ export function registrationLines(deliveries: Delivery[]): string[] {
   return lines;
 }
 
-/** rig apply [--undo <run-id>]. After a write that succeeded, the registration lines of the project plugins. */
+/** rig apply [--undo <run-id> | --repair]. After a write that succeeded, the registration lines of the project plugins. */
 export async function applyCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<0|1|2> {
+  const repair = a.flags.repair === true;
+  if (repair && "undo" in a.flags) throw usage("--repair and --undo exclude each other; run rig apply --undo <run-id> to restore a run, or rig apply --repair to rewrite drift, in separate runs");
   const world = loadWorld(env);
   if (typeof a.flags.undo === "string") return undoRun(world, a.flags.undo);
-  const res = applyPipeline(world);
+  const res = applyPipeline(world, { repair });
   const code = printApplied(res);
   if (code === 0) {
     const lines = registrationLines(projectDelivery(res.p.stack, world));

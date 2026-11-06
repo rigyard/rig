@@ -6,8 +6,11 @@ import { applyCmd, dispatch, doctorCmd, modelsCmd, packAddCmd, pinCmd, planCmd, 
 
 import type { ParsedArgs } from "../lib/commands.ts";
 
-/** One flag. value: takes a value (shown as <arg>). choices: the only values allowed. No flag may skip the gate. */
-export type Flag = {value: boolean, arg?: string, choices?: string[], required?: boolean, repeat?: boolean};
+/**
+ * One flag. value: takes a value (shown as <arg>). choices: the only values allowed. alt: flags of one command that share
+ * an alt tag show as `[--a | --b]` in the synopsis (the command's handler rejects the combination). No flag may skip the gate.
+ */
+export type Flag = {value: boolean, arg?: string, choices?: string[], required?: boolean, repeat?: boolean, alt?: string};
 
 /**
  * One row per command form. A command with a row that has no `sub` may run bare; a command whose rows all
@@ -17,8 +20,13 @@ export type Command = {name: string, sub?: string, args?: string[], flags: Recor
   run: (a: ParsedArgs, env: NodeJS.ProcessEnv) => Promise<0|1|2>, help: string};
 
 const COMMANDS: Command[] = [
-  { name: "plan", flags: {}, run: planCmd, help: "compose, render, gate, diff against disk and state; writes nothing" },
-  { name: "apply", flags: { "--undo": { value: true, arg: "run-id" } }, run: applyCmd, help: "plan, then the journaled write; the only writer into ~" },
+  { name: "plan", flags: { "--repair": { value: false } }, run: planCmd, help: "compose, render, gate, diff against disk and state; writes nothing; --repair plans drifted managed entries as writes" },
+  {
+    name: "apply",
+    flags: { "--undo": { value: true, arg: "run-id", alt: "undo-or-repair" }, "--repair": { value: false, alt: "undo-or-repair" } },
+    run: applyCmd,
+    help: "plan, then the journaled write; the only writer into ~; --repair rewrites drifted managed entries to the render",
+  },
   { name: "doctor", flags: { "--project": { value: true, arg: "dir" } }, run: doctorCmd, help: "read-only diagnosis of the machine, or of one project" },
   {
     name: "stats",
@@ -80,16 +88,23 @@ const NAMES = [...new Set(COMMANDS.map((c) => c.name))];
 class UsageError extends Error {}
 
 function synopsis(c: Command): string {
-  const parts = ["rig", c.name];
+  const parts: (string | string[])[] = ["rig", c.name];
   if (c.sub) parts.push(c.sub);
   for (const a of c.args ?? []) parts.push(`<${a}>`);
+  const alts = new Map<string, string[]>();
   for (const [name, f] of Object.entries(c.flags)) {
     let s = name;
     if (f.value) s += f.choices?.length === 1 ? ` ${f.choices[0]}` : ` <${f.arg ?? name.slice(2)}>`;
     if (f.repeat) s += "...";
-    parts.push(f.required ? s : `[${s}]`);
+    if (f.alt === undefined) parts.push(f.required ? s : `[${s}]`);
+    else if (alts.has(f.alt)) alts.get(f.alt)!.push(s);
+    else {
+      const group = [s];
+      alts.set(f.alt, group);
+      parts.push(group);
+    }
   }
-  return parts.join(" ");
+  return parts.map((p) => (typeof p === "string" ? p : `[${p.join(" | ")}]`)).join(" ");
 }
 
 function helpText(rows: Command[]): string {

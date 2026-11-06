@@ -65,7 +65,7 @@ The undo is a new run, so you can undo it too. It restores nothing when any path
 block  owned  claude  ~/.claude/rules/rig-frame.md  E_DRIFT ~/.claude/rules/rig-frame.md changed since rig wrote it (diff below)
 ```
 
-Put the render back from the diff, and make the change in the pack unit instead. A removed file blocks the same way (`E_DRIFT managed file ... was removed`). v0 has no command that writes it again, so keep rig's files in place.
+To keep your edit, make the change in the pack unit instead, then plan again. To drop the edit, run `rig apply --repair`. It writes the render back, and `rig apply --undo <run-id>` restores your bytes. A removed file blocks the same way (`E_DRIFT managed file ... was removed`), and `rig apply --repair` writes it again. [Write a drifted file again](./02-plan-and-apply.md#write-a-drifted-file-again) shows the plan.
 
 A change of mode alone blocks the same way. After `chmod 600` on `~/.claude/rules/rig-frame.md`, the plan prints the same `E_DRIFT ... changed since rig wrote it (diff below)` line, and the diff holds only the two header lines `--- ... (current)` and `+++ ... (desired)`, with no changed line. An empty diff means the bytes match and the mode differs. Restore the mode rig wrote (`chmod 644` for that file), and the next plan shows 0 blocks.
 

@@ -105,6 +105,30 @@ conflict E_UNDO_CONFLICT ~/.claude/rules/pstack-models.md: ~/.claude/rules/pstac
 309 conflicts: nothing restored
 ```
 
+## Write a drifted file again
+
+A file that rig wrote and you removed or edited blocks the plan with `E_DRIFT`, and a plain `rig apply` leaves it alone. Pass `--repair` to plan the drifted entries as writes that put the render back. This example removes `~/.claude/rules/rig-frame.md` and appends a line to `~/.claude/rules/pstack-models.md`. `rig plan --repair` writes nothing and prints:
+
+```text
+...
+create  owned  claude  ~/.claude/rules/rig-frame.md      core/rig-frame (repair)
+update  owned  claude  ~/.claude/rules/pstack-models.md  pstack/models (repair, diff below)
+--- ~/.claude/rules/pstack-models.md (current)
++++ ~/.claude/rules/pstack-models.md (desired)
+@@
+ architect runners: opus high, sonnet high
+ interrogate reviewers: opus high, sonnet high
+-hand
+...
+```
+
+`rig apply --repair` writes the same plan through the same journaled transaction as any apply. The backup holds the bytes you had, so `rig apply --undo <run-id>` brings them back. Rules:
+
+- A repair rewrites only entries that `installed.json` records. A file that exists and that rig never wrote still blocks with `E_ADOPT_MISMATCH`.
+- In a file with a managed block, only the text between the markers is rewritten. Your lines around it stay.
+- A file that rig recorded as one kind of entry and now renders as another keeps its `E_DRIFT` block, and so does a file that is no longer rendered.
+- Any block that remains stops the whole apply, with or without `--repair`.
+
 ## Recover from a crash
 
 If an apply dies halfway, the next `rig apply` reads the open journal and recovers first. An op whose file has the new bytes counts as done. An op whose file still has the old bytes goes back into the plan. The tests simulate the crash with `RIG_TEST=1 RIG_TEST_ABORT_AFTER=<n>`, which kills rig after n writes. It is a test hook, not a CLI flag. With `n=5` on a fresh HOME, apply exits 137, and the next plan shows:

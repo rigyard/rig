@@ -9,7 +9,7 @@ import { fsyncAll, writeHome, writeState } from "../lib/fs.ts";
 import { apply, plan, undo } from "../lib/state.ts";
 import {
   asObj, converge, ctxOf, desiredV, fakePatch, installedMismatch, intentStates, journalLines, journals, litter, makeWorld, prng,
-  readInstalledFile, runChild, seedUserFiles, snapshot, STATE_REL, tmpDir,
+  readInstalledFile, runChild, runOf, seedUserFiles, snapshot, STATE_REL, tmpDir,
 } from "./state.helpers.ts";
 
 const dirs = [];
@@ -26,7 +26,7 @@ const OK = { findings: [], blocked: false };
 const OPTS = { patch: fakePatch };
 const snap = (home) => asObj(snapshot(home));
 const codes = (p) => p.ops.filter((o) => o.op === "block").map((o) => [o.path, o.error.code]);
-const write = (home, rel, text, mode) => {
+const write = (home: string, rel: string, text: string, mode?: number) => {
   fs.mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
   fs.writeFileSync(path.join(home, rel), text, mode === undefined ? undefined : { mode });
 };
@@ -326,6 +326,114 @@ describe("plan and apply", () => {
     assert.deepEqual(apply(p, world), { run: null, changed: 0 });
     assert.deepEqual(snap(home), before);
     assert.equal(journals(world).length, n);
+  });
+
+  describe("repair", () => {
+    const REPAIR = { ...OPTS, repair: true };
+    const SKILL = ".claude/skills/s000/SKILL.md";
+
+    test("an edited owned file plans as an update with a diff and the old bytes in the backup; undo restores the edit", () => {
+      const { home, world } = seeded(0);
+      write(home, SKILL, "FOREIGN EDIT\n", 0o600);
+      fs.chmodSync(path.join(home, SKILL), 0o600);
+      const d = desiredV(home, 0);
+      assert.deepEqual(codes(plan(d, OK, world, OPTS)), [[`~/${SKILL}`, "E_DRIFT"]]);
+      const p = plan(d, OK, world, REPAIR);
+      assert.equal(p.blocked, false);
+      assert.deepEqual(p.ops.map((o) => [o.op, o.path, o.repair]), [["update", `~/${SKILL}`, true]]);
+      assert.match(p.ops[0].diff, /^-FOREIGN EDIT$/m);
+      assert.equal(p.ops[0].after_mode, 0o644);
+      const r = apply(p, world);
+      assert.equal(r.error, undefined);
+      assert.deepEqual(fs.readFileSync(path.join(home, SKILL)), d.entries.get(path.join(home, SKILL)).bytes);
+      assert.equal(fs.statSync(path.join(home, SKILL)).mode & 0o777, 0o644);
+      assert.deepEqual(plan(d, OK, world, OPTS).ops, []);
+      assert.equal(undo(runOf(r), world).conflicts.length, 0);
+      assert.equal(fs.readFileSync(path.join(home, SKILL), "utf8"), "FOREIGN EDIT\n");
+      assert.equal(fs.statSync(path.join(home, SKILL)).mode & 0o777, 0o600);
+    });
+
+    test("a removed owned file plans as a create; undo removes it again", () => {
+      const { home, world } = seeded(0);
+      fs.rmSync(path.join(home, SKILL));
+      const d = desiredV(home, 0);
+      assert.deepEqual(codes(plan(d, OK, world, OPTS)), [[`~/${SKILL}`, "E_DRIFT"]]);
+      const p = plan(d, OK, world, REPAIR);
+      assert.deepEqual(p.ops.map((o) => [o.op, o.path, o.repair]), [["create", `~/${SKILL}`, true]]);
+      const r = apply(p, world);
+      assert.equal(r.error, undefined);
+      assert.deepEqual(plan(d, OK, world, OPTS).ops, []);
+      assert.equal(undo(runOf(r), world).conflicts.length, 0);
+      assert.equal(fs.existsSync(path.join(home, SKILL)), false);
+    });
+
+    test("a drifted block region is rewritten and the text around the markers stays", () => {
+      const { home, world } = seeded(0);
+      const rel = ".codex/config.toml";
+      const text = fs.readFileSync(path.join(home, rel), "utf8");
+      write(home, rel, `${text.replace('model = "m0"', 'model = "mine"')}tail\n`);
+      const d = desiredV(home, 0);
+      assert.deepEqual(codes(plan(d, OK, world, OPTS)), [[`~/${rel}`, "E_DRIFT"]]);
+      const p = plan(d, OK, world, REPAIR);
+      assert.deepEqual(p.ops.map((o) => [o.op, o.path, o.repair]), [["update", `~/${rel}`, true]]);
+      assert.equal(apply(p, world).error, undefined);
+      assert.equal(fs.readFileSync(path.join(home, rel), "utf8"), `${text}tail\n`);
+      assert.deepEqual(plan(d, OK, world, OPTS).ops, []);
+    });
+
+    test("an unmanaged file at a desired path keeps E_ADOPT_MISMATCH and a removal-time edit keeps E_DRIFT", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      write(home, ".claude/agents/reviewer.md", "hand written\n");
+      const p = plan(desiredV(home, 0), OK, world, REPAIR);
+      assert.deepEqual(codes(p), [["~/.claude/agents/reviewer.md", "E_ADOPT_MISMATCH"]]);
+      assert.deepEqual(apply(p, world), { run: null, changed: 0 });
+      assert.equal(fs.readFileSync(path.join(home, ".claude/agents/reviewer.md"), "utf8"), "hand written\n");
+
+      const s = seeded(0);
+      write(s.home, ".claude/skills/s005/SKILL.md", "FOREIGN EDIT\n");
+      assert.deepEqual(codes(plan(desiredV(s.home, 1), OK, s.world, REPAIR)), [["~/.claude/skills/s005/SKILL.md", "E_DRIFT"]]);
+    });
+
+    test("a drifted cells entry gets only its own cell back and keeps the other lines", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      const file = path.join(home, ".config/tool/agent.env");
+      const cell = (value: string) => ({ surface: "env", key: "model", element: "", field: "", value });
+      const patchCells = (bytes: Uint8Array | null, entry: {values: {value: string}[]}) => {
+        const lines = (bytes ? Buffer.from(bytes).toString("utf8") : "").split("\n").filter(Boolean);
+        const at = lines.findIndex((l) => l.startsWith("model="));
+        const current = at < 0 ? null : [cell(lines[at].slice(6))];
+        const want = `model=${entry.values[0].value}`;
+        if (at < 0) lines.push(want);
+        else lines[at] = want;
+        return { current, next: Buffer.from(`${lines.join("\n")}\n`), markers: "n/a" };
+      };
+      const desired = { entries: new Map([[file, { kind: "cells", path: file, values: [cell("m1")], surfaces: [], unit: "models/tool" }]]), errors: [], info: [] };
+      write(home, ".config/tool/agent.env", "mine=1\nmodel=m1\n");
+      assert.equal(apply(plan(desired, OK, world, { patch: patchCells }), world).error, undefined);
+      write(home, ".config/tool/agent.env", "mine=2\nmodel=hand\n");
+      assert.deepEqual(codes(plan(desired, OK, world, { patch: patchCells })), [["~/.config/tool/agent.env", "E_DRIFT"]]);
+      const p = plan(desired, OK, world, { patch: patchCells, repair: true });
+      assert.deepEqual(p.ops.map((o) => [o.op, o.repair]), [["patch-cells", true]]);
+      assert.match(p.ops[0].diff, /"hand" -> "m1"/);
+      assert.equal(apply(p, world).error, undefined);
+      assert.equal(fs.readFileSync(file, "utf8"), "mine=2\nmodel=m1\n");
+      assert.deepEqual(plan(desired, OK, world, { patch: patchCells }).ops, []);
+    });
+
+    test("an entry recorded with another kind than desired keeps E_DRIFT", () => {
+      const { home, world } = seeded(0);
+      const d = desiredV(home, 0);
+      const cfg = path.join(home, ".codex/config.toml");
+      d.entries.set(cfg, { kind: "owned", path: cfg, bytes: Buffer.from("x\n"), mode: 0o644, unit: "models/codex" });
+      assert.deepEqual(codes(plan(d, OK, world, REPAIR)), [["~/.codex/config.toml", "E_DRIFT"]]);
+    });
+
+    test("without drift the repair plan equals the plain plan", () => {
+      const { home, world } = seeded(0);
+      assert.deepEqual(plan(desiredV(home, 1), OK, world, REPAIR).ops, plan(desiredV(home, 1), OK, world, OPTS).ops);
+    });
   });
 
   test("an unmanaged file at a desired path blocks with E_ADOPT_MISMATCH; equal bytes adopt", () => {

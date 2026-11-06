@@ -32,7 +32,13 @@ export type Op = {
   error?: RigError;
   /** per-cell or unified diff shown by plan */
   diff?: string;
+  /** set when the op rewrites a drifted managed entry to the render (plan opts.repair) */
+  repair?: true;
+  /** set on a block that plan opts.repair would turn into a write */
+  repairable?: true;
 };
+/** Narrows a plan to the desired entries it accepts (models set passes its model-bearing filter). */
+export type EntryFilter = (e: {path: string}) => boolean;
 /** installed: the installed.json entries the plan derived from, rebuilt in memory over any interrupted journal. */
 export type Plan = {ops: Op[], findings: Finding[], blocked: boolean, interrupted: string[], installed: Record<string, InstalledEntry>};
 
@@ -73,10 +79,11 @@ function mkOp(name, kind, o, e, f) {
     after_sha: f.after ? f.after.sha : o.sha, after_mode: f.after ? f.after.mode : o.sha === null ? null : o.mode,
     next: f.next ?? null, entry_before: f.entry_before ?? null, entry_after: f.entry_after ?? null,
     ...(f.error ? { error: f.error } : {}), ...(f.diff ? { diff: f.diff } : {}),
+    ...(f.repair ? { repair: true } : {}), ...(f.repairable ? { repairable: true } : {}),
   };
 }
-const blockOp = (kind, o, e, entryBefore, error, diff) =>
-  mkOp("block", kind, o, e, { entry_before: entryBefore, error, diff, after: { sha: null, mode: null } });
+const blockOp = (kind, o, e, entryBefore, error, diff, repairable = false) =>
+  mkOp("block", kind, o, e, { entry_before: entryBefore, error, diff, repairable, after: { sha: null, mode: null } });
 
 function currentDigest(kind, current) {
   if (current === null || current === undefined) return null;
@@ -98,7 +105,7 @@ function cellDiff(p, current, values) {
   return `${lines.join("\n")}\n`;
 }
 
-function planOwned(e, o, ent, patch) {
+function planOwned(e, o, ent, patch, repair: boolean) {
   let bytes = e.bytes;
   if (e.keep_header) {
     if (!patch) return blockOp("owned", o, e, ent, err("E_INTERNAL", "keep_header needs a patch function", o.tilde));
@@ -115,7 +122,8 @@ function planOwned(e, o, ent, patch) {
   const recorded = ent ? { sha: `sha256:${ent.sha256}`, mode: ent.mode } : null;
   const cur = sigOf(o);
   if (cur.sha === null) {
-    if (ent) return blockOp("owned", o, e, ent, err("E_DRIFT", `managed file ${o.tilde} was removed`, o.tilde));
+    if (ent && !repair) return blockOp("owned", o, e, ent, err("E_DRIFT", `managed file ${o.tilde} was removed`, o.tilde), undefined, true);
+    if (ent) return mkOp("create", "owned", o, e, { next: bytes, after: want, entry_before: ent, entry_after: entryAfter, repair: true });
     return mkOp("create", "owned", o, e, { next: bytes, after: want, entry_after: entryAfter });
   }
   if (sameSig(cur, want)) {
@@ -126,16 +134,16 @@ function planOwned(e, o, ent, patch) {
     const why = cur.sha === want.sha ? `mode ${cur.mode.toString(8)} differs from ${mode.toString(8)}` : "bytes differ";
     return blockOp("owned", o, e, ent, err("E_ADOPT_MISMATCH", `${o.tilde} exists and is not managed: ${why}; rig never deletes what it does not own, so move or delete it by hand`, o.tilde), unifiedDiff(o.tilde, o.bytes, bytes));
   }
-  if (!sameSig(cur, recorded)) {
-    return blockOp("owned", o, e, ent, err("E_DRIFT", `${o.tilde} changed since rig wrote it`, o.tilde), unifiedDiff(o.tilde, o.bytes, bytes));
-  }
-  return mkOp("update", "owned", o, e, { next: bytes, after: want, entry_before: ent, entry_after: entryAfter, diff: unifiedDiff(o.tilde, o.bytes, bytes) });
+  const diff = unifiedDiff(o.tilde, o.bytes, bytes);
+  const drifted = !sameSig(cur, recorded);
+  if (drifted && !repair) return blockOp("owned", o, e, ent, err("E_DRIFT", `${o.tilde} changed since rig wrote it`, o.tilde), diff, true);
+  return mkOp("update", "owned", o, e, { next: bytes, after: want, entry_before: ent, entry_after: entryAfter, diff, repair: drifted });
 }
 
 /** A cells entry of surfaces on files that the user writes and rig never creates: agent frontmatter and YAML key maps. */
 const isAdoptOnly = (e: {kind: string, surfaces?: {kind: string}[]}) => e.kind === "cells" && (e.surfaces ?? []).every((s) => s.kind === "frontmatter" || s.kind === "keys");
 
-function planPatched(e, o, ent, patch) {
+function planPatched(e, o, ent, patch, repair: boolean) {
   if (!patch) return blockOp(e.kind, o, e, ent, err("E_INTERNAL", `${e.kind} entries need a patch function`, o.tilde));
   if (o.sha === null && isAdoptOnly(e)) return null;
   const mismatch = ent && ent.kind !== e.kind;
@@ -152,7 +160,7 @@ function planPatched(e, o, ent, patch) {
   if (e.kind === "cells") f.entry_after.markers = (e.surfaces ?? []).some((s) => s.markers === true);
   if (e.kind === "block") f.entry_after.marker = e.marker;
   if (e.kind === "json-element") Object.assign(f.entry_after, { pointer: e.pointer, id: e.id });
-  const write = (name) => mkOp(name, e.kind, o, e, { ...f, next, after: { sha: sha(next), mode } });
+  const write = (name, repaired = false) => mkOp(name, e.kind, o, e, { ...f, next, after: { sha: sha(next), mode }, ...(repaired ? { repair: true, diff } : {}) });
   const diff = e.kind === "cells" ? cellDiff(o.tilde, r.current, e.values) : unifiedDiff(o.tilde, o.bytes, next);
   if (convert) return write("update");
   if (!ent) {
@@ -160,7 +168,11 @@ function planPatched(e, o, ent, patch) {
     if (have === null && e.kind !== "cells") return write(o.sha === null ? "create" : "update");
     return blockOp(e.kind, o, e, ent, err("E_ADOPT_MISMATCH", `${o.tilde}: current values differ from the render`, o.tilde), diff);
   }
-  if (have !== ent.digest) return blockOp(e.kind, o, e, ent, err("E_DRIFT", `${o.tilde}: values changed since rig wrote them`, o.tilde), diff);
+  if (have !== ent.digest) {
+    if (!repair) return blockOp(e.kind, o, e, ent, err("E_DRIFT", `${o.tilde}: values changed since rig wrote them`, o.tilde), diff, true);
+    if (!writes) return mkOp("adopt", e.kind, o, e, f);
+    return write(e.kind === "cells" ? "patch-cells" : r.markers === "inserted" ? "insert-markers" : "update", true);
+  }
   if (want !== ent.digest) return write(e.kind === "cells" ? "patch-cells" : "update");
   if (writes) return write(r.markers === "inserted" ? "insert-markers" : "update");
   return null;
@@ -191,9 +203,10 @@ function planRemoval(ent, o, patch) {
  * never logs. An interrupted journal is simulated (installed entries rebuilt in memory) and named in .interrupted;
  * .installed holds those entries.
  */
-export function plan(desired: {entries: Map<string, object>}, gated: {findings: object[], blocked: boolean}, world: object, opts: {filter?: (e: object) => boolean, patch?: Function} = {}) {
+export function plan(desired: {entries: Map<string, {path: string}>}, gated: {findings: object[], blocked: boolean}, world: object, opts: {filter?: EntryFilter, patch?: Function, repair?: boolean} = {}) {
   const ctx = fsCtx(world);
   const patch = opts.patch ?? world.patch;
+  const repair = opts.repair === true;
   const sim = simulate(world, ctx);
   const installed = sim.entries;
   const ops = [];
@@ -217,7 +230,7 @@ export function plan(desired: {entries: Map<string, object>}, gated: {findings: 
     }
     seen.add(o.tilde);
     const ent = installed[o.tilde] ?? null;
-    ops.push(e.kind === "owned" ? planOwned(e, o, ent, patch) : planPatched(e, o, ent, patch));
+    ops.push(e.kind === "owned" ? planOwned(e, o, ent, patch, repair) : planPatched(e, o, ent, patch, repair));
   }
   if (!opts.filter) {
     for (const [tilde, ent] of Object.entries(installed)) {
@@ -227,7 +240,7 @@ export function plan(desired: {entries: Map<string, object>}, gated: {findings: 
       else ops.push(planRemoval(ent, o, patch));
     }
   }
-  const out = ops.filter(Boolean);
+  const out = ops.filter((x): x is NonNullable<typeof x> => Boolean(x));
   return {
     ops: out,
     findings: gated?.findings ?? [],
