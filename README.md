@@ -78,7 +78,7 @@ npm test
 npm ci --ignore-scripts && npm run typecheck
 ```
 
-Tests build a temporary HOME and never touch yours. Tests that run real harness CLIs are opt-in with `RIG_LIVE=1`, and they check that your harness config files hash the same before and after. `npm run typecheck` fails when the strict `tsc` error count rises above `tsc-baseline.json`.
+Tests build a temporary HOME and never touch yours. Tests that run real harness CLIs are opt-in with `RIG_LIVE=1`, and they check that your harness config files hash the same before and after. Cursor lanes run with your real HOME, so they fail when a pass depends on a read under it, and name the path. `npm run typecheck` fails when the strict `tsc` error count rises above `tsc-baseline.json`.
 
 Design, decisions and research live in [docs/](./docs/README.md).
 

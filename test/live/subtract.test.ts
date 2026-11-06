@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "node:test";
+import { assertCursorRead, cursorGuard, runCursor } from "../helpers/cursor-guard.ts";
 import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { harnessArgv, mirrorProject, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
@@ -35,6 +36,7 @@ function firstInvariant(frame: string) {
   return line;
 }
 
+const CURSOR_SOURCE = "Read it from the rule file .cursor/rules/rig-frame.mdc in the current workspace.";
 const squash = (s: string) => s.replace(/\s+/g, " ");
 
 async function ask(harness: "claude" | "omp" | "codex" | "cursor", dir: string, home?: string) {
@@ -78,7 +80,9 @@ describe("subtract", () => {
     const rule = fx.read(".cursor/rules/rig-frame.mdc");
     const quote = firstInvariant(rule);
     mirrorProject(fx.home, "cursor", dir);
-    const r = await ask("cursor", dir);
+    const r = await runCursor(`${PROMPT} ${CURSOR_SOURCE}`, { dir, home: fx.home });
+    const guard = cursorGuard(r.stdout, { dir, home: fx.home }, t);
     assert.ok(r.reply && squash(r.reply).includes(quote), `exit ${r.code}: the reply does not quote the first invariant`);
+    assertCursorRead(guard, ".cursor/rules/rig-frame.mdc");
   });
 });

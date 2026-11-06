@@ -16,7 +16,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe } from "node:test";
 import type { TestContext } from "node:test";
-import { codexSpawns, cursorArgsMention, cursorCall, cursorTaskOutcomes, cursorToolNames, parseJsonl as parse } from "../helpers/delegation.ts";
+import { assertCursorMention, cursorGuard } from "../helpers/cursor-guard.ts";
+import { codexSpawns, cursorCall, cursorTaskOutcomes, cursorToolNames, parseJsonl as parse } from "../helpers/delegation.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveTest, realHome, runHarness } from "../helpers/live.ts";
 import { assertOutsideRealHome, harnessArgv, mirrorProject, realBin, scratchRepo } from "../helpers/mirror.ts";
@@ -125,7 +126,7 @@ describe("delegation", () => {
     const names = cursorToolNames(events);
     const task = events.flatMap((e) => (e.subtype === "completed" && cursorCall(e)?.name === "taskToolCall" ? [Object.keys(cursorCall(e)?.call.result ?? {}).join("+") || "none"] : []));
     t.diagnostic(`cursor tool names: ${[...new Set(names)].join(", ")}; Task result keys: ${task.join(", ")}`);
-    assert.ok(cursorArgsMention(events, "craft/hub.md"), `exit ${r.code}: no cursor tool call names craft/hub.md in its arguments: ${[...new Set(names)].join(", ")}`);
+    assertCursorMention(cursorGuard(r.stdout, { dir: s.dir, home: s.home }, t), "craft/hub.md");
     const outcome = cursorTaskOutcomes(events);
     assert.ok(outcome.completed > 0, `exit ${r.code}: no cursor Task call completed (completed ${outcome.completed}, failed ${outcome.failed}, started ${names.filter((n) => n === "taskToolCall").length})`);
   });

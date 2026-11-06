@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "node:test";
 import type { TestContext } from "node:test";
+import { assertCursorMention, cursorGuard, readsPath } from "../helpers/cursor-guard.ts";
 import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { harnessArgv, mirrorProject, ompEnv, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
 import { craftFiles, craftFixture } from "../mode.helpers.ts";
@@ -49,17 +50,6 @@ function toolText(v: unknown, out: string[] = []): string[] {
     }
   }
   return out;
-}
-
-/**
- * A tool call reads dir/file when it names the path, or when it changes into dir and names the file, as in
- * `cd .claude/skills/craft && cat hub.md`. A call that only names the file there (`wc -l hub.md`) counts too.
- */
-function readsPath(t: string, needle: string) {
-  if (t.includes(needle)) return true;
-  const at = needle.lastIndexOf("/");
-  const dir = needle.slice(0, at).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`\\bcd [^;&|]*/${dir}(?=[\\s"';&|])`).test(t) && t.includes(needle.slice(at + 1));
 }
 
 const reads = (r: Run, needle: string) => events(r.stdout).some((e) => toolText(e).some((t) => readsPath(t, needle)));
@@ -117,7 +107,8 @@ async function typedAndHidden(t: TestContext, h: "codex" | "cursor" | "omp") {
   t.diagnostic(`typed form: ${typed(h, "craft")}`);
   const first = await ask(h, `${typed(h, "craft")} ${ROUTE}`, s);
   if (noVerdict(t, h, first.r)) return null;
-  assert.ok(reads(first.r, "craft/hub.md"), `exit ${first.r.code}: the ${h} transcript does not read craft/hub.md`);
+  if (h === "cursor") assertCursorMention(cursorGuard(first.r.stdout, { dir: s.dir, home: s.home }, t), (text) => readsPath(text, "craft/hub.md"), "craft/hub.md");
+  else assert.ok(reads(first.r, "craft/hub.md"), `exit ${first.r.code}: the ${h} transcript does not read craft/hub.md`);
   if (h === "omp") {
     const skills = ompSkills(s);
     for (const name of ["craft", "architect", "design-probe"]) assert.equal(skills.find((k) => k.name === name)?.hide, true, `omp skill list does not report ${name} with hide: true`);

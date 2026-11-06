@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe } from "node:test";
+import { cursorGuard, runCursor } from "../helpers/cursor-guard.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveOmpTest, liveTest } from "../helpers/live.ts";
 import { mirrorProject, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
@@ -43,7 +44,8 @@ describe("seedkit", () => {
     const tok = sentinel();
     const { fx, dir } = world(t, { ".cursor/rules/rigseed.mdc": `---\ndescription: rig seed rule\nalwaysApply: true\n---\nThe rigseed token is ${tok}.\n` });
     assert.deepEqual(mirrorProject(fx.home, "cursor", dir), [".cursor/rules/rigseed.mdc"]);
-    const r = await runSeed("cursor", "What is the rigseed token stated in your project rules? Reply with the token only. Do not read files.", { dir });
+    const r = await runCursor("What is the rigseed token stated in your project rules? Reply with the token only. Do not read files.", { dir, home: fx.home });
+    cursorGuard(r.stdout, { dir, home: fx.home }, t);
     assert.ok(r.reply?.includes(tok), `exit ${r.code}: no sentinel in the reply`);
   });
 });
