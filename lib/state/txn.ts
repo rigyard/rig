@@ -2,9 +2,10 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { appendState, writeHome, writeState } from "../fs.ts";
+import { appendState, fsyncAll, installHome, stageHome, writeHome, writeState } from "../fs.ts";
 import { backupRel, journalRel } from "./journal.ts";
 import { encodeInstalled, INSTALLED, observe, sameSig, sigOf } from "./observe.ts";
+import type { Op } from "../state.ts";
 
 export const RIG_VERSION = "0.1.0";
 const LOCK = "apply.lock";
@@ -61,79 +62,138 @@ export function releaseLock(world, ctx, run) {
   if (holder && holder.pid === process.pid && holder.run === run) writeState(LOCK, null, ctx);
 }
 
-/** RIG_TEST_ABORT_AFTER=<n>, read only when RIG_TEST=1: SIGKILL self once n mutations are done. */
-function abortAfter() {
+/** RIG_TEST_ABORT_AFTER, read only when RIG_TEST=1: SIGKILL self once n renames are done, or after a named step. */
+function abortAt(): string | null {
   if (process.env.RIG_TEST !== "1") return null;
-  const v = process.env.RIG_TEST_ABORT_AFTER;
-  return v !== undefined && /^\d+$/.test(v) ? Number(v) : null;
+  return process.env.RIG_TEST_ABORT_AFTER ?? null;
 }
 
 const setEntry = (entries, tilde, e) => {
   if (e === null) delete entries[tilde];
   else entries[tilde] = e;
 };
+const beforeSig = (op: Op) => ({ sha: op.before_sha, mode: op.before_mode });
+type Observed = Exclude<ReturnType<typeof observe>, {error: object}>;
+type Step = {op: Op, o: Observed, staged: ReturnType<typeof stageHome> | null};
 
 /**
- * Write ops through journal/<run>.jsonl. Per mutating op: before-sig check, pre-image into backups/<run>/,
- * intent line (fsync), before-sig re-check, writeHome. Then installed.json (atomic) and the commit line.
- * On an error the run records done ops in installed.json, appends an abort line and returns the error.
+ * Write ops through journal/<run>.jsonl as one batch, so each durability step is one fsyncAll, not one fsync per op:
+ *  1. before-sig check of every op; the first mismatch ends the batch, and the ops before it still run
+ *  2. the journal with the run line and every intent, durable before HOME changes        (RIG_TEST_ABORT_AFTER=journal)
+ *  3. pre-images into backups/<run>/ and a temp file next to each target                  (staged)
+ *  4. one fsyncAll over the backups and the temp files
+ *  5. per op in plan order: before-sig re-check, then rename, or unlink for a remove     (<n renames done>)
+ *  6. one fsyncAll over the dirs whose entries changed, then installed.json (atomic)      (installed)
+ *  7. the commit line
+ * On an error the run removes the temp files it did not rename, records done ops in installed.json, appends an
+ * abort line with the seqs of the done ops and returns the error.
  * @returns changed counts ops whose effect is recorded
  */
 export function execute(world, ctx, t: {run: string, cmd: string, ops: object[], entries: Record<string, object>}): {changed: number, error?: object} {
   const journal = journalRel(t.run);
   const entries = { ...t.entries };
-  const stopAt = abortAfter();
-  const maybeAbort = (n) => {
-    if (stopAt !== null && n === stopAt) process.kill(process.pid, "SIGKILL");
+  const stopAt = abortAt();
+  const maybeAbort = (at: number | string) => {
+    if (stopAt === String(at)) process.kill(process.pid, "SIGKILL");
   };
-  appendState(journal, JSON.stringify({ type: "run", run: t.run, cmd: t.cmd, rig: RIG_VERSION }), ctx);
-  let mutations = 0;
-  let done = 0;
-  let seq = 0;
-  let pending = null;
-  try {
-    for (const op of t.ops) {
-      seq++;
-      const before = { sha: op.before_sha, mode: op.before_mode };
+  const batch: Step[] = [];
+  let stop = null;
+  for (const op of t.ops as Op[]) {
+    try {
       const o = observe(op.path, ctx);
-      if (o.error) throw Object.assign(new Error(o.error.message), { code: o.error.code, path: op.path });
-      if (!sameSig(sigOf(o), before)) throw changedUnder(op.path);
-      const mutates = MUTATING.has(op.op);
-      const backup = mutates && o.bytes ? backupRel(t.run, o.tilde) : null;
-      if (backup) writeState(backup, o.bytes, ctx, { mode: 0o600 });
-      appendState(journal, JSON.stringify({
-        type: "intent", seq, path: o.tilde, op: op.op, kind: op.kind,
-        before_sha: op.before_sha, before_mode: op.before_mode, after_sha: op.after_sha, after_mode: op.after_mode,
-        backup, entry_before: op.entry_before, entry_after: op.entry_after,
-      }), ctx);
-      if (mutates) {
+      if ("error" in o) throw Object.assign(new Error(o.error.message), { code: o.error.code, path: op.path });
+      if (!sameSig(sigOf(o), beforeSig(op))) throw changedUnder(op.path);
+      batch.push({ op, o, staged: null });
+    } catch (e) {
+      stop = e;
+      break;
+    }
+  }
+  const lines = [{ type: "run", run: t.run, cmd: t.cmd, rig: RIG_VERSION }, ...batch.map(({ op, o }, i) => ({
+    type: "intent", seq: i + 1, path: o.tilde, op: op.op, kind: op.kind,
+    before_sha: op.before_sha, before_mode: op.before_mode, after_sha: op.after_sha, after_mode: op.after_mode,
+    backup: MUTATING.has(op.op) && o.bytes ? backupRel(t.run, o.tilde) : null, entry_before: op.entry_before, entry_after: op.entry_after,
+  }))];
+  writeState(journal, Buffer.from(lines.map((l) => `${JSON.stringify(l)}\n`).join("")), ctx, { exclusive: true });
+  maybeAbort("journal");
+  let mutations = 0;
+  const done: number[] = [];
+  let seq = 0;
+  let pending: Step | null = null;
+  const dirs = new Set<string>();
+  try {
+    const files = [];
+    const backupDirs = new Set<string>();
+    for (const [i, b] of batch.entries()) {
+      seq = i + 1;
+      if (!MUTATING.has(b.op.op)) continue;
+      if (b.o.bytes) {
+        const w = writeState(backupRel(t.run, b.o.tilde), b.o.bytes, ctx, { mode: 0o600, sync: false });
+        files.push(w.abs);
+        for (const d of w.dirs) backupDirs.add(d);
+      }
+      if (b.op.op !== "remove-to-backup") {
+        const staged = stageHome(b.o.tilde, b.op.next!, b.op.after_mode ?? undefined, ctx);
+        files.push(staged.tmp);
+        b.staged = staged;
+      }
+    }
+    maybeAbort("staged");
+    fsyncAll(files, [...backupDirs]);
+    for (const [i, b] of batch.entries()) {
+      seq = i + 1;
+      if (MUTATING.has(b.op.op)) {
         maybeAbort(mutations);
-        if (!sameSig(sigOf(observe(op.path, ctx)), before)) throw changedUnder(op.path);
-        pending = op;
-        writeHome(o.tilde, op.op === "remove-to-backup" ? null : op.next, op.after_mode ?? undefined, ctx);
+        if (!sameSig(sigOf(observe(b.op.path, ctx)), beforeSig(b.op))) throw changedUnder(b.op.path);
+        pending = b;
+        if (b.staged) {
+          for (const d of b.staged.dirs) dirs.add(d);
+          installHome(b.staged, ctx);
+          b.staged = null;
+        } else {
+          dirs.add(path.dirname(b.o.abs));
+          writeHome(b.o.tilde, null, undefined, ctx, { sync: false });
+        }
         pending = null;
         mutations++;
       }
-      setEntry(entries, o.tilde, op.entry_after);
-      done++;
+      setEntry(entries, b.o.tilde, b.op.entry_after);
+      done.push(seq);
     }
     maybeAbort(mutations);
+    if (stop) {
+      seq = batch.length + 1;
+      throw stop;
+    }
   } catch (e) {
     if (pending) {
-      const o = observe(pending.path, ctx);
-      if (!o.error && sameSig(sigOf(o), { sha: pending.after_sha, mode: pending.after_mode })) {
-        setEntry(entries, o.tilde, pending.entry_after);
-        done++;
+      const o = observe(pending.op.path, ctx);
+      if (!("error" in o) && sameSig(sigOf(o), { sha: pending.op.after_sha, mode: pending.op.after_mode })) {
+        setEntry(entries, o.tilde, pending.op.entry_after);
+        done.push(seq);
       }
     }
-    const error = { code: e.code?.startsWith?.("E_") ? e.code : "E_INTERNAL", message: e.message, path: e.path ?? pending?.path };
+    for (const b of batch) if (b.staged) discard(b.staged.tmp, ctx);
+    fsyncAll([], [...dirs]);
+    const error = { code: e.code?.startsWith?.("E_") ? e.code : "E_INTERNAL", message: e.message, path: e.path ?? pending?.op.path };
     writeState(INSTALLED, encodeInstalled({ schema: 1, entries }), ctx);
-    appendState(journal, JSON.stringify({ type: "abort", seq, reason: error.code }), ctx);
-    return { changed: done, error };
+    appendState(journal, JSON.stringify({ type: "abort", seq, reason: error.code, done }), ctx);
+    return { changed: done.length, error };
   }
+  fsyncAll([], [...dirs]);
   writeState(INSTALLED, encodeInstalled({ schema: 1, entries }), ctx);
+  maybeAbort("installed");
   appendState(journal, JSON.stringify({ type: "commit", run: t.run, ops: t.ops.length }), ctx);
   return { changed: t.ops.length };
+}
+
+/** Remove a temp file the run did not rename. One that containment refuses stays for the sweep of a later run. */
+function discard(tmp: string, ctx: object) {
+  try {
+    writeHome(tmp, null, undefined, ctx, { sync: false });
+  } catch (e) {
+    if (!(e as NodeJS.ErrnoException).code?.startsWith("E_")) throw e;
+  }
 }
 
 function changedUnder(p) {

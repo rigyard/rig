@@ -70,13 +70,14 @@ function validIntent(l) {
 /**
  * Parse one journal. A torn final line (no newline) is dropped: its intent was never followed by a mutation.
  * @returns
+ *   done: the seqs that an abort or recovered line names as done; null when the line has none (older rig)
  *   text: the journal without its torn line
  */
-export function readJournal(j): {run: string, cmd: string | null, intents: object[], closed: string | null, corrupt: string | null, torn: boolean, text: string} {
+export function readJournal(j): {run: string, cmd: string | null, intents: object[], closed: string | null, done: Set<number> | null, corrupt: string | null, torn: boolean, text: string} {
   const text = readFileSync(j.file, "utf8");
   const lines = text.split("\n");
   const torn = lines.pop() !== "";
-  const out = { run: j.run, cmd: null, intents: [], closed: null, corrupt: null, torn, text: torn ? lines.map((l) => `${l}\n`).join("") : text };
+  const out = { run: j.run, cmd: null, intents: [], closed: null, done: null as Set<number> | null, corrupt: null, torn, text: torn ? lines.map((l) => `${l}\n`).join("") : text };
   for (const [i, raw] of lines.entries()) {
     let l;
     try {
@@ -92,8 +93,12 @@ export function readJournal(j): {run: string, cmd: string | null, intents: objec
     else if (l.type === "intent") {
       if (validIntent(l)) out.intents.push(l);
       else out.corrupt = `line ${i + 1} is not a valid intent`;
-    } else if (l.type === "commit" || l.type === "abort" || l.type === "recovered") out.closed = l.type;
-    else out.corrupt = `line ${i + 1} has an unknown type`;
+    } else if (l.type === "commit" || l.type === "abort" || l.type === "recovered") {
+      out.closed = l.type;
+      if (l.done === undefined) continue;
+      if (Array.isArray(l.done) && l.done.every(Number.isInteger)) out.done = new Set(l.done);
+      else out.corrupt = `line ${i + 1} has a done field that is not a list of seqs`;
+    } else out.corrupt = `line ${i + 1} has an unknown type`;
   }
   return out;
 }

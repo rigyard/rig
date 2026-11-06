@@ -120,6 +120,24 @@ export function snapshot(home) {
 }
 export const asObj = (m) => Object.fromEntries([...m].sort(([a], [b]) => (a < b ? -1 : 1)));
 
+/** Temp files of a write in HOME, outside the state root. */
+export const litter = (home: string): string[] => [...snapshot(home).keys()].filter((rel) => rel.endsWith(".rig-tmp"));
+
+/** Each intent of one run with its disk state: "after", "before" or "neither", by sha and mode, as recovery classifies it. */
+export function intentStates(world: {env: {home: string, state: string}}, run: string): {path: string, op: string, state: string}[] {
+  return journalLines(world, run).filter((l) => l.type === "intent").map((it) => {
+    const p = path.join(world.env.home, it.path.slice(2));
+    let sha = null;
+    let mode = null;
+    if (fs.existsSync(p)) {
+      sha = `sha256:${sha256(fs.readFileSync(p))}`;
+      mode = fs.statSync(p).mode & 0o7777;
+    }
+    const is = (s: string | null, m: number | null) => sha === s && (s === null || mode === m);
+    return { path: it.path, op: it.op, state: is(it.after_sha, it.after_mode) ? "after" : is(it.before_sha, it.before_mode) ? "before" : "neither" };
+  });
+}
+
 export function readInstalledFile(world) {
   return JSON.parse(fs.readFileSync(path.join(world.env.state, "installed.json"), "utf8"));
 }
@@ -161,11 +179,12 @@ export function converge(desired, world, opts = { patch: fakePatch }) {
   throw new Error("apply kept asking for a re-plan");
 }
 
-/** Run the child apply. killAfterMs: send SIGKILL after that delay. */
-export function runChild(home, v, { env = {}, killAfterMs = 0, n = 6, bulk = false } = {}) {
+/** Run the child apply. killAfterMs: send SIGKILL after that delay. fdLimit: run it under `ulimit -n <fdLimit>`. */
+export function runChild(home, v, { env = {}, killAfterMs = 0, n = 6, bulk = false, fdLimit = 0 } = {}): Promise<{code: number | null, signal: string | null, stderr: string, ms: number}> {
   return new Promise((resolve) => {
     const t0 = process.hrtime.bigint();
-    const ch = spawn(process.execPath, [CHILD], {
+    const [cmd, args] = fdLimit ? ["bash", ["-c", `ulimit -n ${fdLimit} && exec "$0" "$@"`, process.execPath, CHILD]] : [process.execPath, [CHILD]];
+    const ch = spawn(cmd, args, {
       env: { PATH: process.env.PATH, RIG_STATE_CHILD: "1", FIXTURE_HOME: home, RIG_V: String(v), RIG_N: String(n), RIG_BULK: bulk ? "1" : "", ...env },
       stdio: ["ignore", "ignore", "pipe"],
     });

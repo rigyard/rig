@@ -115,7 +115,7 @@ info run 20261105T205051.505Z-1 was interrupted; rig apply recovers it first
 <n> changes, 0 blocks
 ```
 
-The next apply writes the 300 ops and closes the old journal with `{"type":"recovered","by":"20261105T205052.321Z-2"}`. The apply after that prints `0 changes, 0 blocks`. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
+The next apply writes the 300 ops and closes the old journal with `{"type":"recovered","by":"20261105T205052.321Z-2","done":[1,2,3,4,5]}`. The apply after that prints `0 changes, 0 blocks`. `done` names the 5 ops that the crashed run finished, so an undo of the crashed run restores those 5 ops only and keeps the 300 ops of the later run. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
 
 ## Let the gate stop a write
 

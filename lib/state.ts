@@ -45,7 +45,7 @@ export type JournalLine = {type: "run", run: string, cmd: string, rig: string}
   | {type: "intent", seq: number, path: string, op: OpName, kind: string, before_sha: string | null, before_mode: number | null,
   after_sha: string | null, after_mode: number | null, backup: string | null,
   entry_before: InstalledEntry | null, entry_after: InstalledEntry | null}
-  | {type: "commit", run: string, ops: number} | {type: "abort", seq: number, reason: string} | {type: "recovered", by: string};
+  | {type: "commit", run: string, ops: number} | {type: "abort", seq: number, reason: string, done: number[]} | {type: "recovered", by: string, done: number[]};
 
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -333,6 +333,7 @@ export function undo(runId: string, world: object): {run: string | null, restore
   if (locked) return { run: null, restored: 0, conflicts: [locked] };
   try {
     const rec = recover(world, run);
+    sweep(world, ctx, rec.paths);
     if (rec.conflicts.length) return { run: null, restored: 0, conflicts: rec.conflicts };
     const j = listJournals(world).find((x) => x.run === runId);
     if (!j) return { run: null, restored: 0, conflicts: [err("E_UNDO_CONFLICT", `no journal for run ${runId}`)] };
@@ -354,9 +355,9 @@ export function undo(runId: string, world: object): {run: string | null, restore
       const cur = sigOf(o);
       const before = { sha: it.before_sha, mode: it.before_mode };
       const after = { sha: it.after_sha, mode: it.after_mode };
+      const notDone = jr.done ? !jr.done.has(it.seq) : sameSig(cur, before) && !sameSig(cur, after);
+      if (!committed && notDone) continue;
       if (!sameSig(cur, after)) {
-        // an aborted or recovered run may hold intents that never reached disk
-        if (!committed && sameSig(cur, before)) continue;
         conflicts.push(err("E_UNDO_CONFLICT", `${it.path} no longer has the after hash of run ${runId}`, it.path));
         continue;
       }

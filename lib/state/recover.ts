@@ -10,9 +10,9 @@ const conflict = (code, message, path) => ({ code, message, path });
  * Read-only. Rebuild installed entries from one journal: an intent whose path holds after_sha is done
  * (entry_after), one that holds before_sha is not done (entry_before), anything else is a conflict.
  */
-export function classify(entries, jr, ctx): {entries: Record<string, object>, done: number, notDone: number, conflicts: object[], warnings: string[], paths: string[]} {
+export function classify(entries, jr, ctx): {entries: Record<string, object>, doneSeqs: number[], notDone: number, conflicts: object[], warnings: string[], paths: string[]} {
   const next = { ...entries };
-  const out = { entries: next, done: 0, notDone: 0, conflicts: [], warnings: [], paths: [] };
+  const out = { entries: next, doneSeqs: [] as number[], notDone: 0, conflicts: [], warnings: [], paths: [] };
   if (jr.corrupt) out.conflicts.push(conflict("E_RECOVERY_CONFLICT", `journal ${jr.run}: ${jr.corrupt}`, journalRel(jr.run)));
   for (const it of jr.intents) {
     const o = observe(it.path, ctx);
@@ -31,7 +31,7 @@ export function classify(entries, jr, ctx): {entries: Record<string, object>, do
     const cur = sigOf(o);
     let e;
     if (sameSig(cur, { sha: it.after_sha, mode: it.after_mode })) {
-      out.done++;
+      out.doneSeqs.push(it.seq);
       e = it.entry_after;
     } else if (sameSig(cur, { sha: it.before_sha, mode: it.before_mode })) {
       out.notDone++;
@@ -84,11 +84,11 @@ export function recover(world: object, runId: string): {done: number, notDone: n
       return out;
     }
     writeState("installed.json", encodeInstalled({ schema: 1, entries: c.entries }), ctx);
-    const line = JSON.stringify({ type: "recovered", by: runId });
+    const line = JSON.stringify({ type: "recovered", by: runId, done: c.doneSeqs });
     // an append after a torn line would merge with it; replace the journal without the torn bytes instead
     if (jr.torn) writeState(journalRel(j.run), Buffer.from(`${jr.text}${line}\n`), ctx);
     else appendState(journalRel(j.run), line, ctx);
-    out.done += c.done;
+    out.done += c.doneSeqs.length;
     out.notDone += c.notDone;
     out.runs.push(j.run);
   }

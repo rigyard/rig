@@ -573,11 +573,11 @@ The run id is `<UTC time to the millisecond>-<sequence>`. The sequence is one mo
  "entry_before": {"kind": "cells", "digest": "sha256:0d4e..."}, "entry_after": {"kind": "cells", "digest": "sha256:19f7..."}}
 {"type": "commit", "run": "20261104T201512.044Z-3", "ops": 1}
 // closing lines of other runs:
-{"type": "abort", "seq": 4, "reason": "E_CHANGED_UNDER"}
-{"type": "recovered", "by": "20261104T202230.910Z-4"}
+{"type": "abort", "seq": 4, "reason": "E_CHANGED_UNDER", "done": [1, 2, 3]}
+{"type": "recovered", "by": "20261104T202230.910Z-4", "done": [1, 2]}
 ```
 
-A journal ends with `commit`, `abort` (the run stopped on `E_CHANGED_UNDER`), or `recovered` (a later run finished the bookkeeping). `before_sha` is null for a create. `after_sha` is null for a remove. Paths are home-relative with a `~/` prefix.
+A journal ends with `commit`, `abort` (the run stopped on `E_CHANGED_UNDER`), or `recovered` (a later run finished the bookkeeping). `done` lists the seqs of the intents that the run finished. The run writes it into `abort`, and recovery writes the intents that it finds done into `recovered`. An undo of the run restores only those intents. A journal closed by an older rig has no `done`. `before_sha` is null for a create. `after_sha` is null for a remove. Paths are home-relative with a `~/` prefix.
 
 ### 2.12 metrics.jsonl
 
@@ -975,7 +975,8 @@ export async function refreshOsv(stack, fetchFn) { throw new Error("not implemen
  * @typedef {{type: "run", run: string, cmd: string, rig: string}
  *         | {type: "intent", seq: number, path: string, op: OpName, kind: string, before_sha: string | null, after_sha: string | null,
  *            backup: string | null, entry_before: InstalledEntry | null, entry_after: InstalledEntry | null}
- *         | {type: "commit", run: string, ops: number} | {type: "abort", seq: number, reason: string} | {type: "recovered", by: string}} JournalLine
+ *         | {type: "commit", run: string, ops: number} | {type: "abort", seq: number, reason: string, done: number[]}
+ *         | {type: "recovered", by: string, done: number[]}} JournalLine
  */
 
 /**
@@ -1014,16 +1015,19 @@ export function apply(planned, world) {
   //  1. recover(): every journal without commit/abort/recovered (see recover.ts below)
   //  2. if recovery changed installed.json, the given plan is stale: return {replan: true} and bin calls prepare() again
   //  3. planned.blocked -> return; nothing written, no journal created
-  //  4. open journal/<run>.jsonl, write the run line, fsync
-  //  5. for each op with bytes to write, in plan order:
-  //     a. pre-image exists -> copy to backups/<run>/<home-relative path>, fsync file and dir
-  //     b. append intent line, fsync journal                    // intent before mutation
-  //     c. RIG_TEST=1 and RIG_TEST_ABORT_AFTER=n reached -> SIGKILL self (tests only)
-  //     d. re-read current sha; != before_sha -> append abort line, write installed.json for done intents, return E_CHANGED_UNDER
-  //     e. fs.writeHome(path, next, mode): temp file in the same dir, fsync, chmod to the preserved mode, rename, fsync dir
-  //        remove-to-backup: the backup from (a) holds the bytes; then unlink. No byte is lost.
-  //  6. apply entry_after of every op (adopt and forget too) to installed.json; replace it atomically
-  //  7. append commit line, fsync; release apply.lock
+  //  4. re-read the sha of every op in plan order; the first != before_sha ends the batch, the ops before it still run
+  //  5. write journal/<run>.jsonl with the run line and every intent: temp, fsync, link, fsync dir   // intents before mutation
+  //  6. pre-image exists -> copy to backups/<run>/<home-relative path>; temp file next to each target, chmod to the
+  //     preserved mode; then fsync every backup, temp file and backup dir in one pass (fs.fsyncAll)
+  //  7. for each op with bytes to write, in plan order:
+  //     a. RIG_TEST=1 and RIG_TEST_ABORT_AFTER=n reached -> SIGKILL self (tests only)
+  //     b. re-read current sha; != before_sha -> remove the temp files left, write installed.json for done intents,
+  //        append the abort line with the seqs of the done intents, return E_CHANGED_UNDER
+  //     c. fs.installHome: rename the temp file onto the target
+  //        remove-to-backup: the backup from (6) holds the bytes; then unlink. No byte is lost.
+  //  8. fsync every dir whose entries changed in one pass
+  //  9. apply entry_after of every op (adopt and forget too) to installed.json; replace it atomically
+  // 10. append commit line, fsync; release apply.lock
   throw new Error("not implemented");
 }
 
@@ -1046,7 +1050,7 @@ export function recover(world, runId) {
   //    cur == after_sha  -> done: apply entry_after to installed.json
   //    cur == before_sha -> not done: keep entry_before
   //    else              -> E_RECOVERY_CONFLICT naming the path; stop, write nothing more
-  //  replace installed.json atomically; append {"type": "recovered", "by": <new run id>}
+  //  replace installed.json atomically; append {"type": "recovered", "by": <new run id>, "done": <seqs of the done intents>}
   //  journal text is data only: no field is executed, spawned or used as a format string
   throw new Error("not implemented");
 }
@@ -1055,7 +1059,7 @@ export function recover(world, runId) {
 ### Lock, metrics, fs
 
 ```js
-// lib/lock.ts — public: vendor, pinCheck, pinSet. The only module that spawns (git) or calls fetch.
+// lib/lock.ts — public: vendor, pinCheck, pinSet. The only module that spawns git or calls fetch.
 
 /** @param {World} world @param {{repo: string, sha: string, paths: string[], into: "repo"|"overlay"}} args
  *  @returns {Promise<{pack: string, findings: Finding[], blocked: boolean}>} */
@@ -1171,7 +1175,7 @@ Each module owns one body of knowledge and exports one to three functions. Files
 | Config writes | any module other than `lib/lock.ts` and `lib/models.ts` imports `writeConfig` |
 | State writes | any module other than `state`, `metrics`, `gate` imports `writeState` or `appendState` |
 | Raw fs writes | any module other than `lib/fs.ts` imports a write function of `node:fs` (`writeFile*`, `rename*`, `unlink*`, `rm*`, `open` with a write flag, `appendFile*`, `chmod*`) |
-| Network and spawn | any module other than `lib/lock.ts` imports `node:child_process`, `node:net`, `node:http(s)`, or references `fetch` |
+| Network and spawn | any module other than `lib/lock.ts` imports `node:net`, `node:http(s)`, or references `fetch`; any module other than `lib/lock.ts` and `lib/fs.ts` imports `node:child_process`. `lib/fs.ts` spawns only node, on its own `lib/fs/fsync-batch.ts`. |
 | Code plugins | any dynamic `import()`, or any spawn argument built from a pack path |
 | Test hooks | any module other than `lib/state.ts` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER` |
 | Logger | the `plan` and `doctor` code paths reach `log` (checked by a call-graph walk from `planCmd` and `doctorCmd`) |
@@ -1297,18 +1301,20 @@ The fleet agents (`deep-reasoner`, `reviewer` and so on) stay hand-written on Cl
 
 ## 9. Rollback and recovery
 
-Apply writes in this order for each op: backup of the pre-image, intent line (fsync), before-sha re-check, mutation (temp file in the same dir, fsync, mode copy, rename, dir fsync). After all ops it replaces `installed.json` and appends `commit`. The pseudocode is in `state.apply` and `recover` (section 4).
+Apply writes all ops as one batch, so each durability step costs one pass of fsyncs, not one fsync per op. It writes the journal with every intent line (fsync). Then it writes the backups of the pre-images and a temp file next to each target, with the mode copied, and fsyncs all of them in one pass. Then, per op in plan order, it re-checks the before-sha and renames the temp file onto the target. Then it fsyncs each dir whose entries changed, in one pass, replaces `installed.json` and appends `commit`. One child process runs the fsyncs of one pass at the same time, so the disk merges its cache flushes. The pseudocode is in `state.apply` and `recover` (section 4).
+
+The order gives one invariant. Before the first rename, the journal with every intent, each backup and each temp file is durable, so after a crash each intent path holds its whole before bytes or its whole after bytes. Before `commit`, each rename and `installed.json` is durable, so a closed journal never names a change that the disk can lose.
 
 | Crash point | Disk state | Next `rig apply` |
 |---|---|---|
-| before the intent line | file unchanged, maybe a backup copy | no intent, so nothing to recover. The fresh plan contains the op again. |
-| after the intent, before the rename | file has `before_sha` | recovery: not done. The plan contains the op again. |
-| after the rename, before the next intent | file has `after_sha` | recovery: done, entry rebuilt. The plan has no op for it. |
-| after all ops, before `installed.json` | all files new, record old | recovery rebuilds the record from the intents |
+| before the journal | nothing changed | no journal, so nothing to recover. The fresh plan contains every op. |
+| after the journal, before the first rename | every file has `before_sha`, temp files next to some targets | recovery: not done for every intent, and the sweep removes the temp files. The plan contains every op again. |
+| after k renames | After a process crash, the first k files have `after_sha` and the rest `before_sha`. The dirs are not yet fsynced, so a power loss can keep any subset of the k renames. Each file still has its whole `before_sha` or its whole `after_sha`. | recovery classifies each path on its own: the done ones rebuild their entries, and the plan contains the rest. |
+| after all renames, before `installed.json` | All files new, record old. A power loss before the dir fsync ends can keep any subset of the renames, as in the row above. | recovery rebuilds the record from the intents |
 | after `installed.json`, before `commit` | all done | recovery finds every intent done and appends `recovered` |
 | file changed by a third party mid-run | sha matches neither | `E_RECOVERY_CONFLICT` names the path. Nothing more is written. |
 
-Because the plan derives from observed bytes plus `installed.json`, the run after recovery converges: a second apply prints `0 changes`. Slice tests inject a crash after each op k with `RIG_TEST_ABORT_AFTER=<k>`, read only when `RIG_TEST=1`. It is not a CLI flag.
+Because the plan derives from observed bytes plus `installed.json`, the run after recovery converges: a second apply prints `0 changes`. Slice tests inject a crash after k renames with `RIG_TEST_ABORT_AFTER=<k>`, or after a step with `journal`, `staged` or `installed`. rig reads it only when `RIG_TEST=1`. It is not a CLI flag.
 
 Containment, on every write and every restore:
 
@@ -1324,7 +1330,7 @@ Remove never deletes. `remove-to-backup` keeps the old bytes in `backups/<run-id
 `rig apply --undo <run-id>`:
 
 1. Read the run's journal. Walk its intents in reverse order.
-2. Per path: current sha equals the run's `after_sha` -> restore the pre-image (or, for a create, move the current bytes to the new run's backups). Otherwise the path conflicts: `E_UNDO_CONFLICT`.
+2. Per path: current sha equals the run's `after_sha` -> restore the pre-image (or, for a create, move the current bytes to the new run's backups). Otherwise the path conflicts: `E_UNDO_CONFLICT`. A run that never committed skips each intent that its `done` list does not name, because a later run may have written the same bytes since.
 3. Any conflict stops the whole undo before the first write. The output lists every conflicting path, not only the first. No path restores. You resolve each path and run the undo again.
 4. The undo is a new journaled run, with its own backups and its own `commit`. `installed.json` returns to each intent's `entry_before`.
 

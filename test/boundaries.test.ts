@@ -10,8 +10,11 @@ import { describe, test } from "node:test";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-/** Modules that may import node:child_process. lib/lock.ts spawns git; gate() is pure (doc section 4). */
-const SPAWN_ALLOW = ["lib/lock.ts", "lib/lock/git.ts"];
+/**
+ * Modules that may import node:child_process. lib/lock.ts spawns git; lib/fs.ts spawns node on lib/fs/fsync-batch.ts to
+ * fsync a batch at once; gate() is pure (doc section 4).
+ */
+const SPAWN_ALLOW = ["lib/lock.ts", "lib/lock/git.ts", "lib/fs.ts"];
 /** Modules that may import a network module or reference fetch. */
 const NETWORK_ALLOW = ["lib/lock.ts", "lib/lock/git.ts"];
 const NETWORK_MODULES = ["node:net", "node:http", "node:https", "node:http2", "node:tls", "node:dgram"];
@@ -22,6 +25,9 @@ const NETWORK_MODULES = ["node:net", "node:http", "node:https", "node:http2", "n
  */
 const FS_EXPORTS = {
   writeHome: ["state"],
+  stageHome: ["state"],
+  installHome: ["state"],
+  fsyncAll: ["state"],
   writeState: ["state", "metrics", "gate"],
   appendState: ["state", "metrics", "gate"],
   writeConfig: ["lock", "models"],

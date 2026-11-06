@@ -2,16 +2,18 @@ import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
-import { writeHome, writeState } from "../lib/fs.ts";
+import cp, { spawn, spawnSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { fsyncAll, writeHome, writeState } from "../lib/fs.ts";
 import { apply, plan, undo } from "../lib/state.ts";
 import {
-  asObj, converge, ctxOf, desiredV, fakePatch, installedMismatch, journalLines, journals, makeWorld, prng,
+  asObj, converge, ctxOf, desiredV, fakePatch, installedMismatch, intentStates, journalLines, journals, litter, makeWorld, prng,
   readInstalledFile, runChild, seedUserFiles, snapshot, STATE_REL, tmpDir,
 } from "./state.helpers.ts";
 
 const dirs = [];
-const fresh = (prefix) => {
+const fresh = (prefix?: string) => {
   const d = tmpDir(prefix);
   dirs.push(d);
   return d;
@@ -45,6 +47,54 @@ function clone(src) {
   fs.cpSync(src, home, { recursive: true });
   return { home, world: makeWorld(home) };
 }
+const COUNT_FSYNC = fileURLToPath(new URL("./fixtures/state/count-fsync.ts", import.meta.url));
+const FS_TS = fileURLToPath(new URL("../lib/fs.ts", import.meta.url));
+const textFiles = (dir: string, n: number) => Array.from({ length: n }, (_, i) => {
+  const f = path.join(dir, `f${i}`);
+  fs.writeFileSync(f, "x");
+  return f;
+});
+function fsyncsIn(fn: () => void): number {
+  const { fsyncSync } = fs;
+  let n = 0;
+  fs.fsyncSync = (fd) => (n++, fsyncSync(fd));
+  try {
+    fn();
+  } finally {
+    fs.fsyncSync = fsyncSync;
+  }
+  return n;
+}
+const spawnChild = cp.spawnSync;
+type SpawnSync = (cmd: string, args: string[], opts: {input: string}) => {status: number | null, stdout: string};
+/** Run fn with child_process.spawnSync replaced, also in the named imports of lib/fs.ts. */
+function withSpawnSync<T>(fake: SpawnSync, fn: () => T): T {
+  const { spawnSync: real } = cp;
+  Object.assign(cp, { spawnSync: fake });
+  syncBuiltinESMExports();
+  try {
+    return fn();
+  } finally {
+    Object.assign(cp, { spawnSync: real });
+    syncBuiltinESMExports();
+  }
+}
+function withEnv<T>(vars: Record<string, string>, fn: () => T): T {
+  const old = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, vars);
+  try {
+    return fn();
+  } finally {
+    for (const [k, v] of Object.entries(old)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+const countFsyncs = (file: string) => ({
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${pathToFileURL(COUNT_FSYNC).href}`.trim(), FSYNC_COUNT_FILE: file,
+});
+
 function allClosed(world) {
   return journals(world).every((n) => ["commit", "abort", "recovered"].includes(journalLines(world, n.slice(0, -6)).at(-1).type));
 }
@@ -66,6 +116,67 @@ describe("fs containment", () => {
     assert.equal(fs.readFileSync(p, "utf8"), "two\n");
     assert.equal(fs.statSync(p).mode & 0o7777, 0o600);
     assert.deepEqual(fs.readdirSync(path.dirname(p)), ["secret.env"]);
+  });
+
+  test("fsyncAll throws for a file it cannot sync and skips such a dir, in a batch and one by one", () => {
+    const home = fresh();
+    const files = textFiles(home, 20);
+    const missing = path.join(home, "missing");
+    assert.doesNotThrow(() => fsyncAll(files, [home, missing]));
+    assert.throws(() => fsyncAll([...files, missing]), { code: "ENOENT", path: missing });
+    assert.doesNotThrow(() => fsyncAll(files.slice(0, 2), [missing]));
+    assert.throws(() => fsyncAll([missing]), { code: "ENOENT", path: missing });
+    const messageOf = (f: () => void) => {
+      try {
+        f();
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return null;
+    };
+    assert.equal(messageOf(() => fsyncAll([...files, missing])), messageOf(() => fsyncAll([missing])), "the batch names the failed call as the serial path does");
+  });
+
+  test("fsyncAll syncs a batch in one child process, and a short list in this process", () => {
+    const home = fresh();
+    const files = textFiles(home, 20);
+    const counts = path.join(fresh(), "fsyncs");
+    withEnv(countFsyncs(counts), () => {
+      assert.equal(fsyncsIn(() => fsyncAll(files, [home])), 0, "this process makes no fsync for a batch");
+      assert.equal(fs.readFileSync(counts, "utf8"), "21\n", "one child makes one fsync per path");
+      assert.equal(fsyncsIn(() => fsyncAll(files.slice(0, 2), [home])), 3, "a short list syncs in this process");
+      assert.equal(fs.readFileSync(counts, "utf8"), "21\n", "a short list starts no child");
+    });
+  });
+
+  test("fsyncAll syncs every path in this process when the batch child fails or runs out of file descriptors", () => {
+    const home = fresh();
+    const files = textFiles(home, 20);
+    const child = (code: string, hit: (i: number, n: number) => boolean): SpawnSync => (_cmd, _args, opts) => {
+      const paths: string[] = JSON.parse(opts.input).paths;
+      const out = paths.map((p, i) => (hit(i, paths.length) ? { code, message: `${code}: too many open files, open '${p}'` } : null));
+      return { status: 0, stdout: JSON.stringify(out) };
+    };
+    const emfile = child("EMFILE", (i) => i >= 8);
+    const enfileOnDir = child("ENFILE", (i, n) => i === n - 1);
+    assert.equal(withSpawnSync(emfile, () => fsyncsIn(() => fsyncAll(files, [home]))), 21, "EMFILE on files");
+    assert.equal(withSpawnSync(enfileOnDir, () => fsyncsIn(() => fsyncAll(files, [home]))), 21, "ENFILE on a dir");
+    const dead: SpawnSync = () => ({ status: null, stdout: "" });
+    assert.equal(withSpawnSync(dead, () => fsyncsIn(() => fsyncAll(files, [home]))), 21, "a child killed by its timeout");
+  });
+
+  test("under ulimit -n 64, the batch child syncs 200 paths and this process syncs none", () => {
+    const dir = fresh();
+    textFiles(dir, 200);
+    const counts = path.join(fresh(), "fsyncs");
+    const script = `import fs from "node:fs";
+      const { fsyncAll } = await import(${JSON.stringify(pathToFileURL(FS_TS).href)});
+      fsyncAll(fs.readdirSync(process.env.DIR).map((f) => process.env.DIR + "/" + f));`;
+    const r = spawnSync("bash", ["-c", 'ulimit -n 64 && exec "$0" "$@"', process.execPath, "--input-type=module", "-e", script], {
+      env: { PATH: process.env.PATH, DIR: dir, ...countFsyncs(counts) }, encoding: "utf8",
+    });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(fs.readFileSync(counts, "utf8"), "200\n0\n", "the child exits first with 200 fsyncs, then this process with 0");
   });
 
   test("a symlinked parent that leaves HOME is refused; one inside HOME is allowed", () => {
@@ -235,10 +346,101 @@ describe("plan and apply", () => {
     assert.equal(r.error.code, "E_CHANGED_UNDER");
     assert.equal(r.changed, 1);
     assert.equal(fs.readFileSync(path.join(home, ".claude/skills/s001/SKILL.md"), "utf8"), "changed under\n");
-    assert.deepEqual(journalLines(world, r.run).at(-1), { type: "abort", seq: 2, reason: "E_CHANGED_UNDER" });
+    assert.deepEqual(journalLines(world, r.run).at(-1), { type: "abort", seq: 2, reason: "E_CHANGED_UNDER", done: [1] });
     const next = plan(desiredV(home, 1), OK, world, OPTS);
     assert.deepEqual(codes(next), [["~/.claude/skills/s001/SKILL.md", "E_DRIFT"]]);
     assert.equal(next.ops.some((o) => o.path === "~/.claude/skills/s000/SKILL.md"), false, "the done op stays recorded");
+  });
+
+  test("a file changed during the rename batch stops the run; no temp file of a later op stays behind", () => {
+    const { home, world } = seeded(0);
+    const p = plan(desiredV(home, 1), OK, world, OPTS);
+    const first = path.join(home, ".claude/skills/s000/SKILL.md");
+    const rename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      rename(from, to);
+      if (to === first) write(home, ".claude/skills/s001/SKILL.md", "changed under\n");
+    };
+    let r;
+    try {
+      r = apply(p, world);
+    } finally {
+      fs.renameSync = rename;
+    }
+    assert.equal(r.error.code, "E_CHANGED_UNDER");
+    assert.equal(r.changed, 1);
+    assert.deepEqual(litter(home), []);
+    assert.deepEqual(journalLines(world, r.run).at(-1), { type: "abort", seq: 2, reason: "E_CHANGED_UNDER", done: [1] });
+    assert.equal(fs.readFileSync(path.join(home, ".claude/skills/s001/SKILL.md"), "utf8"), "changed under\n");
+    assert.deepEqual(codes(plan(desiredV(home, 1), OK, world, OPTS)), [["~/.claude/skills/s001/SKILL.md", "E_DRIFT"]]);
+  });
+
+  test("backups, temp files and the journal are durable before HOME changes; changed dirs before installed.json", () => {
+    const { home, world } = seeded(0);
+    const p = plan(desiredV(home, 1), OK, world, OPTS);
+    const state = world.env.state;
+    const log: {call: "fsync" | "rename" | "unlink", path: string, to?: string}[] = [];
+    const fdPath = new Map<number, string>();
+    const batch: SpawnSync = (cmd, args, opts) => {
+      const r = spawnChild(cmd, args, opts as cp.SpawnSyncOptionsWithStringEncoding);
+      const paths: string[] = JSON.parse(opts.input).paths;
+      if (r.status === 0) for (const [i, f] of JSON.parse(r.stdout).entries()) if (f === null) log.push({ call: "fsync", path: paths[i] });
+      return r;
+    };
+    const { openSync, fsyncSync, renameSync, rmSync } = fs;
+    Object.assign(fs, {
+      openSync: (...a: Parameters<typeof openSync>) => {
+        const fd = openSync(...a);
+        fdPath.set(fd, String(a[0]));
+        return fd;
+      },
+      fsyncSync: (fd: number) => (log.push({ call: "fsync", path: fdPath.get(fd) ?? "?" }), fsyncSync(fd)),
+      renameSync: (from: string, to: string) => (log.push({ call: "rename", path: from, to }), renameSync(from, to)),
+      rmSync: (f: string, o: object) => (log.push({ call: "unlink", path: f }), rmSync(f, o)),
+    });
+    let r;
+    try {
+      r = withSpawnSync(batch, () => apply(p, world));
+    } finally {
+      Object.assign(fs, { openSync, fsyncSync, renameSync, rmSync });
+    }
+    assert.equal(r.error, undefined);
+    const inState = (f: string) => f.startsWith(`${state}/`);
+    const at = (pred: (e: (typeof log)[number]) => boolean, from = 0) => log.findIndex((e, i) => i >= from && pred(e));
+    const syncedBefore = (f: string, end: number) => {
+      const i = at((e) => e.call === "fsync" && e.path === f);
+      return i >= 0 && i < end;
+    };
+    const homeWrites = log.flatMap((e, i): {i: number, tmp: string | null, target: string}[] => {
+      if (e.call === "rename" && !inState(e.to!)) return [{ i, tmp: e.path, target: e.to! }];
+      if (e.call === "unlink" && !inState(e.path) && !e.path.endsWith(".rig-tmp")) return [{ i, tmp: null, target: e.path }];
+      return [];
+    });
+    assert.equal(homeWrites.length, p.ops.length, "every op of the plan changes HOME once");
+    const first = homeWrites[0].i;
+    const last = homeWrites.at(-1)!.i;
+    for (const { tmp } of homeWrites) if (tmp) assert.ok(syncedBefore(tmp, first), `${tmp} is durable before the first rename`);
+    const backups = log.filter((e) => e.call === "rename" && e.to!.startsWith(path.join(state, "backups")));
+    assert.ok(backups.length > 0);
+    for (const b of backups) assert.ok(syncedBefore(b.to!, first), `${b.to} is durable before the first rename`);
+    assert.ok(syncedBefore(path.join(state, "journal"), first), "the journal is durable before the first rename");
+    const installed = at((e) => e.call === "rename" && e.to === path.join(state, "installed.json"), last);
+    assert.ok(installed > last);
+    for (const d of new Set(homeWrites.map((w) => path.dirname(w.target)))) {
+      const synced = at((e) => e.call === "fsync" && e.path === d, last);
+      assert.ok(synced > last && synced < installed, `${d} is durable after the last rename, before installed.json`);
+    }
+  });
+
+  test("apply under ulimit -n 64 with more files to sync than the limit converges", async () => {
+    const home = fresh();
+    seedUserFiles(home);
+    const world = makeWorld(home);
+    const shape = { n: 120 };
+    const c = await runChild(home, 0, { ...shape, fdLimit: 64 });
+    assert.equal(c.code, 0, c.stderr);
+    assert.equal(installedMismatch(world, desiredV(home, 0, shape)), null);
+    assert.equal(plan(desiredV(home, 0, shape), OK, world, OPTS).ops.length, 0);
   });
 
   test("a second concurrent apply is refused; a stale lock is replaced", async () => {
@@ -302,6 +504,125 @@ describe("crash and recovery", () => {
     });
   }
 
+  const SEED = snap(base.home);
+  const staged = (states: {state: string, op: string}[]) => states.filter((s) => s.state === "before" && s.op !== "remove-to-backup").length;
+  const boundaries = [
+    { at: "journal", done: 0, litter: () => 0, what: "after the journal holds every intent, before the temp files" },
+    { at: "staged", done: 0, litter: staged, what: "after the temp files are written, before the batched fsync" },
+    { at: "0", done: 0, litter: staged, what: "after the batched fsync, before the first rename" },
+    { at: "4", done: 4, litter: staged, what: "mid-rename batch, after 4 of 9 renames" },
+    { at: "9", done: 9, litter: () => 0, what: "after the last rename, before the dir fsync" },
+    { at: "installed", done: 9, litter: () => 0, what: "after installed.json, before the commit line" },
+  ];
+  for (const b of boundaries) {
+    test(`a kill ${b.what} leaves each intent at its before or after bytes; the next apply converges`, async () => {
+      const { home, world } = clone(base.home);
+      const c = await runChild(home, 1, { env: { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: b.at } });
+      assert.equal(c.signal, "SIGKILL", c.stderr);
+      const [name] = journals(world).filter((n) => !journals(base.world).includes(n));
+      const run = name.slice(0, -6);
+      assert.equal(journalLines(world, run).at(-1).type, "intent", "the journal is open");
+      const states = intentStates(world, run);
+      assert.equal(states.length, N, "every intent is journaled before the first rename");
+      assert.deepEqual(states.map((s) => s.state), [...Array(b.done).fill("after"), ...Array(N - b.done).fill("before")], "renames land in plan order");
+      assert.equal(litter(home).length, b.litter(states), "one temp file per staged op that is not yet renamed");
+      if (b.at === "journal") assert.deepEqual(snap(home), SEED, "HOME is untouched");
+      if (b.at === "installed") assert.equal(installedMismatch(world, desiredV(home, 1)), null, "installed.json holds the new entries");
+      const p = plan(desiredV(home, 1), OK, world, OPTS);
+      assert.deepEqual(p.interrupted, [run]);
+      assert.equal(p.blocked, false, "recovery explains every path");
+      assert.equal(p.ops.length, N - b.done);
+      assert.equal(converge(desiredV(home, 1), world).result.error, undefined);
+      assertConverged(home, world, 1, REF1);
+    });
+  }
+
+  test("undo of a run killed mid-rename restores the done ops and skips the intents that never reached disk", async () => {
+    const { home, world } = clone(base.home);
+    const c = await runChild(home, 1, { env: { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: "4" } });
+    assert.equal(c.signal, "SIGKILL", c.stderr);
+    const run = journals(world).filter((n) => !journals(base.world).includes(n))[0].slice(0, -6);
+    const u = undo(run, world);
+    assert.deepEqual(u.conflicts, []);
+    assert.equal(u.restored, 4);
+    assert.deepEqual(snap(home), SEED);
+    assert.equal(converge(desiredV(home, 1), world).result.error, undefined);
+    assertConverged(home, world, 1, REF1);
+  });
+
+  const newRun = (world: {env: {state: string}}) => journals(world).filter((n) => !journals(base.world).includes(n))[0].slice(0, -6);
+  const ref1WithSeedAt = (intents: {path: string}[]) => {
+    const out = { ...REF1 };
+    for (const { path: p } of intents) {
+      const rel = p.slice(2);
+      if (rel in SEED) out[rel] = SEED[rel];
+      else delete out[rel];
+    }
+    return out;
+  };
+  for (const k of [0, 4]) {
+    test(`undo of a run killed after ${k} renames restores those ${k} ops only, after a later run did the rest`, async () => {
+      const { home, world } = clone(base.home);
+      const c = await runChild(home, 1, { env: { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: String(k) } });
+      assert.equal(c.signal, "SIGKILL", c.stderr);
+      const run = newRun(world);
+      const intents = journalLines(world, run).filter((l) => l.type === "intent");
+      assert.equal(converge(desiredV(home, 1), world).result.error, undefined);
+      assert.deepEqual(snap(home), REF1);
+      const u = undo(run, world);
+      assert.deepEqual(u.conflicts, []);
+      assert.equal(u.restored, k);
+      assert.deepEqual(snap(home), ref1WithSeedAt(intents.slice(0, k)), "the later run's work stays");
+    });
+  }
+
+  test("undo of a run stopped by E_CHANGED_UNDER restores its done op only, after a later run did the rest", () => {
+    const { home, world } = clone(base.home);
+    const first = path.join(home, ".claude/skills/s000/SKILL.md");
+    const second = path.join(home, ".claude/skills/s001/SKILL.md");
+    const secondBytes = fs.readFileSync(second);
+    const rename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      rename(from, to);
+      if (to === first) fs.writeFileSync(second, "changed under\n");
+    };
+    let r;
+    try {
+      r = apply(plan(desiredV(home, 1), OK, world, OPTS), world);
+    } finally {
+      fs.renameSync = rename;
+    }
+    assert.equal(r.error.code, "E_CHANGED_UNDER");
+    assert.equal(r.changed, 1);
+    fs.writeFileSync(second, secondBytes);
+    assert.equal(converge(desiredV(home, 1), world).result.error, undefined);
+    assert.deepEqual(snap(home), REF1);
+    const u = undo(r.run, world);
+    assert.deepEqual(u.conflicts, []);
+    assert.equal(u.restored, 1);
+    assert.deepEqual(snap(home), ref1WithSeedAt(journalLines(world, r.run).filter((l) => l.type === "intent").slice(0, 1)));
+  });
+
+  test("undo of a journal closed by an older rig, without the done seqs, restores the intents at their after bytes", async () => {
+    const { home, world } = clone(base.home);
+    const c = await runChild(home, 1, { env: { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: "4" } });
+    assert.equal(c.signal, "SIGKILL", c.stderr);
+    const run = newRun(world);
+    assert.deepEqual(apply({ ops: [], blocked: false, interrupted: [run] }, world), { run: null, changed: 0 });
+    const file = path.join(world.env.state, "journal", `${run}.jsonl`);
+    const lines = journalLines(world, run);
+    const { done, ...legacy } = lines.at(-1);
+    assert.equal(legacy.type, "recovered");
+    const close = (last: object) => fs.writeFileSync(file, [...lines.slice(0, -1), last].map((l) => `${JSON.stringify(l)}\n`).join(""));
+    close({ ...legacy, done: ["1"] });
+    assert.deepEqual(undo(run, world).conflicts.map((x) => x.code), ["E_UNDO_CONFLICT"], "a done field that is not a list of seqs is corrupt");
+    close(legacy);
+    const u = undo(run, world);
+    assert.deepEqual(u.conflicts, []);
+    assert.equal(u.restored, 4);
+    assert.deepEqual(snap(home), SEED);
+  });
+
   test("RIG_TEST_ABORT_AFTER is ignored without RIG_TEST=1", async () => {
     const { home, world } = clone(base.home);
     const c = await runChild(home, 1, { env: { RIG_TEST_ABORT_AFTER: "0" } });
@@ -314,8 +635,10 @@ describe("crash and recovery", () => {
     const stale = plan(desiredV(home, 1), OK, world, OPTS);
     await runChild(home, 1, { env: { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: "3" } });
     const before = snap(home);
+    assert.notDeepEqual(litter(home), []);
+    for (const rel of litter(home)) delete before[rel];
     assert.deepEqual(apply(stale, world), { run: null, changed: 0, replan: true });
-    assert.deepEqual(snap(home), before);
+    assert.deepEqual(snap(home), before, "only the temp files of the killed run are gone");
     assert.equal(converge(desiredV(home, 1), world).result.error, undefined);
     assertConverged(home, world, 1, REF1);
   });

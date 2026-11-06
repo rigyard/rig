@@ -5,8 +5,10 @@
 // reads os.homedir():  ctx = {home, state, neverWrite?: string[], readSets?: string[]}
 // home and state are absolute paths; neverWrite holds globs and readSets holds dirs, both "~/"-relative or absolute.
 
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 function rigError(code, message, p) {
   const e = new Error(message);
@@ -148,26 +150,48 @@ function fsyncDir(dir) {
   }
 }
 
-/** temp file in the same dir, fsync, exact mode, then rename (or link when exclusive), then fsync the dir. */
-function atomicWrite(abs, bytes, mode, exclusive) {
-  const dir = path.dirname(abs);
-  fs.mkdirSync(dir, { recursive: true });
-  const tmp = path.join(dir, `.${path.basename(abs)}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.rig-tmp`);
+/** mkdir -p. @returns the dirs whose entries change: dir, each dir that this created, and the parent of the first one */
+function mkdirs(dir: string): string[] {
+  const first = fs.mkdirSync(dir, { recursive: true });
+  const out = [dir];
+  if (first === undefined) return out;
+  for (let d = dir; d !== first && path.dirname(d) !== d; ) {
+    d = path.dirname(d);
+    out.push(d);
+  }
+  out.push(path.dirname(first));
+  return out;
+}
+
+/** A temp file in the dir of abs with the exact mode, fsynced when sync. @returns its path */
+function writeTemp(abs: string, bytes: Uint8Array, mode: number, sync: boolean): string {
+  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.${process.pid}-${Math.random().toString(36).slice(2, 10)}.rig-tmp`);
   const fd = fs.openSync(tmp, "wx", 0o600);
   try {
     fs.writeSync(fd, bytes);
     fs.fchmodSync(fd, mode);
-    fs.fsyncSync(fd);
+    if (sync) fs.fsyncSync(fd);
   } finally {
     fs.closeSync(fd);
   }
+  return tmp;
+}
+
+/**
+ * temp file in the same dir, fsync, exact mode, then rename (or link when exclusive), then fsync each dir whose entries
+ * changed. sync false skips both fsyncs, and the caller passes abs and dirs to fsyncAll.
+ */
+function atomicWrite(abs: string, bytes: Uint8Array, mode: number, exclusive: boolean, sync = true): {abs: string, dirs: string[]} {
+  const dirs = mkdirs(path.dirname(abs));
+  const tmp = writeTemp(abs, bytes, mode, sync);
   try {
     if (exclusive) fs.linkSync(tmp, abs);
     else fs.renameSync(tmp, abs);
   } finally {
     if (exclusive) fs.rmSync(tmp, { force: true });
   }
-  fsyncDir(dir);
+  if (sync) for (const d of dirs) fsyncDir(d);
+  return { abs, dirs };
 }
 
 function modeOf(abs, dflt) {
@@ -181,19 +205,95 @@ function modeOf(abs, dflt) {
 /**
  * Atomic write into HOME, or a contained unlink when bytes is null. Mode kept: an omitted mode keeps the
  * current file's mode (0644 for a new file). opts.check: run the containment checks only and write nothing,
- * so plan, recovery and undo can refuse a path before the first write. Allowed importer: lib/state.ts (and lib/state/*).
+ * so plan, recovery and undo can refuse a path before the first write. opts.sync false: no fsync, and the caller
+ * syncs the dir with fsyncAll. Allowed importer: lib/state.ts (and lib/state/*).
  * @param p absolute or "~/"-relative
  */
-export function writeHome(p: string, bytes: Uint8Array | null, mode: number | undefined, ctx: object, opts: {check?: boolean} = {}): {abs: string, tilde: string, rel: string} {
+export function writeHome(p: string, bytes: Uint8Array | null, mode: number | undefined, ctx: object, opts: {check?: boolean, sync?: boolean} = {}): {abs: string, tilde: string, rel: string} {
   const r = resolveHome(p, ctx);
   if (opts.check) return r;
   if (bytes === null) {
     fs.rmSync(r.abs, { force: true });
-    fsyncDir(path.dirname(r.abs));
+    if (opts.sync !== false) fsyncDir(path.dirname(r.abs));
     return r;
   }
-  atomicWrite(r.abs, bytes, mode ?? modeOf(r.abs, 0o644), false);
+  atomicWrite(r.abs, bytes, mode ?? modeOf(r.abs, 0o644), false, opts.sync !== false);
   return r;
+}
+
+/** A temp file next to its HOME target: written, not yet durable, not yet in place. dirs change when it is renamed. */
+type Staged = {abs: string, tilde: string, rel: string, tmp: string, dirs: string[]};
+
+/**
+ * The first half of writeHome for a batch: the containment checks, then the temp file with the exact mode. No fsync
+ * and no rename: the caller makes every tmp durable with fsyncAll, renames each with installHome, then syncs the dirs.
+ * Allowed importer: state.
+ */
+export function stageHome(p: string, bytes: Uint8Array, mode: number | undefined, ctx: object): Staged {
+  const r = resolveHome(p, ctx);
+  const dirs = mkdirs(path.dirname(r.abs));
+  return { ...r, tmp: writeTemp(r.abs, bytes, mode ?? modeOf(r.abs, 0o644), false), dirs };
+}
+
+/** The second half: the containment checks again, then the rename of the staged temp onto its target. No fsync. */
+export function installHome(s: Staged, ctx: object): void {
+  const r = resolveHome(s.tilde, ctx);
+  if (r.abs !== s.abs) {
+    throw rigError("E_CONTAINMENT", `${s.tilde} resolves to another path than when it was staged`, s.tilde);
+  }
+  fs.renameSync(s.tmp, r.abs);
+}
+
+/** A dir that refuses fsync is skipped, as in fsyncDir. */
+function fsyncPath(p: string, dir: boolean): void {
+  if (dir) return fsyncDir(p);
+  const fd = fs.openSync(p, "r");
+  try {
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+const BATCH = fileURLToPath(new URL("./fs/fsync-batch.ts", import.meta.url));
+/** Below this many paths, fsync one by one: that costs less than the start of the batch child. */
+const MIN_BATCH = 16;
+
+type Failure = {code: string, message: string};
+const OUT_OF_FDS = new Set(["EMFILE", "ENFILE"]);
+
+/** The error per path from the batch child, or null when the child did not run to the end or ran out of fds. */
+function fsyncBatch(paths: string[]): (Failure | null)[] | null {
+  const r = spawnSync(process.execPath, [BATCH], {
+    input: JSON.stringify({ paths }), encoding: "utf8", timeout: 60_000, killSignal: "SIGKILL",
+    env: { ...process.env, UV_THREADPOOL_SIZE: "16" },
+  });
+  if (r.status !== 0) return null;
+  let out: unknown;
+  try {
+    out = JSON.parse(r.stdout);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(out) || out.length !== paths.length) return null;
+  return out.some((f) => OUT_OF_FDS.has(f?.code)) ? null : out;
+}
+
+/**
+ * Make files and dirs durable, and block until all are. A child process fsyncs the paths concurrently: each fsync
+ * waits for a disk flush, and the disk merges flushes that run at the same time. A file that fails to sync throws;
+ * a dir that refuses fsync is skipped. When the child itself fails or runs out of fds, this thread syncs each path.
+ * Allowed importer: state.
+ */
+export function fsyncAll(files: string[], dirs: string[] = []): void {
+  const paths = [...files, ...dirs];
+  const failures = paths.length >= MIN_BATCH ? fsyncBatch(paths) : null;
+  if (!failures) {
+    paths.forEach((p, i) => fsyncPath(p, i >= files.length));
+    return;
+  }
+  const bad = failures.findIndex((f, i) => f !== null && i < files.length);
+  if (bad >= 0) throw Object.assign(new Error(failures[bad]!.message), { code: failures[bad]!.code, path: paths[bad] });
 }
 
 function resolveState(rel, ctx) {
@@ -229,15 +329,16 @@ function resolveState(rel, ctx) {
 /**
  * Atomic write under the state root, or a contained unlink when bytes is null. Refuses a path inside any read-set.
  * opts.exclusive: fail with EEXIST when the file exists (the target appears complete or not at all).
+ * opts.sync false: no fsync, and the caller passes the returned abs and dirs to fsyncAll.
  * Allowed importers: state, metrics, gate.
  */
-export function writeState(rel: string, bytes: Uint8Array | null, ctx: object, opts: {mode?: number, exclusive?: boolean} = {}) {
+export function writeState(rel: string, bytes: Uint8Array | null, ctx: object, opts: {mode?: number, exclusive?: boolean, sync?: boolean} = {}): {abs: string, dirs: string[]} {
   const abs = resolveState(rel, ctx);
   if (bytes === null) {
     fs.rmSync(abs, { force: true });
-    return;
+    return { abs, dirs: [] };
   }
-  atomicWrite(abs, bytes, opts.mode ?? 0o600, Boolean(opts.exclusive));
+  return atomicWrite(abs, bytes, opts.mode ?? 0o600, Boolean(opts.exclusive), opts.sync !== false);
 }
 
 /** One O_APPEND write plus fsync under the state root. A missing final newline is added. */
