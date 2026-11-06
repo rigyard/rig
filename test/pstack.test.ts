@@ -80,26 +80,32 @@ describe("pstack model rules, a whole file with keep_header (S3.3)", () => {
     assert.deepEqual(readFileSync(s.fx.path(RULES)), before);
   });
 
-  test("Cursor: no Cursor tier renders no .mdc and says so; Cursor tiers render dash-fused tokens with alwaysApply", (t) => {
+  test("Cursor tiers render dash-fused listed slugs with alwaysApply; no Cursor tier renders no .mdc and says so; a partial set is E_SCHEMA", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());
-    assert.match(s.rig(["plan"]).stdout, /^info absent cursor pstack\/models: tiers\.json names no cursor model, so ~\/\.cursor\/rules\/pstack-models\.mdc does not render$/m);
-
-    const tiers = repoJson("models/tiers.json");
-    for (const [name, row] of Object.entries(tiers.tiers)) row.cursor = `slug-${name}`;
-    writeFileSync(join(s.root, "models/tiers.json"), json(tiers));
-    const w = loadWorld(s.env);
-    const desired = render(compose(w), w);
-    assert.deepEqual(desired.errors, []);
-    const entry = desired.entries.get(s.fx.path(".cursor/rules/pstack-models.mdc"));
+    const w0 = loadWorld(s.env);
+    const d0 = render(compose(w0), w0);
+    assert.deepEqual(d0.errors, []);
+    const entry = d0.entries.get(s.fx.path(".cursor/rules/pstack-models.mdc"));
     assert.equal(entry.keep_header, true);
     const body = new TextDecoder().decode(entry.bytes);
-    assert.ok(body.startsWith("---\nalwaysApply: true\n---\n# budget: medium (high)\nfeature, refactoring: slug-fast-high\n"), body);
-    assert.match(body, /^hardest tasks: slug-strong-high$/m, "xhigh clamps to the top of the Cursor ladder");
+    assert.ok(body.startsWith("---\nalwaysApply: true\n---\n# budget: medium (high)\nfeature, refactoring: claude-sonnet-5-5-high\n"), body);
+    assert.match(body, /^hardest tasks: claude-opus-5-5-high$/m, "xhigh clamps to the top of the Cursor ladder");
+    assert.match(body, /^arena runners: claude-opus-5-5-high, claude-sonnet-5-5-high$/m);
+
+    // No Cursor tier at all: nothing renders, with an info line.
+    const none = repoJson("models/tiers.json");
+    for (const row of Object.values<Record<string, string>>(none.tiers)) delete row.cursor;
+    writeFileSync(join(s.root, "models/tiers.json"), json(none));
+    const nw = loadWorld(s.env);
+    const nd = render(compose(nw), nw);
+    assert.deepEqual(nd.errors, []);
+    assert.equal(nd.entries.has(s.fx.path(".cursor/rules/pstack-models.mdc")), false);
+    assert.match(s.rig(["plan"]).stdout, /^info absent cursor pstack\/models: tiers\.json names no cursor model, so ~\/\.cursor\/rules\/pstack-models\.mdc does not render$/m);
 
     // A Cursor model for some tiers only is a render error for that file, not a silent gap.
     const partial = repoJson("models/tiers.json");
-    partial.tiers.strong.cursor = "slug-strong";
+    delete partial.tiers.strong.cursor;
     writeFileSync(join(s.root, "models/tiers.json"), json(partial));
     const pw = loadWorld(s.env);
     const pd = render(compose(pw), pw);

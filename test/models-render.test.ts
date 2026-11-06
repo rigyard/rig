@@ -141,7 +141,8 @@ describe("rig models set changes exactly the expected cells (S3.3, S3.4, S3.7)",
     assert.equal(r.code, 0, r.stdout);
     assert.match(r.stdout, /^patch-cells +cells +omp +~\/\.omp\/agent\/config\.yml +models\/omp$/m);
     assert.deepEqual(touched(r.files), { ".omp/agent/config.yml": [[5, "  advisor: prov/model-a:medium", "  advisor: prov/model-z:medium"]] });
-    assert.deepEqual(r.others, []);
+    assert.deepEqual(r.others, [".omp/agent/pstack-models.md"], "the pstack role table of omp follows the tier");
+    assert.match(s.read(".omp/agent/pstack-models.md"), /^hardest tasks: prov\/model-z:high$/m);
     assert.deepEqual(lineDiff(tiersBefore, s.read(TIERS)).map(([, , after]) => after.trim()), ['"omp": "prov/model-z"']);
     const p = s.rig(["plan"]);
     assert.equal(p.code, 0, p.stdout);
@@ -203,7 +204,8 @@ describe("rig models set changes exactly the expected cells (S3.3, S3.4, S3.7)",
       ".codex/config.toml": [[22, 'default_subagent_model = "codex-model-s"', 'default_subagent_model = "codex-model-z"']],
       ".codex/agents/reviewer.toml": [[3, 'model = "codex-model-s"', 'model = "codex-model-z"']],
     });
-    assert.deepEqual(r.others, []);
+    assert.deepEqual(r.others, [".codex/pstack-models.md"], "the pstack role table of Codex follows the tier");
+    assert.match(s.read(".codex/pstack-models.md"), /^hardest tasks: codex-model-z xhigh$/m);
   });
 
   test("a set whose plan blocks writes nothing, tiers.json included", (t) => {

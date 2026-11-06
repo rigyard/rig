@@ -35,16 +35,28 @@
   },
   "tiers": {
     "reason": {
-      "claude": "fable"
+      "claude": "fable",
+      "codex": "gpt-6-astra",
+      "cursor": "claude-opus-5-5",
+      "omp": "google-antigravity/gemini-4-argon"
     },
     "strong": {
-      "claude": "opus"
+      "claude": "opus",
+      "codex": "gpt-6.1-sol",
+      "cursor": "claude-opus-5-5",
+      "omp": "google-antigravity/claude-opus-5-5"
     },
     "fast": {
-      "claude": "sonnet"
+      "claude": "sonnet",
+      "codex": "gpt-6.1-terra",
+      "cursor": "claude-sonnet-5-5",
+      "omp": "google-antigravity/gemini-3.8-flash"
     },
     "cheap": {
-      "claude": "haiku"
+      "claude": "haiku",
+      "codex": "gpt-6-luna",
+      "cursor": "claude-haiku-5-5",
+      "omp": "google-antigravity/gemini-3.8-flash"
     }
   }
 }

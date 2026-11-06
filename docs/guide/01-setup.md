@@ -77,7 +77,7 @@ info budget */harness:codex: always-on: 654 characters, 164 tokens
 `rig doctor` reads your machine and your config. It writes nothing and logs nothing. On a fresh HOME with the repo defaults, it prints:
 
 ```text
-info  drift 305 changes pending; rig plan lists them
+info  drift 309 changes pending; rig plan lists them
 0 errors, 0 warnings
 ```
 

@@ -11,17 +11,29 @@ rig keeps model choices in two files under `models/`:
 
 A vendor release changes `tiers.json` only. Roles stay as they are. When a role asks for an effort that the harness does not have, rig uses the highest rung of the ladder at or below it, so `xhigh` becomes `high` on Cursor. Read [decision 0018](../decisions/0018-four-tiers-and-second-opinion-slot.md) for why there are four tiers.
 
-On main, `tiers.json` names Claude models only. Other harnesses get their rows from your overlay (see [Add a harness's models](#add-a-harnesss-models)). The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
+On main, `tiers.json` names a model per tier for all four harnesses. Claude tiers are aliases. The Codex, Cursor and omp values are ids that each harness lists, and you can change any of them with `rig models set`. The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
 
 ## Read the effective table
 
 ```text
 rig models
-harness  tier    model   source
-claude   reason  fable   tiers.json
-claude   strong  opus    tiers.json
-claude   fast    sonnet  tiers.json
-claude   cheap   haiku   tiers.json
+harness  tier    model                                source
+claude   reason  fable                                tiers.json
+claude   strong  opus                                 tiers.json
+claude   fast    sonnet                               tiers.json
+claude   cheap   haiku                                tiers.json
+codex    reason  gpt-6-astra                          tiers.json
+codex    strong  gpt-6.1-sol                          tiers.json
+codex    fast    gpt-6.1-terra                        tiers.json
+codex    cheap   gpt-6-luna                           tiers.json
+omp      reason  google-antigravity/gemini-4-argon    tiers.json
+omp      strong  google-antigravity/claude-opus-5-5   tiers.json
+omp      fast    google-antigravity/gemini-3.8-flash  tiers.json
+omp      cheap   google-antigravity/gemini-3.8-flash  tiers.json
+cursor   reason  claude-opus-5-5                      tiers.json
+cursor   strong  claude-opus-5-5                      tiers.json
+cursor   fast    claude-sonnet-5-5                    tiers.json
+cursor   cheap   claude-haiku-5-5                     tiers.json
 ```
 
 The `source` column tells you where each value comes from. Claude tiers are aliases, so `opus` always resolves to the current model of that family. Claude Code can remap an alias for every session through an environment variable, and `rig models` shows that:
@@ -33,6 +45,7 @@ claude   reason  fable           tiers.json
 claude   strong  acme-opus-test  env override (ANTHROPIC_DEFAULT_OPUS_MODEL)
 claude   fast    sonnet          tiers.json
 claude   cheap   haiku           tiers.json
+...
 ```
 
 `rig models` reads only. Most Claude releases need no edit at all, because the alias follows the release ([decision 0019](../decisions/0019-claude-aliases-with-optional-pins.md)).
@@ -91,24 +104,37 @@ patch-cells  cells  claude  ~/.claude/agents/quick-worker.md  models/claude
 
 A pin renders the full id into the agent's `model` line and keeps the display token. The environment override does not apply to a pinned tier. Later swaps of a pinned tier go through `rig models set` and keep the pin shape.
 
+## Read the pstack role table of each harness
+
+The pstack skills pick a model per role from a rule file. rig writes one per harness from the table above:
+
+| Harness | File | Line |
+| --- | --- | --- |
+| Claude Code | `~/.claude/rules/pstack-models.md` | `swarm workers: sonnet high` |
+| Codex | `~/.codex/pstack-models.md` | `swarm workers: gpt-6.1-terra high` |
+| Cursor | `~/.cursor/rules/pstack-models.mdc` | `swarm workers: claude-sonnet-5-5-high` |
+| omp | `~/.omp/agent/pstack-models.md` | `swarm workers: google-antigravity/gemini-3.8-flash:high` |
+
+Codex passes the `model` and `reasoning_effort` of the line to `spawn_agent`. Cursor reads the fused slug. omp passes the value as `model` only when `task.perCallModel` allows it and, when `task.perCallModelAllow` is set, lists it. Those two settings are yours: rig adopts and patches only the `modelRoles` map in `~/.omp/agent/config.yml`, and no other key there. A rung that a harness lacks clamps to the top of its ladder, so `xhigh` is `high` on Cursor and omp. Change one cell with `rig models set strong <model> --harness codex`.
+
 ## Add a harness's models
 
-The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo does not set. For Codex:
+The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo does not set. The repo names all four seeded harnesses, so the overlay is for a harness that you add as a target ([Make it yours](./09-make-it-yours.md)). For a harness `acme`:
 
 ```text
 {
   "schema": 1,
   "tiers": {
-    "reason": {"codex": "acme-codex-max"},
-    "strong": {"codex": "acme-codex"},
-    "fast": {"codex": "acme-codex-mini"},
-    "cheap": {"codex": "acme-codex-nano"}
+    "reason": {"acme": "acme-max"},
+    "strong": {"acme": "acme-pro"},
+    "fast": {"acme": "acme-mini"},
+    "cheap": {"acme": "acme-nano"}
   }
 }
 ```
 
-`rig models` then shows four `codex` rows, and `rig plan` adds `create block codex ~/.codex/config.toml models/codex`. That block sits between `rig:models` markers. Whether markers stay limited to inserted blocks like this one is an open decision ([assumptions and open questions](../assumptions-and-open-questions.md)).
+`rig models` then shows four `acme` rows, and the model surfaces of the `acme` target render. A harness that no tier names renders none of its model surfaces, and `rig plan` prints an `info absent` line for each.
 
-The overlay can only add. A cell that the repo already sets fails with `E_OVERLAY_CONFLICT`. With an overlay `tiers.json` present, `rig models set` refuses with exit 2, because it would copy your overlay values into the repo file. Edit the overlay file by hand and run `rig apply`. That path uses the same writer. The same add-only rule holds for an overlay `models/roles.json`.
+The overlay can only add. A cell that the repo already sets, such as `codex` on `strong`, fails with `E_OVERLAY_CONFLICT`. With an overlay `tiers.json` present, `rig models set` refuses with exit 2, because it would copy your overlay values into the repo file. Edit the overlay file by hand and run `rig apply`. That path uses the same writer. The same add-only rule holds for an overlay `models/roles.json`.
 
 Next: [Read your usage](./08-stats.md).

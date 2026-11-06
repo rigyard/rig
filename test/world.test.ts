@@ -57,11 +57,15 @@ describe("loadWorld on the repo's own data", () => {
     }
   });
 
-  test("models hold Claude aliases only; other harness rows are for the overlay to add", () =>
+  test("models hold Claude aliases, and every tier names one string id for each other harness", () =>
     withFixture({}, (fx) => {
-      const { tiers } = fx.load().tiers;
-      assert.deepEqual(Object.fromEntries(Object.entries(tiers).map(([t, row]) => [t, row])),
-        { reason: { claude: "fable" }, strong: { claude: "opus" }, fast: { claude: "sonnet" }, cheap: { claude: "haiku" } });
+      const tiers: Record<string, Record<string, string>> = fx.load().tiers.tiers;
+      assert.deepEqual(Object.fromEntries(Object.entries(tiers).map(([t, row]) => [t, row.claude])),
+        { reason: "fable", strong: "opus", fast: "sonnet", cheap: "haiku" });
+      for (const [t, row] of Object.entries(tiers)) {
+        assert.deepEqual(Object.keys(row).sort(), ["claude", "codex", "cursor", "omp"], t);
+        for (const h of ["codex", "cursor", "omp"]) assert.match(row[h], /^[^\s]+$/, `${t} ${h}`);
+      }
     }));
 
   test("the real repo root loads with no RIG_ROOT once targets/ exists", () => {
@@ -177,7 +181,7 @@ describe("overlay merge adds only", () => {
       overlay: {
         "rig.json": { schema: 2, packs: { mine: { scope: "project", projects: ["~/src/app"] } }, fill: { "eng:ground": "mine/notes" }, private_terms: ["acme-internal"] },
         ...pack("mine", skill("notes"), { scopes: ["machine-hidden", "project"] }),
-        "models/tiers.json": { schema: 1, tiers: { strong: { omp: "<provider>/<model-a>" } } },
+        "models/tiers.json": { schema: 1, tiers: { strong: { acme: "<provider>/<model-a>" } } },
       },
     }, (fx) => {
       const w = fx.load();
@@ -186,7 +190,7 @@ describe("overlay merge adds only", () => {
       assert.equal(w.packs.get("mine").root, "overlay");
       assert.deepEqual(w.config.fill, { "eng:ground": "mine/notes" });
       assert.deepEqual(w.config.private_terms, ["acme-internal"]);
-      assert.deepEqual(w.tiers.tiers.strong, { claude: "opus", omp: "<provider>/<model-a>" });
+      assert.deepEqual(w.tiers.tiers.strong, { claude: "opus", codex: "gpt-6.1-sol", cursor: "claude-opus-5-5", omp: "google-antigravity/claude-opus-5-5", acme: "<provider>/<model-a>" });
       assert.equal(w.roots.overlay, fx.path(".config/rig"));
     }));
   test("adds a scope choice to a repo pack entry that has none", () =>

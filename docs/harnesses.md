@@ -11,12 +11,13 @@ This page lists, per harness, the dirs that the harness reads and the files that
 - **Mode skill.** rig places a `craft/` dir in every skill dir that holds a vendored leaf, and each harness reads one `craft`. Its `references/adapter.md` holds one section per harness that reads the dir, headed with the harness id, such as `## codex`. Each `SKILL.md` copy of a vendored pack links that file in two lines after its frontmatter. With the seeded default, rig writes `craft/` in `~/.claude/skills` and in `~/.agents/skills`. See [Run multi-step work with /craft](./guide/06-craft.md).
 - **Frame triggers.** The frame of each harness lists the `rig.json` `fill` triggers that name no domain, one line each. A line has the form `<when>: read <path> and apply it.` The path names the copy of the unit in the first read dir of that harness that holds one, written with `~`, so the frame bytes do not depend on HOME. With the seeded default, the Claude Code frame names `~/.claude/skills`, and the Codex, omp and Cursor frames name `~/.agents/skills` (`test/frame.test.ts`). See [Run multi-step work with /craft](./guide/06-craft.md).
 - **Never write.** Globs that rig refuses to render into. A render there is an `E_CONTAINMENT` error (`test/render.test.ts`, "nothing renders under a never_write glob").
-- **Model surfaces.** Model-bearing files and their render kind. `frontmatter` patches the model keys of a file that you wrote. `whole` is a file that rig owns. `block` is a region between marker lines. `keys` patches YAML values line by line. A surface renders only when `models/tiers.json` names a model for that harness. On main it names models for Claude Code only, so `rig plan` prints lines such as:
+- **Model surfaces.** Model-bearing files and their render kind. `frontmatter` patches the model keys of a file that you wrote. `whole` is a file that rig owns. `block` is a region between marker lines. `keys` patches YAML values line by line. A surface renders only when `models/tiers.json` names a model for that harness. On main it names models for all four harnesses. A harness that no tier names renders nothing, and `rig plan` says so:
 
 ```text
-info absent codex models/codex: tiers.json names no codex model, so ~/.codex/config.toml does not render
-info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/config.yml does not render
+info absent cursor pstack/models: tiers.json names no cursor model, so ~/.cursor/rules/pstack-models.mdc does not render
 ```
+
+A file that rig only adopts, such as `~/.omp/agent/config.yml` or a Cursor agent file, is skipped without a line while it is absent. An omp `config.yml` with no top-level `modelRoles` key is skipped the same way. One that has the key as a flow map (`modelRoles: {task: a}`) or with the key in quotes blocks with `E_LOCATOR`: edit it to a plain block map.
 
 [Pick and swap models](./guide/07-models.md) covers `models/tiers.json`.
 
@@ -45,7 +46,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Instructions cap: probe (d) measured a 32,768-byte limit on `AGENTS.md`. The `budget` gate blocks above that cap and warns above 8,192 bytes. The warning level is a rig choice (`test/gate-cve-budget.test.ts`, "a 33,000-byte Codex instructions file blocks and a 9,000-byte one warns").
 - Descriptions: the `budget` gate blocks a visible skill description above 1,024 characters.
 - Listing: the `budget` gate does not count a skill whose sidecar hides it (`test/gate-cve-budget.test.ts`, "a Codex skill with the sidecar hide is not listed; a sidecar with another value is").
-- Model surfaces: `~/.codex/agents/{role}.toml`, kind `whole`, with text from `~/.claude/agents/{role}.md`. `~/.codex/config.toml`, kind `block` between `rig:models` markers, the `[agents]` table with `default_subagent_model` and `default_subagent_reasoning_effort`. Markers go only around inserted blocks. That is an open decision, see [assumptions and open questions](./assumptions-and-open-questions.md).
+- Model surfaces: `~/.codex/agents/{role}.toml`, kind `whole`, with text from `~/.claude/agents/{role}.md`. `~/.codex/config.toml`, kind `block` between `rig:models` markers, the `[agents]` table with `default_subagent_model` and `default_subagent_reasoning_effort`. Markers go only around inserted blocks. That is an open decision, see [assumptions and open questions](./assumptions-and-open-questions.md). The pstack pack adds `~/.codex/pstack-models.md`, kind `whole`: one role line per pstack role, such as `swarm workers: gpt-6.1-terra high`.
 - Session hook: none.
 
 ## omp
@@ -56,7 +57,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Commands: `~/.omp/agent/commands/<name>.md`, the source as is. A bare `/name` runs it (probe (e)).
 - Agents and rules: no format. `rig plan` prints an `absent` info line for each.
 - Frame: `~/.omp/agent/AGENTS.md`, a managed block between `<!-- rig:frame:start -->` and `<!-- rig:frame:end -->`. rig keeps your own text outside the block as it is.
-- Model surfaces: `~/.omp/agent/config.yml`, kind `keys`, the `modelRoles` map. omp itself rewrites this file (probe (c)). The `keys` kind finds its values by structure and uses no markers.
+- Model surfaces: `~/.omp/agent/config.yml`, kind `keys`, the `modelRoles` map. omp itself rewrites this file (probe (c)). The `keys` kind finds its values by structure and uses no markers. The pstack pack adds `~/.omp/agent/pstack-models.md`, kind `whole`, with lines such as `swarm workers: google-antigravity/gemini-3.8-flash:high`.
 - Session hook: none.
 
 ## Cursor
@@ -68,7 +69,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 - Agents: `~/.cursor/agents/<name>.md` with `name`, `description` and the body. The Claude model keys stay out.
 - Rules: `~/.cursor/rules/<name>.mdc`, with `alwaysApply: true` added.
 - Frame: `~/.cursor/rules/rig-frame.mdc`, a whole file with `alwaysApply: true`. Whether Cursor loads user-level rules and local plugins is not verified (probe (j), assumption A24).
-- Model surfaces: `~/.cursor/agents/{role}.md`, kind `frontmatter`, `model: <slug>[effort=<e>]`. A pack can add its own surfaces in `pack.json` `model_surfaces`.
+- Model surfaces: `~/.cursor/agents/{role}.md`, kind `frontmatter`, `model: <slug>[effort=<e>]`. The pstack pack adds `~/.cursor/rules/pstack-models.mdc`, kind `whole`, with fused slugs such as `claude-sonnet-5-5-high`. A pack can add its own surfaces in `pack.json` `model_surfaces`.
 - Session hook: none. Cursor's `stop` event fires once per turn, so it cannot carry a per-session hook (architecture section 13).
 
 ## Harnesses after v0

@@ -584,7 +584,7 @@ export function patch(bytes: Uint8Array | null, entry: DesiredEntry): {current: 
     if (typeof e?.code !== "string") throw e;
     const prefix = `${e.code}: `;
     const message = e.message.startsWith(prefix) ? e.message.slice(prefix.length) : e.message;
-    const error = { code: e.code, message, ...(e.path ? { path: e.path } : {}) };
+    const error = { code: e.code, message, ...(e.path ? { path: e.path } : {}), ...((e as {absent?: unknown}).absent === true ? { absent: true as const } : {}) };
     return { current: null, next: bytes ?? new Uint8Array(), markers: "n/a", error };
   }
 }

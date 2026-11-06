@@ -339,7 +339,10 @@ test("locator: a header that matches twice, an absent row and an absent YAML key
   assert.throws(() => patch(bytesOf(src.replace(/^\| quick-worker {3}\|.*\n/m, "")), entry), { code: "E_LOCATOR" });
   const omp = cellFixtures(world).find((f) => f.file === "config.yml").entry;
   assert.throws(() => patch(bytesOf(text(fixture("config.yml")).replace("  plan: prov/model-r:high\n", "")), omp), { code: "E_LOCATOR" });
-  assert.throws(() => patch(bytesOf("modelRoles: {task: a}\n"), omp), { code: "E_LOCATOR" });
+  assert.throws(() => patch(bytesOf("modelRoles: {task: a}\n"), omp), { code: "E_LOCATOR", message: /is present but is not a plain block map/ });
+  assert.throws(() => patch(bytesOf('"modelRoles":\n  task: a\n'), omp), { code: "E_LOCATOR", message: /is present but is not a plain block map/ });
+  assert.throws(() => patch(bytesOf("symbolPreset: ascii\n"), omp), { code: "E_LOCATOR", absent: true });
+  assert.throws(() => patch(bytesOf("modelRoles:\n  plan: a\n"), omp), (e: {code?: string, absent?: unknown}) => e.code === "E_LOCATOR" && e.absent === undefined);
   const dupKey = text(fixture("config.yml")).replace("  plan: prov/model-r:high\n", "  plan: prov/model-r:high\n  plan: prov/model-r:high\n");
   assert.throws(() => patch(bytesOf(dupKey), omp), { code: "E_LOCATOR" });
   const pstack = cellFixtures(world).find((f) => f.file === "pstack-models.md").entry;

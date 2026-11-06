@@ -26,7 +26,7 @@ export type Unit = {
  * `info` holds the compose notes that rig plan prints.
  */
 export type Stack = {units: Unit[], errors: RigError[], mode?: Mode, disabled?: string[], info?: string[]};
-export type RigError = {code: string, message: string, path?: string, harness?: string};
+export type RigError = {code: string, message: string, path?: string, harness?: string, absent?: true};
 
 /** Core seal, packs, scope, disable, replace, clash rules, then the mode compile. Pure. */
 export function compose(world: World): Stack {

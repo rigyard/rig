@@ -291,7 +291,10 @@ describe("rig apply with metrics.session_hook (S5.5)", () => {
     assert.equal(after, SETTINGS_WITH_RIG.replace(ID, command), "every other byte is the original");
     const diff = changed(before, s.fx.snapshot()).filter((x) => !x.startsWith(STATE));
     assert.ok(diff.includes(".claude/settings.json"));
-    for (const f of Object.keys(OTHER_HOOK_FILES)) assert.ok(!diff.includes(f), `${f} keeps its bytes`);
+    for (const [f, text] of Object.entries(OTHER_HOOK_FILES)) {
+      if (f === ".codex/config.toml") assert.ok(s.fx.read(f).startsWith(text), "the Codex models block goes after the foreign bytes");
+      else assert.ok(!diff.includes(f), `${f} keeps its bytes`);
+    }
 
     const again = s.rig(["apply"]);
     assert.equal(again.code, 0, again.all);

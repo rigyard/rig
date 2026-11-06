@@ -132,14 +132,17 @@ function planOwned(e, o, ent, patch) {
   return mkOp("update", "owned", o, e, { next: bytes, after: want, entry_before: ent, entry_after: entryAfter, diff: unifiedDiff(o.tilde, o.bytes, bytes) });
 }
 
+/** A cells entry of surfaces on files that the user writes and rig never creates: agent frontmatter and YAML key maps. */
+const isAdoptOnly = (e: {kind: string, surfaces?: {kind: string}[]}) => e.kind === "cells" && (e.surfaces ?? []).every((s) => s.kind === "frontmatter" || s.kind === "keys");
+
 function planPatched(e, o, ent, patch) {
   if (!patch) return blockOp(e.kind, o, e, ent, err("E_INTERNAL", `${e.kind} entries need a patch function`, o.tilde));
-  if (e.kind === "cells" && o.sha === null && (e.surfaces ?? []).every((s) => s.kind === "frontmatter")) return null;
+  if (o.sha === null && isAdoptOnly(e)) return null;
   const mismatch = ent && ent.kind !== e.kind;
   const convert = mismatch && kindChange(ent, e.kind, sigOf(o)) === "convert";
   if (mismatch && !convert) return blockOp(e.kind, o, e, ent, err("E_DRIFT", `${o.tilde} is recorded as ${ent.kind}, desired as ${e.kind}`, o.tilde));
   const r = patch(convert ? null : o.bytes, e);
-  if (r.error) return blockOp(e.kind, o, e, ent, r.error);
+  if (r.error) return !ent && isAdoptOnly(e) && r.error.absent === true ? null : blockOp(e.kind, o, e, ent, r.error);
   const have = currentDigest(e.kind, r.current);
   const want = desiredDigest(e);
   const next = Buffer.from(r.next);

@@ -234,18 +234,21 @@ describe("rig models", () => {
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /^models\/tiers\.json: tiers\.strong\.claude: opus -> model-z\n/);
     assert.match(r.stdout, /^create +owned +claude +~\/\.claude\/rules\/pstack-models\.md +pstack\/models$/m);
-    assert.match(r.stdout, /^1 change, 0 blocks$/m);
+    for (const rel of ["~/.codex/pstack-models.md", "~/.cursor/rules/pstack-models.mdc", "~/.omp/agent/pstack-models.md", "~/.codex/config.toml"]) {
+      assert.match(r.stdout, new RegExp(`^create +(owned|block) +\\w+ +${rel.replaceAll(".", "\\.")} `, "m"), rel);
+    }
+    assert.match(r.stdout, /^5 changes, 0 blocks$/m);
     assert.match(readFileSync(s.fx.path(".claude/rules/pstack-models.md"), "utf8"), /^hardest tasks: model-z xhigh$/m);
     const afterText = readFileSync(file, "utf8");
     const a = beforeText.split("\n");
     const b = afterText.split("\n");
     assert.equal(a.length, b.length);
-    assert.deepEqual(a.map((l, i) => (l === b[i] ? null : [l.trim(), b[i].trim()])).filter(Boolean), [['"claude": "opus"', '"claude": "model-z"']]);
+    assert.deepEqual(a.map((l, i) => (l === b[i] ? null : [l.trim(), b[i].trim()])).filter(Boolean), [['"claude": "opus",', '"claude": "model-z",']]);
     const expected = JSON.parse(beforeText);
     expected.tiers.strong.claude = "model-z";
     assert.deepEqual(JSON.parse(afterText), expected);
     const diff = changed(before, s.fx.snapshot());
-    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)), [".claude/rules/pstack-models.md", "rig/models/tiers.json"]);
+    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)), [".claude/rules/pstack-models.md", ".codex/config.toml", ".codex/pstack-models.md", ".cursor/rules/pstack-models.mdc", ".omp/agent/pstack-models.md", "rig/models/tiers.json"]);
   });
 
   test("set refuses when the overlay has models/tiers.json: exit 2, the repo file keeps its bytes", (t) => {

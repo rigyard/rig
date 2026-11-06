@@ -11,7 +11,7 @@ warn budget pstack/skills/ketchup-video/SKILL.md: reference chain skills/ketchup
 ...
 info budget */harness:claude: always-on: 1,289 characters, 323 tokens
 ...
-info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/config.yml does not render
+info absent codex models/codex: ~/.claude/agents/deep-reasoner.md is absent, so ~/.codex/agents/deep-reasoner.toml does not render
 create  owned  claude  ~/.claude/rules/rig-frame.md                                                              core/rig-frame
 create  block  codex   ~/.codex/AGENTS.md                                                                        core/rig-frame
 ...
@@ -19,10 +19,10 @@ create  owned  claude  ~/.claude/skills/craft/SKILL.md                          
 ...
 create  owned  claude  ~/.claude/skills/craft/hub.md                                                             core/craft
 ...
-305 changes, 0 blocks
+309 changes, 0 blocks
 ```
 
-The checkout seeds pstack, cursor-team-kit, cli-for-agent and product, so a fresh HOME gets 305 files. The two `warn budget` lines are reference chains inside upstream pstack skills. rig does not edit upstream text to clear them. Gate findings come first, then `info` lines, then one line per op. Each op line names the op, the entry kind, the harness, the path and the unit. An `owned` file belongs to rig as a whole. A `block` entry is one marked region inside a file that you also edit, such as `~/.codex/AGENTS.md`. The last line counts the changes and the blocks.
+The checkout seeds pstack, cursor-team-kit, cli-for-agent and product, so a fresh HOME gets 309 files. The two `warn budget` lines are reference chains inside upstream pstack skills. rig does not edit upstream text to clear them. Gate findings come first, then `info` lines, then one line per op. Each op line names the op, the entry kind, the harness, the path and the unit. An `owned` file belongs to rig as a whole. A `block` entry is one marked region inside a file that you also edit, such as `~/.codex/AGENTS.md`. The last line counts the changes and the blocks.
 
 `rig plan` writes nothing and logs nothing. After the run above, the temp HOME was still empty. It exits 1 when anything blocks, else 0.
 
@@ -34,8 +34,8 @@ Run `rig apply`. It runs the same pipeline and then writes the ops. Start from a
 ...
 update  block  codex   ~/.codex/AGENTS.md                                                                        core/rig-frame
 ...
-305 changes, 0 blocks
-run 20261105T204938.618Z-1: 305 ops applied
+309 changes, 0 blocks
+run 20261105T204938.618Z-1: 309 ops applied
 ```
 
 Every write into a harness file goes through this journaled transaction. `rig apply` runs it for the whole plan. `rig models set` runs it for the model cells only, as [Models](./07-models.md) shows. For each op, the transaction copies the current bytes into `backups/<run-id>/` and appends an intent line to the journal. Then it checks the file once more and writes through a temp file and a rename. After the last op it replaces `installed.json` and appends a `commit` line. The state root now holds:
@@ -55,7 +55,6 @@ Run `rig apply` a second time:
 
 ```text
 ...
-info absent cursor models/cursor: tiers.json names no cursor model, so ~/.cursor/agents/{role}.md does not render
 0 changes, 0 blocks
 ```
 
@@ -93,7 +92,7 @@ run 20261105T205009.647Z-1: <n> ops applied
 Pass the run id of the AGENTS.md run to `--undo`. `rig apply --undo 20261105T204938.618Z-1` prints:
 
 ```text
-undid run 20261105T204938.618Z-1 as run 20261105T204954.970Z-2: 305 ops restored
+undid run 20261105T204938.618Z-1 as run 20261105T204954.970Z-2: 309 ops restored
 ```
 
 rig walks the journal of that run in reverse. Each file it changed gets its pre-image back, byte for byte. Each file it created moves into the backups of the new run, because rig never deletes. Here `cmp` found `~/.codex/AGENTS.md` identical to the hand-written original, and `installed.json` went back to `"entries": {}`.
@@ -103,7 +102,7 @@ The undo is a new journaled run with its own backups. Before it writes, it check
 ```text
 conflict E_UNDO_CONFLICT ~/.claude/rules/pstack-models.md: ~/.claude/rules/pstack-models.md no longer has the after hash of run 20261105T204938.618Z-1
 ...
-305 conflicts: nothing restored
+309 conflicts: nothing restored
 ```
 
 ## Recover from a crash

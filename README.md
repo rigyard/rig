@@ -69,7 +69,7 @@ Exit codes: `0` done, `1` blocked or failed, `2` usage or config error.
 
 ## Make it yours
 
-Put your own config in `~/.config/rig`. The overlay adds packs, disables default units and adds model rows for harnesses that the repository leaves empty. It never changes a value that the repository sets. When it tries, rig stops with `E_OVERLAY_CONFLICT`. The overlay lives outside the checkout, so a `git pull` of rig leaves it alone. [Make it yours](./docs/guide/09-make-it-yours.md) covers the four customization operations and how to add a harness target as data.
+Put your own config in `~/.config/rig`. The overlay adds packs, disables default units and adds model rows that the repository leaves empty. It never changes a value that the repository sets. When it tries, rig stops with `E_OVERLAY_CONFLICT`. The overlay lives outside the checkout, so a `git pull` of rig leaves it alone. [Make it yours](./docs/guide/09-make-it-yours.md) covers the four customization operations and how to add a harness target as data.
 
 ## Develop rig
 

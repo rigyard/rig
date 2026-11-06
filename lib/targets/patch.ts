@@ -531,6 +531,14 @@ function yamlMap(ctx, map) {
   const head = new RegExp("^" + escapeRe(map) + ":[ \\t]*(#.*)?$");
   const heads = [];
   for (let k = 0; k < ctx.lines.length; k++) if (head.test(ctx.lines[k].t)) heads.push(k);
+  if (heads.length === 0) {
+    // A top-level key in flow style or in quotes is present but not a block map the locator can patch: that blocks.
+    const present = new RegExp("^([\"']?)" + escapeRe(map) + "\\1[ \\t]*:");
+    if (ctx.lines.some((l) => present.test(l.t))) {
+      fail("E_LOCATOR", `${ctx.path}: top-level key "${map}" is present but is not a plain block map ("${map}:" alone on its line)`, { path: ctx.path });
+    }
+    fail("E_LOCATOR", `${ctx.path}: top-level block "${map}:" matches 0 times`, { path: ctx.path, absent: true });
+  }
   if (heads.length !== 1) {
     fail("E_LOCATOR", `${ctx.path}: top-level block "${map}:" matches ${heads.length} times`, { path: ctx.path });
   }
