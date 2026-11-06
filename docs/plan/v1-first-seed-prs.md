@@ -93,7 +93,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Each case builds a fixture HOME with `makeFixtureHome`, runs `bin/rig.ts` with `HOME` set to it, then drives one harness.
   - [ ] Claude Code. `mirrorProject` copies the `.claude/` units of the fixture HOME into a scratch git repo. `claude -p --max-turns <n> --output-format json` runs in that repo with the normal login.
   - [ ] omp. `PI_CODING_AGENT_DIR=<fixture>/.omp/agent omp -p --mode json`, with stdin closed.
-  - [ ] Codex. `mirrorProject` writes `AGENTS.md` and `.agents/skills/` into a scratch workspace. `codex exec -s read-only --ephemeral --ignore-user-config --json -C <workspace>`.
+  - [ ] Codex. `mirrorProject` writes `AGENTS.md` and `.agents/skills/` into a scratch workspace. `codex exec -s read-only --ephemeral --ignore-user-config --json -C <workspace>`. The delegation lane drops `--ephemeral`: with it, `spawn_agent` fails because the child needs the parent's rollout. That lane runs in a temp `CODEX_HOME`, reads the call from the parent rollout and runs only with `RIG_LIVE_CODEX_AUTH_COPY=1`, because it holds a copy of `auth.json` and a Codex token refresh inside the lane spends the real refresh token.
   - [ ] Cursor. `cursor-agent -p --mode ask --trust --workspace <workspace> --output-format json`.
 - [ ] A case reads a Claude transcript only for tool names, file paths and usage fields. It never copies message text into an artifact.
 - [ ] Save every artifact, the TAP file, the harness JSON and `versions.txt`, to `/tmp/swarm-<pr-id>/worker-<n>/`. Return the paths with the report.
@@ -412,6 +412,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 - [ ] Lane 8. Case `omp runs typed craft once`. Save `seed-omp.tap`. Pass when omp loads `craft` once and `how` is absent from the model-visible listing.
 - [ ] Lane 9. Case `undo clears the seed`. Apply, then `rig apply --undo <run>`. Save `seed-undo.tap`. Pass when the fixture HOME manifest equals the manifest before apply.
 - [ ] Lane 10. Case `pin check is fresh`. Run `rig pin check pstack --sha 2776ddd2355d6d6c8747d3964600f28daf62f049` and `rig pin check product --sha b4068209809315ab1578c78e33e73512b29749ca`. Save `seed-pin.tap`. Pass when both print `unchanged, port fresh` and exit 0.
+- [ ] Delegation lanes, two more cases in `test/live/delegation.test.ts`, each run alone. Case `cursor delegates with Task`. Save `delegation-cursor.tap`. Pass when `/craft` names `craft/hub.md` in a tool call's arguments and a `taskToolCall` completes with a `success` result. Case `codex delegates with spawn_agent`. Save `delegation-codex.tap`. It skips unless `RIG_LIVE_CODEX_AUTH_COPY=1`. Pass when `$craft` reads `craft/hub.md` and the parent rollout holds a `spawn_agent` call whose output is a JSON object without an error, or a child rollout exists. The case fails when the temp `auth.json` changes during the run, because Codex then refreshed its token and the operator may need `codex login`.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 

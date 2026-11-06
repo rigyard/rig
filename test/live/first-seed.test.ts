@@ -184,16 +184,17 @@ describe("first seed", () => {
     assert.match(plan.stdout, /^\d+ changes, 0 blocks$/m);
   });
 
-  liveTest("claude reads the adapter and calls no Task", async (t) => {
-    const s = seeded(t, ["claude"]);
-    const { r } = await ask("claude", "/craft a test fails after the last merge in this repo. Follow the Bug fix playbook and delegate the root-cause search to a subagent.", s, { maxTurns: 15 });
+  liveTest("claude spawns Agent, not Task", async (t) => {
+    const s = seeded(t, ["claude"], { "notes/answer.txt": "forty-two\nsecond line\n" });
+    const { r } = await ask("claude", "/craft a test fails after the last merge in this repo. Follow the Bug fix playbook and delegate the root-cause search to a subagent. Delegate exactly one small read-only task: read the file notes/answer.txt and report its first line. Do not edit any file.", s, { maxTurns: 15 });
     if (noVerdict(t, "claude", r)) return;
     const tools = claudeTools(r);
     const names = tools.map((c: {name: string}) => c.name).join(", ");
     assert.ok(reads(r, "craft/references/adapter.md"), `the transcript does not read craft/references/adapter.md: ${names}`);
     assert.ok(!tools.some((c: {name: string}) => c.name === "Task"), `the transcript calls a tool named Task: ${names}`);
     const agent = tools.find((c: {name: string}) => c.name === "Agent");
-    t.diagnostic(agent ? `Agent call; its prompt names craft/hub.md: ${JSON.stringify(agent.input ?? {}).includes("craft/hub.md")}` : `no Agent call: ${names}`);
+    assert.ok(agent, `the transcript holds no Agent tool call: ${names}`);
+    t.diagnostic(`Agent call; its prompt names craft/hub.md: ${JSON.stringify(agent.input ?? {}).includes("craft/hub.md")}`);
   });
 
   liveTest("claude runs office-hours into a repo artifact", async (t) => {
