@@ -3,7 +3,7 @@
 // the fixture units into its .agents/ root, and the path guard fails a pass that comes from the real user scope.
 
 import assert from "node:assert/strict";
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -62,7 +62,9 @@ describe("antigravity", () => {
 
   liveTest("antigravity: typed /craft reads craft/hub.md from the workspace", async (t) => {
     const s = seeded(t);
-    const r = await runAgy("/craft which playbook fits a failing test report?", { dir: s.dir, home: s.home });
+    const hub = join(s.dir, ".agents/skills/craft/hub.md");
+    assert.ok(existsSync(hub), `the workspace has no ${hub}`);
+    const r = await runAgy(`/craft which playbook fits a failing test report? The terminal is disabled, so do not call run_command. Open ${hub} with the view_file tool first.`, { dir: s.dir, home: s.home });
     const guard = pathGuard(ANTIGRAVITY, r.stdout, { dir: s.dir, home: s.home }, t);
     if (noVerdict(t, r, guard.toolNames.length)) return;
     assertMention(guard, (text) => readsPath(text, "craft/hub.md"), "craft/hub.md");
