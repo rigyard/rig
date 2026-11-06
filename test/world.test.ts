@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { writeState } from "../lib/fs.ts";
@@ -64,8 +64,7 @@ describe("loadWorld on the repo's own data", () => {
         { reason: { claude: "fable" }, strong: { claude: "opus" }, fast: { claude: "sonnet" }, cheap: { claude: "haiku" } });
     }));
 
-  test("the real repo root loads with no RIG_ROOT once targets/ exists",
-    { skip: !existsSync(join(ROOT, "targets")) && "targets/ arrives with feat/placement" }, () => {
+  test("the real repo root loads with no RIG_ROOT once targets/ exists", () => {
       const fx = makeFixtureHome({});
       try {
         const w = loadWorld({ HOME: fx.home });
