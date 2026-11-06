@@ -10,6 +10,7 @@ import { treeHash } from "../../lib/tree.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveTest, runHarness } from "../helpers/live.ts";
 import { harnessArgv, realBin, scratchRepo } from "../helpers/mirror.ts";
+import { attestedLast, toolCalls } from "../helpers/transcript.ts";
 import { cleanup, makeRepo, scratch } from "../lock.helpers.ts";
 import { filesUnder, json, repoJson, ROOT } from "../pstack.helpers.ts";
 
@@ -24,16 +25,21 @@ const HUB = "skills/poteto-mode/SKILL.md";
 
 type Extra = Record<string, string | Uint8Array>;
 
-function configRoot(dir: string, enable: string[], extra: Extra) {
+/**
+ * A config root with packs/core, models and targets of trunk, no fill, and only the packs in `enable` in rig.json.
+ * `fromTrunk` names the enabled packs whose folder is copied from trunk. The lock holds the core seal and no pack entry:
+ * a pack gets its entry from `rig pack add`, and an enabled pack without one blocks the plan (lib/gate/pin.ts:19).
+ */
+function configRoot(dir: string, enable: string[], extra: Extra, fromTrunk: string[] = []) {
   const cfg = repoJson("rig.json");
-  for (const sub of ["models", "targets", "packs/core", ...Object.keys(cfg.packs).map((n) => `packs/${n}`)]) {
+  for (const sub of ["models", "targets", "packs/core", ...fromTrunk.map((n) => `packs/${n}`)]) {
     for (const f of filesUnder(join(ROOT, sub))) {
       mkdirSync(join(dir, sub, f.path, ".."), { recursive: true });
       writeFileSync(join(dir, sub, f.path), f.bytes);
       chmodSync(join(dir, sub, f.path), f.mode);
     }
   }
-  const files: Extra = { ...extra, "rig.json": json({ ...cfg, packs: { ...cfg.packs, ...Object.fromEntries(enable.map((p) => [p, {}])) } }) };
+  const files: Extra = { ...extra, "rig.json": json({ ...cfg, fill: {}, packs: Object.fromEntries(enable.map((p) => [p, {}])) }) };
   for (const [rel, bytes] of Object.entries(files)) {
     mkdirSync(join(dir, rel, ".."), { recursive: true });
     writeFileSync(join(dir, rel), bytes);
@@ -42,11 +48,11 @@ function configRoot(dir: string, enable: string[], extra: Extra) {
   writeFileSync(join(dir, "rig.lock.json"), json({ schema: 2, core, packs: {} }));
 }
 
-function setup(t: {after: (fn: () => void) => void}, enable: string[] = [], extra: Extra = {}) {
+function setup(t: {after: (fn: () => void) => void}, enable: string[] = [], extra: Extra = {}, fromTrunk: string[] = []) {
   const fx = makeFixtureHome({});
   t.after(() => fx.cleanup());
   const root = fx.path("rig");
-  configRoot(root, enable, extra);
+  configRoot(root, enable, extra, fromTrunk);
   const env = { PATH: process.env.PATH, HOME: fx.home, RIG_ROOT: root, RIG_NOW: "2026-11-05T12:00:00.000Z" };
   const rig = (...args: string[]) => {
     const r = spawnSync(process.execPath, [BIN, ...args], { env, cwd: fx.home, encoding: "utf8", timeout: 300_000 });
@@ -59,7 +65,7 @@ const skill = (name: string, body: string) => `---\nname: ${name}\ndescription: 
 
 describe("port", () => {
   liveTest("gstack office-hours re-pins without a port", async (t) => {
-    const { rig } = setup(t);
+    const { rig } = setup(t, ["product"], {}, ["product"]);
     const add = rig("pack", "add", GSTACK, "--sha", GS_PORTED, "--name", "product", "--port", "office-hours/SKILL.md", "--port", "office-hours/sections", "--port", "LICENSE");
     assert.equal(add.code, 0, add.all);
     assert.match(add.stdout, /^adopted product in packs\/product\/ /m);
@@ -93,6 +99,7 @@ describe("port", () => {
     const plan = rig("plan");
     assert.equal(plan.code, 1, plan.all);
     assert.match(plan.stdout, /^block pin pstack\/\.: E_PORT_STALE pstack: /m);
+    assert.match(plan.stdout, / 1 block$/m, "the stale port is the only block");
   });
 
   liveTest("claude runs rig-port on a stale fixture", async (t) => {
@@ -108,7 +115,7 @@ describe("port", () => {
     t.after(() => fx.cleanup());
     configRoot(repo.dir, ["fixture"], {
       ".claude/skills/rig-port/SKILL.md": readFileSync(join(ROOT, ".claude/skills/rig-port/SKILL.md")),
-      "packs/fixture/pack.json": json({ schema: 2, name: "fixture", scopes: ["machine-hidden"], license: "MIT", units: {}, mode: { route: "Route the work." } }),
+      "packs/fixture/pack.json": json({ schema: 2, name: "fixture", scopes: ["machine-hidden"], license: "MIT", units: {}, mode: { sections: { route: { domain: "engineering", text: "Route the work." } } } }),
       "packs/fixture/skills/fixture/SKILL.md": skill("fixture", "Read the route in pack.json."),
     });
     const binDir = join(base, "bin");
@@ -117,10 +124,11 @@ describe("port", () => {
     chmodSync(join(binDir, "rig"), 0o755);
     const PATH = `${binDir}:${process.env.PATH}`;
     const rig = (...args: string[]) => spawnSync("rig", args, { env: { ...process.env, PATH }, cwd: repo.dir, encoding: "utf8" });
-    assert.equal(rig("pack", "add", upstream.url, "--sha", upstream.shas[0], "--name", "fixture", "--port", "hub/SKILL.md").status, 0);
-    assert.equal(rig("pin", "set", "fixture", "--ported").status, 0);
-    assert.equal(rig("pin", "check", "fixture", "--sha", upstream.shas[1]).status, 0);
-    assert.equal(rig("pin", "set", "fixture").status, 0);
+    const ok = (r: ReturnType<typeof rig>) => assert.equal(r.status, 0, r.stdout + r.stderr);
+    ok(rig("pack", "add", upstream.url, "--sha", upstream.shas[0], "--name", "fixture", "--port", "hub/SKILL.md"));
+    ok(rig("pin", "set", "fixture", "--ported"));
+    ok(rig("pin", "check", "fixture", "--sha", upstream.shas[1]));
+    ok(rig("pin", "set", "fixture"));
     assert.match(rig("plan").stdout, /E_PORT_STALE fixture/);
     const gitEnv = {
       ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
@@ -135,18 +143,9 @@ describe("port", () => {
     args.splice(args.indexOf("--output-format"), 0, "--verbose", "--allowedTools", "Read Edit Bash(rig:*) Bash(git diff:*)");
     const run = runHarness as unknown as (o: typeof h & {timeoutMs: number}) => Promise<{code: number | null, stdout: string}>;
     const r = await run({ ...h, args, bin: realBin(h.bin, h.env.PATH), timeoutMs: 600_000 });
-    const commands = r.stdout.split("\n").flatMap((l) => {
-      try {
-        return [JSON.parse(l)];
-      } catch {
-        return [];
-      }
-    }).filter((e) => e.type === "assistant")
-      .flatMap((e) => e.message?.content ?? [])
-      .filter((c) => c.type === "tool_use" && c.name === "Bash")
-      .map((c) => String(c.input?.command ?? ""))
-      .filter((c) => /^rig /.test(c));
-    assert.match(commands.at(-1) ?? "", /^rig pin set fixture --ported\b/, `exit ${r.code}: rig commands ${JSON.stringify(commands)}`);
+    const calls = toolCalls(r.stdout);
+    const verdict = attestedLast(calls);
+    assert.ok(verdict.ok, `exit ${r.code}: ${verdict.reason} in ${JSON.stringify(calls.map((c) => c.command ?? c.name))}`);
     const plan = rig("plan");
     assert.equal(plan.status, 0, plan.stdout);
     assert.match(plan.stdout, / 0 blocks$/m);

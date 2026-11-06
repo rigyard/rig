@@ -2,13 +2,14 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "node:test";
+import { treeHash } from "../../lib/tree.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveTest } from "../helpers/live.ts";
 import { mirrorProject, runSeed, scratchRepo, sentinel } from "../helpers/mirror.ts";
-import { ROOT, setup } from "../scope.helpers.ts";
+import { canon, filesUnder, ROOT, setup } from "../scope.helpers.ts";
 
 const NOW = "2026-11-05T12:00:00.000Z";
 const LIST_PROMPT = "List the name of every skill available to you, one per line, and nothing else. Do not run commands or read files.";
@@ -37,6 +38,10 @@ describe("links", () => {
     const s = setup({ skill, home: { "rig/packs/notes/skills/notes/references/ref.md": `The sentinel is ${tok}.\n` } });
     const repo = scratchRepo();
     t.after(() => (s.fx.cleanup(), repo.cleanup()));
+    const lockFile = join(s.root, "rig.lock.json");
+    const lock = JSON.parse(readFileSync(lockFile, "utf8"));
+    lock.packs.notes.tree = treeHash(filesUnder(join(s.root, "packs/notes")).filter((f) => f.path !== "pack.json"));
+    writeFileSync(lockFile, canon(lock));
     const a = s.rig(["apply"]);
     assert.equal(a.code, 0, a.all);
     assert.ok(mirrorProject(s.fx.home, "claude", repo.dir).includes(".claude/skills/notes/references/ref.md"));

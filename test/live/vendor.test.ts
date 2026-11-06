@@ -23,10 +23,13 @@ const EXCLUDE = [
 ];
 const PACK_ADD = ["pack", "add", REPO, "--sha", SHA, "--root", "pstack", "--path", ".", ...EXCLUDE.flatMap((x) => ["--exclude", x])];
 
+/**
+ * A fixture HOME whose repo root holds packs/core, models and targets of trunk, no fill and no pack. The lock holds the
+ * core seal only, so the pstack that `rig pack add` vendors is the first pack and does not collide with trunk's own.
+ */
 function setup(t: {after: (fn: () => void) => void}) {
-  const spec: Record<string, Uint8Array | {content: Uint8Array, mode: number}> = { "rig/rig.json": readFileSync(join(ROOT, "rig.json")) };
-  const packs = Object.keys(repoJson("rig.json").packs).map((name) => `packs/${name}`);
-  for (const dir of ["models", "targets", "packs/core", ...packs]) {
+  const spec: Record<string, string | {content: Uint8Array, mode: number}> = { "rig/rig.json": json({ ...repoJson("rig.json"), fill: {}, packs: {} }) };
+  for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }
   const fx = makeFixtureHome(spec);
@@ -68,7 +71,7 @@ describe("vendor", () => {
     const { fx, root, rig } = setup(t);
     assert.equal(rig(PACK_ADD).code, 0);
     const cfg = repoJson("rig.json");
-    writeFileSync(join(root, "rig.json"), json({ ...cfg, packs: { ...cfg.packs, pstack: {} } }));
+    writeFileSync(join(root, "rig.json"), json({ ...cfg, fill: {}, packs: { pstack: {} } }));
     const a = rig(["apply"]);
     assert.equal(a.code, 0, a.all);
     const repo = scratchRepo();
