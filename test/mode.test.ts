@@ -287,6 +287,95 @@ describe("E_MODE_NAME", () => {
   });
 });
 
+describe("E_MODE_NAME and a disabled unit", () => {
+  const DISABLE = { disable: [`${PACK}/architect`] };
+  const note = (where: string) => `${where} names ${PACK}/architect, which disable or replaces removes; the domain file has no entry for it`;
+
+  test("a hub name of a disabled unit is an info finding that names the unit and the line, not a block", () => {
+    const b = built({ rig: DISABLE });
+    const found = modeFindings(b);
+    assert.deepEqual(found.map((f: Finding) => f.severity), ["info"]);
+    assert.equal(found[0].path, "skills/poteto-mode/SKILL.md");
+    assert.match(found[0].evidence, /^architect at line \d+: fixture\/architect is disabled by rig\.json disable, so the craft shell tells the model to skip that skill and write one line that names it$/);
+    assert.deepEqual(b.errors, []);
+  });
+
+  test("rig plan with the unit disabled prints the info line and 0 blocks", () => {
+    const r = plan({ rig: DISABLE });
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /^info mode fixture\/skills\/poteto-mode\/SKILL\.md: architect at line \d+: fixture\/architect is disabled/m);
+    assert.match(r.out, /, 0 blocks$/m);
+    assert.doesNotMatch(r.out, /E_MODE_NAME/);
+  });
+
+  test("the overlay disable does the same", () => {
+    const r = plan({ overlay: { "rig.json": { schema: 2, disable: [`${PACK}/architect`] } } });
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /^info mode .*architect at line \d+/m);
+  });
+
+  test("a name that matches no unit and is not disabled still blocks, next to a disabled one", () => {
+    const b = built({ rig: DISABLE, ...hub("Then run the **architekt** skill.") });
+    const found = modeFindings(b);
+    assert.deepEqual(found.map((f: Finding) => f.severity), ["block", "info"]);
+    assert.match(found[0].evidence, /^E_MODE_NAME architekt at line \d+: no kept unit has this name/);
+    const r = plan({ rig: DISABLE, ...hub("Then run the **architekt** skill.") });
+    assert.equal(r.code, 1);
+    assert.match(r.out, /^block mode .*E_MODE_NAME architekt at line /m);
+    assert.match(r.out, /, 1 block$/m);
+  });
+
+  const otherSkill = (name: string) => ({
+    "packs/other/pack.json": { schema: 2, name: "other", license: "MIT" },
+    [`packs/other/skills/${name}/SKILL.md`]: `---\nname: ${name}\ndescription: d\n---\n\n# ${name}\n`,
+  });
+  const WITH_OTHER = { packs: { product: {}, [PACK]: {}, other: {} } };
+
+  test("a disabled unit of another pack does not excuse a stale hub name: a renamed upstream unit still blocks", () => {
+    const spec = { rig: { ...WITH_OTHER, disable: ["other/review"] }, repo: otherSkill("review"), ...hub("Then run the **review** skill.") };
+    const found = modeFindings(built(spec));
+    assert.deepEqual(found.map((f: Finding) => [f.severity, f.evidence.replace(/ at line \d+/, "")]),
+      [["block", "E_MODE_NAME review: no kept unit has this name; vendor the unit, or ack the name"]]);
+    const r = plan(spec);
+    assert.equal(r.code, 1);
+    assert.match(r.out, /^block mode fixture\/skills\/poteto-mode\/SKILL\.md: E_MODE_NAME review at line /m);
+    assert.doesNotMatch(r.out, /^info mode .*review/m);
+  });
+
+  test("two disabled ids with the same tail do not overwrite each other: the info line names the id of the pack that owns the file", () => {
+    const spec = { rig: { ...WITH_OTHER, disable: [`${PACK}/architect`, "other/architect"] }, repo: otherSkill("architect") };
+    const found = modeFindings(built(spec));
+    assert.deepEqual(found.map((f: Finding) => f.severity), ["info"]);
+    assert.match(found[0].evidence, /^architect at line \d+: fixture\/architect is disabled by rig\.json disable/);
+    const reversed = modeFindings(built({ ...spec, rig: { ...WITH_OTHER, disable: ["other/architect", `${PACK}/architect`] } }));
+    assert.match(reversed[0].evidence, /^architect at line \d+: fixture\/architect is disabled by rig\.json disable/);
+  });
+
+  test("a fill that names the disabled unit is dropped with an info line that names the fill", () => {
+    const b = built({ rig: { ...DISABLE, fill: { "eng:design": `${PACK}/architect`, "eng:ship.before": [`${PACK}/architect`], triggers: [{ when: "A boundary moves", use: `${PACK}/architect` }] } } });
+    assert.deepEqual(b.errors, []);
+    assert.deepEqual([...b.stack.info!].sort(), [
+      note("rig.json fill.eng:design"),
+      note("rig.json fill.eng:ship.before"),
+      note("rig.json fill.triggers[0].use"),
+      note(`packs/${PACK}/pack.json mode.hooks.eng:review.before`),
+    ].sort());
+    assert.match(b.text("~/.claude/skills/craft/references/engineering.md"), /^- `eng:design`\. Before: none\. Slot: none/m);
+  });
+
+  test("rig plan prints the fill info line", () => {
+    const r = plan({ rig: { ...DISABLE, fill: { "eng:design": `${PACK}/architect` } } });
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, new RegExp(`^info ${note("rig.json fill.eng:design").replaceAll(".", "\\.")}$`, "m"));
+  });
+
+  test("a fill naming a unit that is not disabled and not kept is still E_MODE_REF", () => {
+    const b = built({ rig: { ...DISABLE, fill: { "eng:design": `${PACK}/nope` } } });
+    assert.match(errorOf(b, "E_MODE_REF").message, /^fixture\/nope: rig\.json fill\.eng:design names no kept unit$/);
+    assert.deepEqual(b.stack.info, [note(`packs/${PACK}/pack.json mode.hooks.eng:review.before`)]);
+  });
+});
+
 describe("anchors", () => {
   const LINK = "../craft/references/adapter.md";
   for (const [name, text] of [

@@ -19,7 +19,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |
 | `links` | Rendered `.md` files that rig owns: a relative Markdown link that does not resolve to a file or folder that rig plans for the same harness. Links in code, URLs, anchors and targets that are not paths, such as `url`, are skipped. | block | yes |
-| `mode` | The hub and the playbooks of the mode skill: a unit name, as `**x** skill`, `` `/x` `` or /x, that no kept unit has (`E_MODE_NAME`). See [Run multi-step work with /craft](./06-craft.md). | block | yes |
+| `mode` | The hub and the playbooks of the mode skill: a unit name, as `**x** skill`, `` `/x` `` or /x, that no kept unit has (`E_MODE_NAME`). A name of a unit that `disable` removed is an info line. See [Run multi-step work with /craft](./06-craft.md). | block, info | yes |
 | `license` | The `license` of every pack except core. It must be an SPDX expression of allowed licenses. | block | yes |
 | `cve` | Dependency lockfiles in a pack, against the OSV cache. A high, critical or unknown severity blocks. Moderate and low warn. No cached result blocks. | block, warn | yes |
 | `telemetry` | A `pack.json` with telemetry on by default and no opt-out variable set. | warn | no, set the variable |

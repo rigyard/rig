@@ -36,6 +36,8 @@ The same plan without the entry has 305 changes. The 11 missing lines are the `o
 block E_UNKNOWN_UNIT disable names product/nothing, which no listed pack contains
 ```
 
+The hub and the playbooks of the mode skill are upstream text, so they can still name a unit that you disabled. That is not a block. The `mode` check prints an `info mode` line with the unit and the line, and the `craft` shell tells the model to skip a skill that is not installed and write one line that names it. A `rig.json` `fill` or a pack hook that names the disabled unit is dropped, and `rig plan` prints an `info` line with its address. A name that matches no unit and is not disabled, such as an upstream rename, still blocks with `E_MODE_NAME`. `auto` is different: an `auto` entry that names a disabled unit is `E_MODE_REF`.
+
 ## Add a pack
 
 Put the pack under `~/.config/rig/packs/<name>/` and list it in the overlay `rig.json`. A pack holds `pack.json` plus units by layout: `skills/<name>/SKILL.md`, `commands/<name>.md`, `agents/<name>.md` and `rules/<name>.md`.

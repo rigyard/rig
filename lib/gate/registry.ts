@@ -55,8 +55,8 @@ export const REGISTRY = Object.freeze([
   },
   {
     id: "mode", runsOn: "the hub and the playbooks of the mode skill", inputs: ["mode"],
-    finds: "a unit name (`**x** skill`, `` `/x` ``, bare /x) that no kept unit has and the allowlist does not hold (`E_MODE_NAME`)",
-    severity: "block", ackable: true, ackNote: "yes", run: runModeNames,
+    finds: "a unit name (`**x** skill`, `` `/x` ``, bare /x) that no kept unit has and the allowlist does not hold (`E_MODE_NAME`). A name of a unit that `disable` removed is an info line",
+    severity: "block, info", ackable: true, ackNote: "yes", run: runModeNames,
   },
   {
     id: "license", runsOn: "sources", inputs: ["sources"],

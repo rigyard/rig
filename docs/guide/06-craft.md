@@ -178,6 +178,8 @@ The gate check `mode` reads the hub and the playbooks of the composed mode skill
 block mode fixture/skills/poteto-mode/SKILL.md: E_MODE_NAME nope at line 23: no kept unit has this name; vendor the unit, or ack the name
 ```
 
+A name of a unit of the same pack that `disable` removed is an info line, not a block: `info mode pstack/skills/poteto-mode/SKILL.md: architect at line 23: pstack/architect is disabled by rig.json disable, so the craft shell tells the model to skip that skill and write one line that names it`. A disabled unit of another pack does not excuse the name. A `fill` entry for a disabled unit is dropped with an `info` line that names the fill address.
+
 The ack holds the name, so it does not clear a second unknown name in the same file. [Pass the gate](./03-the-gate.md) shows how to ack a finding.
 
 Next: [Pick and swap models](./07-models.md).

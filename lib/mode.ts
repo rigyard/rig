@@ -104,8 +104,9 @@ export function adopted(pack: Pack): { install: string; from: string; key: strin
 }
 
 /** Pure. compose calls it after disable and replace. Errors: E_MODE_REF, E_FILL_UNKNOWN, E_ARTIFACT_DANGLING, E_CLASH, E_PLAYBOOK_UNLABELED. */
-export function compileMode(units: Unit[], packs: World["packs"], domains: DomainTable, fill: Fill, auto: UnitRef[], dropped: Set<string> = new Set()): { mode: Mode; errors: RigError[] } {
+export function compileMode(units: Unit[], packs: World["packs"], domains: DomainTable, fill: Fill, auto: UnitRef[], dropped: Set<string> = new Set()): { mode: Mode; errors: RigError[]; info: string[] } {
   const errors: RigError[] = [];
+  const info: string[] = [];
   const err = (code: string, message: string) => errors.push({ code, message });
   const kept = new Set(units.map((u) => u.id));
   const views = (Object.entries(domains.domains) as [DomainName, DomainTable["domains"][DomainName]][]).map(([name, d]): DomainView => ({
@@ -130,6 +131,7 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
   const keep = (ref: string, where: string) => {
     if (kept.has(ref)) return true;
     if (!dropped.has(ref)) err("E_MODE_REF", `${ref}: ${where} names no kept unit`);
+    else info.push(`${where} names ${ref}, which disable or replaces removes; the domain file has no entry for it`);
     return false;
   };
   const proseRefs = (text: string | undefined, where: string) => {
@@ -299,7 +301,7 @@ export function compileMode(units: Unit[], packs: World["packs"], domains: Domai
     else err("E_MODE_REF", `${ref}: rig.json auto[${i}] names no kept unit`);
   });
 
-  return { mode: { hub, domains: views, triggers, adapters, files, auto: autoSet }, errors };
+  return { mode: { hub, domains: views, triggers, adapters, files, auto: autoSet }, errors, info };
 }
 
 /**

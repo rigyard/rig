@@ -20,8 +20,12 @@ export type Unit = {
   /** source files, relative to the unit */
   files: Map<string, {bytes: Uint8Array, mode: number}>;
 };
-/** `mode` is absent only on a stack that compose did not build (gateTree, hand-built test stacks). */
-export type Stack = {units: Unit[], errors: RigError[], mode?: Mode};
+/**
+ * `mode` is absent only on a stack that compose did not build (gateTree, hand-built test stacks).
+ * `disabled` holds the ids that rig.json `disable` removed, so the `mode` check can tell a known absence from a rename.
+ * `info` holds the compose notes that rig plan prints.
+ */
+export type Stack = {units: Unit[], errors: RigError[], mode?: Mode, disabled?: string[], info?: string[]};
 export type RigError = {code: string, message: string, path?: string, harness?: string};
 
 /** Core seal, packs, scope, disable, replace, clash rules, then the mode compile. Pure. */
@@ -75,8 +79,10 @@ export function compose(world: World): Stack {
   // Disable a default unit, then replace a non-sealed unit. Core refs never get here: world rejects them.
   const ids = new Set(packUnits.map((u) => u.id));
   const dropped = new Set();
+  const disabled: string[] = [];
   world.config.disable.forEach((ref, i) => {
     if (!ids.has(ref)) err("E_UNKNOWN_UNIT", `disable names ${ref}, which no listed pack contains`, `disable[${i}]`);
+    else disabled.push(ref);
     dropped.add(ref);
   });
   /** @type {Map<string, string[]>} replaced id -> replacer ids */
@@ -123,7 +129,7 @@ export function compose(world: World): Stack {
 
   const compiled = compileMode(units, world.packs, world.domains, world.config.fill ?? {}, (world.config.auto ?? []) as UnitRef[], dropped);
   errors.push(...compiled.errors);
-  return { units, errors, mode: compiled.mode };
+  return { units, errors, mode: compiled.mode, disabled, info: compiled.info };
 }
 
 /** Installed-name namespaces. Skills and commands share one: Claude Code invokes both as /name, Cursor renders commands as skills. */

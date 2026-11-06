@@ -29,6 +29,7 @@ export function report(p: ReturnType<typeof prepare>): string {
   const ops = planned.ops.map((o) => ({ ...o, harness: harnessOf(p.world, o) }));
   const lines = [...findingLines(p.findings)];
   for (const e of p.errors) lines.push(`block ${e.code} ${e.message}`);
+  for (const i of p.stack.info ?? []) lines.push(`info ${i}`);
   for (const i of p.desired.info) lines.push(`info ${i}`);
   for (const run of planned.interrupted) lines.push(`info run ${run} was interrupted; rig apply recovers it first`);
   const width = Math.max(0, ...ops.map((o) => o.op.length));

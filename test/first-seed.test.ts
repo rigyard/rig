@@ -175,6 +175,20 @@ describe("the first seed over the committed config", () => {
     assert.ok(!existsSync(join(run.root, "audit.allow.json")) || json(join(run.root, "audit.allow.json")).acks.length === 0);
   });
 
+  test("A15b: disabling pstack/architect in the overlay leaves 0 blocks, and the hub and playbook names are info lines", () => {
+    const h = makeFixtureHome({ ".config/rig/rig.json": JSON.stringify({ schema: 2, disable: ["pstack/architect"] }) });
+    try {
+      const p = rig(run.root, h.home, ["plan"]);
+      assertPlanClean(p);
+      assert.doesNotMatch(p.stdout, /E_MODE_NAME/);
+      assert.match(p.stdout, /^info mode pstack\/skills\/poteto-mode\/SKILL\.md: architect at line \d+: pstack\/architect is disabled by rig\.json disable/m);
+      assert.match(p.stdout, /^info mode pstack\/skills\/poteto-mode\/playbooks\/refactoring\.md: architect at line \d+: pstack\/architect is disabled/m);
+      assert.match(p.stdout, /^info rig\.json fill\.eng:design names pstack\/architect, which disable or replaces removes; the domain file has no entry for it$/m);
+    } finally {
+      h.cleanup();
+    }
+  });
+
   test("A16: each leaf anchor reaches an adapter section for every harness that reads the leaf", () => {
     assert.ok(assertAnchors(run.h1.home, targetsOf(run.root)) > 100);
   });
