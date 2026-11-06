@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "name": "antigravity",
+  "root": "~/.gemini/config",
+  "reads": {
+    "skills": [
+      {"path": "~/.gemini/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.gemini/antigravity-cli/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.gemini/config/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.gemini/antigravity-cli/builtin/skills", "writable": false, "dedupe": "by-name"},
+      {"path": "~/.agents/skills", "writable": false, "dedupe": "by-name"}
+    ],
+    "never_write": ["~/.gemini/antigravity-cli/**", "~/.gemini/GEMINI.md", "~/.gemini/settings.json", "~/.gemini/skills/**",
+                    "~/.gemini/config/plugins/**", "~/.gemini/config/config.json", "~/.gemini/config/skills/**"]
+  },
+  "skill_registry": {"path": "~/.gemini/config/skills.json", "dirs": ["~/.agents/skills"]},
+  "units": {
+    "skill": {"frontmatter": "keep", "sidecar": null},
+    "agent": {"dir": "~/.gemini/config/agents", "format": "antigravity-md"},
+    "rule": {"dir": "~/.gemini/config/rules", "format": "antigravity-md"}
+  },
+  "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
+  "models": {"source": "the agy --model flag. A subagent file names only inherit, flash or pro"},
+  "instructions": {"path": "~/.gemini/config/rules/rig-frame.md", "mode": "whole-file"},
+  "skill_prefix": "/",
+  "effort_syntax": "separate-key",
+  "model_surfaces": [],
+  "project_scope": null,
+  "hooks": {"session_end": null},
+  "transcripts": null
+}

@@ -98,7 +98,7 @@ describe("rig plan", () => {
     const r = s.rig(["plan"]);
     assert.equal(r.code, 0, r.all);
     const ops = creates(r.stdout);
-    assert.deepEqual([...new Set(ops.map(([h]) => h))].sort(), ["claude", "codex", "cursor", "omp"]);
+    assert.deepEqual([...new Set(ops.map(([h]) => h))].sort(), ["antigravity", "claude", "codex", "cursor", "omp"]);
     assert.ok(ops.some(([h, p]) => h === "claude" && p === "~/.claude/rules/rig-frame.md"), r.stdout);
     assert.match(r.stdout, new RegExp(`^${ops.length} changes, 0 blocks$`, "m"));
     assert.deepEqual(changed(before, s.fx.snapshot()), []);

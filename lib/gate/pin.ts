@@ -152,6 +152,27 @@ function ompPlugins(home: string) {
   return Object.keys(plugins).sort().map((pkg) => ({ pkg, enabled: plugins[pkg]?.enabled !== false }));
 }
 
+/** Where an Antigravity plugin dir keeps its manifest: native, and the Gemini CLI and Claude Code forms that agy imports. */
+const AGY_MANIFESTS = ["plugin.json", ".antigravity-plugin/plugin.json", ".gemini-plugin/plugin.json", "gemini-extension.json", ".claude-plugin/plugin.json"];
+
+/**
+ * One record per ~/.gemini/config/plugins/<dir> with a manifest. The names are the dir and the manifest `name`. config.json
+ * `plugins.<dir>.enabled` wins; without it a manifest `disabled: true` turns the plugin off (agy-customizations docs/plugins.md).
+ */
+function agyPlugins(home: string) {
+  const root = join(home, ".gemini/config/plugins");
+  const config = readJson(join(home, ".gemini/config/config.json"))?.plugins;
+  return dirs(root).flatMap((dir) => {
+    const file = AGY_MANIFESTS.find((m) => exists(join(root, dir, m)));
+    if (!file) return [];
+    const manifest = readJson(join(root, dir, file));
+    const names = [...new Set([dir, ...(typeof manifest?.name === "string" ? [manifest.name] : [])])];
+    const chosen = config?.[dir]?.enabled;
+    const enabled = typeof chosen === "boolean" ? chosen : manifest?.disabled !== true;
+    return [{ dir, names, path: `~/.gemini/config/plugins/${dir}`, enabled }];
+  });
+}
+
 /** The seeded upstream an npm package ships: its unscoped name equals the upstream name or ends in -<name>, as in pi-pstack. */
 const ompUpstream = (pkg: string, seeded: Map<string, string>) => {
   const base = pkg.replace(/^@[^/]+\//, "");
@@ -193,7 +214,7 @@ function readDirs(world: World) {
 
 /**
  * E_FOREIGN_INSTALL: an install of an upstream that a pack of this config seeds, made outside rig. That is a Claude Code,
- * Cursor, Codex or omp plugin, a clone or link with the upstream name in a skill read-set dir, or an unmanaged skill dir with a
+ * Cursor, Codex, omp or Antigravity plugin, a clone or link with the upstream name in a skill read-set dir, or an unmanaged skill dir with a
  * name that the pack excludes or adopts. rig never deletes it. A disabled plugin and a left-out name that the pack does not
  * list in `foreign_block` warn; the rest block.
  */
@@ -232,6 +253,11 @@ function foreignFindings(world: World, desired: Desired | undefined) {
   for (const p of ompPlugins(home)) {
     const name = ompUpstream(p.pkg, seeded);
     if (name) plugin("omp", name, `omp has the plugin ${p.pkg} in ~/.omp/plugins/omp-plugins.lock.json${p.enabled ? "" : " but not enabled"}`, `run omp plugin uninstall ${p.pkg}`, p.enabled);
+  }
+
+  for (const p of agyPlugins(home)) {
+    const name = p.names.find((n) => seeded.has(n));
+    if (name) plugin("antigravity", name, `Antigravity has the plugin ${p.dir} in ${p.path}${p.enabled ? "" : " but not enabled"}`, `run agy plugin uninstall ${p.dir}`, p.enabled);
   }
 
   const owned = rigPaths(world, desired);

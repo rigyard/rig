@@ -47,7 +47,7 @@
 .agents/skills/craft/playbooks/trace-forensics.md	644	ef0bbf79856a4ae1a8993d54c1a1da159cb97623941b652c0069cf75a017e0f5
 .agents/skills/craft/playbooks/visual-parity.md	644	950ca51999a6454c98eee6bcbc3d1bbe501a4e3a5d5439b6f6ddc378991b256c
 .agents/skills/craft/playbooks/worktree-cleanup.md	644	be04ae0afe19d4a4da5bcc4e94455f68dbebd1cda6eb0f456ca0d358ecf76c00
-.agents/skills/craft/references/adapter.md	644	820bfc0ec6b666141b6a778d17774688165048e22e00b6bee20baeac6c1f50b8
+.agents/skills/craft/references/adapter.md	644	2784386c87b03d4c9799dd6c74d653b60e778ca08852a2e7443e3b3a1211e84a
 .agents/skills/craft/references/bugbot-triage.md	644	b2d146c770d8d3593e1ef3d77b668039b8e1f78093ea1a86f1d45d7f99614309
 .agents/skills/craft/references/business.md	644	fc05fe97adbde1fcfaf976d243e992fced99fb5a321b621af5d5745e500d9d1b
 .agents/skills/craft/references/engineering.md	644	f261578cf009a7a98705ead7afcf9894f5a7cf1d25494057c34682a0f13fa903
@@ -305,5 +305,9 @@
 .cursor/agents/poteto-agent.md	644	36a17dd8199e7239c863df22e3911cbf0bd1fa64bc97058552968f06357a2c9e
 .cursor/rules/pstack-models.mdc	644	24250dd67ee7e4dfff6a6a8a3579738c6d89a33102cdd4310950f236eeb986b2
 .cursor/rules/rig-frame.mdc	644	80a112a1ccc982487655953af2de48764dff36be1f6525650ee390e22b4058f5
+.gemini/config/agents/comment-sicko.md	644	3e239e40b7b4b9beb2cf7f3ccc57f2388eb8b69bd1ba8ae888ef87ef6e0e2116
+.gemini/config/agents/poteto-agent.md	644	36a17dd8199e7239c863df22e3911cbf0bd1fa64bc97058552968f06357a2c9e
+.gemini/config/rules/rig-frame.md	644	b9e2c2c618b391fc7d3215569777627cf3c06a14dd538ba019e905bdbef2adab
+.gemini/config/skills.json	644	8b05656d299fcfa2ce7b7fcf6e01b0d6f5d30437f851543ba13054c8df543104
 .omp/agent/AGENTS.md	644	7fe1b6de2a81ea971d356784a1eddfba07ba465018b5075d55e905b4f839766d
 .omp/agent/pstack-models.md	644	a22e14f41eefd1dadeab9ab393049e0af1e0585d718fb87e0f64c6cd9ca5874e

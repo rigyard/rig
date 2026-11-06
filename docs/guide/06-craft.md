@@ -45,7 +45,7 @@ create  owned  claude  ~/.claude/skills/craft/playbooks/bug-fix.md              
 create  owned  claude  ~/.claude/skills/craft/references/bugbot-triage.md              core/craft
 ```
 
-The checkout seeds pstack, so on main each `craft/` dir also holds pstack's hub, its 23 playbooks and `bugbot-triage.md`. rig writes one `craft/` dir in `~/.claude/skills`, for Claude Code and Cursor, and one in `~/.agents/skills`, for Codex, omp and Cursor. Cursor keeps the first copy of a name, so it reads one.
+The checkout seeds pstack, so on main each `craft/` dir also holds pstack's hub, its 23 playbooks and `bugbot-triage.md`. rig writes one `craft/` dir in `~/.claude/skills`, for Claude Code and Cursor, and one in `~/.agents/skills`, for Codex, omp, Cursor and Antigravity. Cursor keeps the first copy of a name, so it reads one.
 
 ## Know the seeded default
 

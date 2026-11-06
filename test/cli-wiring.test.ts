@@ -3,8 +3,8 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
 import { dispatch, EXIT_2 } from "../lib/commands.ts";
@@ -72,6 +72,12 @@ function changed(a, b) {
 
 const STATE = ".local/state/rig/";
 
+/** Write one file into the fixture HOME after apply, as a user or another tool would. */
+function plant(path: (rel: string) => string, rel: string, text: string | Uint8Array) {
+  mkdirSync(dirname(path(rel)), { recursive: true });
+  writeFileSync(path(rel), text);
+}
+
 const editRig = (root, change) => {
   const path = join(root, "rig.json");
   writeFileSync(path, `${JSON.stringify(change(JSON.parse(readFileSync(path, "utf8"))), null, 2)}\n`);
@@ -121,6 +127,79 @@ describe("rig doctor", () => {
     assert.equal(r.code, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /^info +duplicates +codex lists dup 2 times: .*\.codex\/skills\/dup, .*\.agents\/skills\/dup$/m);
     assert.doesNotMatch(r.stdout, /^info +duplicates +(claude|omp|cursor) /m, "harnesses that read one copy, or dedupe by name, list it once");
+  });
+
+  test("Antigravity: a user copy in a CLI-only skill dir shadows the rig copy of the same name, a warning with both paths", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    plant(s.fx.path, ".gemini/skills/unslop/SKILL.md", "---\nname: unslop\ndescription: Mine.\n---\nMine.\n");
+    const r = s.rig(["doctor"]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^warn +duplicates +antigravity loads unslop from .*\/\.gemini\/skills\/unslop, which shadows the rig copy at .*\/\.agents\/skills\/unslop$/m);
+    assert.doesNotMatch(r.stdout, /^error +duplicates /m, "a by-name harness lists the name once, so it is no placement bug");
+  });
+
+  test("Cursor: a user copy with different bytes in ~/.cursor/skills shadows the rig copy, a warning", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    plant(s.fx.path, ".cursor/skills/unslop/SKILL.md", "---\nname: unslop\ndescription: Mine.\n---\nMine.\n");
+    const r = s.rig(["doctor"]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^warn +duplicates +cursor loads unslop from .*\/\.cursor\/skills\/unslop, which shadows the rig copy at .*\/\.agents\/skills\/unslop$/m);
+  });
+
+  test("a copy with the bytes of the rig copy in a higher-read dir shadows nothing, so no warning (Cursor, Antigravity, omp)", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    const rig = readFileSync(s.fx.path(".agents/skills/unslop/SKILL.md"));
+    for (const dir of [".cursor/skills", ".gemini/skills", ".omp/agent/skills"]) plant(s.fx.path, `${dir}/unslop/SKILL.md`, rig);
+    const r = s.rig(["doctor"]);
+    assert.doesNotMatch(r.stdout, /shadows the rig copy/);
+    assert.doesNotMatch(r.stdout, /^\w+ +duplicates +(cursor|antigravity) /m);
+  });
+
+  test("omp: a copy with other bytes in ~/.omp/agent/skills is a separate listing, not a shadow", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    plant(s.fx.path, ".omp/agent/skills/unslop/SKILL.md", "---\nname: unslop\ndescription: Mine.\n---\nMine.\n");
+    const r = s.rig(["doctor"]);
+    assert.doesNotMatch(r.stdout, /shadows the rig copy/);
+    assert.match(r.stdout, /^\w+ +duplicates +omp lists unslop 2 times: /m);
+  });
+
+  test("Antigravity: a builtin skill with the name of a seeded unit shadows the rig copy, a warning", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    plant(s.fx.path, ".gemini/antigravity-cli/builtin/skills/how/SKILL.md", "---\nname: how\ndescription: Builtin.\n---\nB\n");
+    plant(s.fx.path, ".gemini/antigravity-cli/builtin/skills/agy-customizations/SKILL.md", "---\nname: agy-customizations\ndescription: Builtin.\n---\nB\n");
+    const r = s.rig(["doctor"]);
+    assert.match(r.stdout, /^warn +duplicates +antigravity loads how from .*\/\.gemini\/antigravity-cli\/builtin\/skills\/how, which shadows the rig copy at .*\/\.agents\/skills\/how$/m);
+    assert.doesNotMatch(r.stdout, /agy-customizations/, "a builtin name that rig does not seed is no clash");
+  });
+
+  test("Antigravity: a link in ~/.gemini/config/skills to the rig copy is the same skill, not a shadow", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    mkdirSync(join(s.fx.home, ".gemini/config/skills"), { recursive: true });
+    symlinkSync("../../../.agents/skills/how", join(s.fx.home, ".gemini/config/skills/how"));
+    const r = s.rig(["doctor"]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.doesNotMatch(r.stdout, /^\w+ +duplicates +antigravity /m);
+  });
+
+  test("Antigravity: a user copy of a name that rig does not seed shadows nothing", (t) => {
+    const s = setup();
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    plant(s.fx.path, ".gemini/skills/redpen/SKILL.md", "---\nname: redpen\ndescription: Mine.\n---\nA\n");
+    plant(s.fx.path, ".agents/skills/redpen/SKILL.md", "---\nname: redpen\ndescription: Another tool's.\n---\nB\n");
+    assert.doesNotMatch(s.rig(["doctor"]).stdout, /redpen/);
   });
 
   test("a Claude plugin cache copy marked .orphaned_at is not a duplicate; two live copies still are", (t) => {

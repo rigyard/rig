@@ -44,18 +44,19 @@ The state root and the data root must resolve inside `$HOME`. If not, rig stops 
 
 ## Choose your harnesses
 
-The `harnesses` list in `rig.json` names the harnesses rig writes for. The repo default lists all four:
+The `harnesses` list in `rig.json` names the harnesses rig writes for. The repo default lists all five:
 
 ```text
 "harnesses": [
   "claude",
   "codex",
   "omp",
-  "cursor"
+  "cursor",
+  "antigravity"
 ],
 ```
 
-Each name must match a target record in `targets/` (`claude.json`, `codex.json`, `omp.json`, `cursor.json`). rig does not look for an installed harness. It plans files for every harness in the list, also on a machine where that harness is not installed.
+Each name must match a target record in `targets/` (`claude.json`, `codex.json`, `omp.json`, `cursor.json`, `antigravity.json`). rig does not look for an installed harness. It plans files for every harness in the list, also on a machine where that harness is not installed.
 
 To drop a harness, edit `rig.json` in your checkout. The overlay cannot remove an entry, and it cannot repeat one. An overlay `rig.json` with `"harnesses": ["claude"]` stops every command:
 
@@ -77,7 +78,7 @@ info budget */harness:codex: always-on: 654 characters, 164 tokens
 `rig doctor` reads your machine and your config. It writes nothing and logs nothing. On a fresh HOME with the repo defaults, it prints:
 
 ```text
-info  drift 309 changes pending; rig plan lists them
+info  drift 313 changes pending; rig plan lists them
 0 errors, 0 warnings
 ```
 

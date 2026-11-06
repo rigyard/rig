@@ -96,8 +96,13 @@ export function mdc(text) {
   return setFrontmatterKey(text, "alwaysApply", true);
 }
 
+/** units.rule.format "antigravity-md": an Antigravity rule that always applies. */
+export function alwaysOnRule(text: string): string {
+  return setFrontmatterKey(text, "trigger", "always_on");
+}
+
 /**
- * units.agent.format "cursor-md": name, description and body. Model keys are cells and belong to the models
+ * units.agent.format "cursor-md" and "antigravity-md": name, description and body. Model keys are cells and belong to the models
  * surfaces (section 8), so they are not copied from the Claude-shaped source. A non-empty `note` opens the body, and the
  * source body follows it unchanged.
  */

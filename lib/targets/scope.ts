@@ -4,7 +4,7 @@
 // Claude Code: a pack renders as a local-path plugin inside the rig-owned marketplace under the data root
 // (`channels.plugin.dir`, `$XDG_DATA_HOME` is the parent of world.env.data). rig writes no `enabledPlugins` entry and
 // calls no `claude` command: apply prints the registration commands and the `enable_file` snippet.
-// Codex, omp and Cursor hold no project channel: the project part is absent there, and doctor --project prints the
+// Codex, omp, Cursor and Antigravity hold no project channel: the project part is absent there, and doctor --project prints the
 // repository paths that would deliver it, for the user to commit. rig writes nothing into a repository.
 
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -32,8 +32,8 @@ export type Delivery = {
 const DATA_VAR = "$XDG_DATA_HOME";
 const encoder = new TextEncoder();
 
-/** The project-relative dir of a skill on a harness with no project channel. Probe (f) Codex, (e) omp, (b) Cursor. */
-const REPO_SKILL_DIRS: Record<string, string> = { codex: ".agents/skills", omp: ".omp/skills", cursor: ".cursor/skills" };
+/** The project-relative dir of a skill on a harness with no project channel. Probe (f) Codex, (e) omp, (b) Cursor; agy-customizations docs/skills.md for Antigravity. */
+const REPO_SKILL_DIRS: Record<string, string> = { codex: ".agents/skills", omp: ".omp/skills", cursor: ".cursor/skills", antigravity: ".agents/skills" };
 
 export const packOf = (unit: Unit): string => unit.id.split("/")[0];
 const isProjectScope = (unit: Unit): boolean => unit.scope === "project" || unit.scope === "hybrid";

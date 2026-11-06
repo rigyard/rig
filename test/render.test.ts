@@ -1,13 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { patch, readSet, render } from "../lib/targets.ts";
 import { loadWorld } from "../lib/world.ts";
 import { compose } from "../lib/stack.ts";
+import type { Stack } from "../lib/stack.ts";
+import type { World } from "../lib/world.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
-import { HARNESSES, HOME, records, unit, world, fixtureStack, frameTemplate, rel, text, writable } from "./render.helpers.ts";
+import { HARNESSES, HOME, records, unit, world, fixtureStack, fixtureTerms, frameTemplate, rel, text, writable } from "./render.helpers.ts";
 
 const byRel = (d) => new Map([...d.entries].map(([abs, e]) => [rel(abs), e]));
 
@@ -390,3 +392,48 @@ for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent
   assert.throws(() => patch(user, null), TypeError);
 });
 
+
+/** The render world with Antigravity installed next to the four, and term rows for it. */
+function withAntigravity(edit: (rec: any) => void = () => {}) {
+  const targets = records();
+  const rec = JSON.parse(readFileSync(new URL("../targets/antigravity.json", import.meta.url), "utf8"));
+  edit(rec);
+  targets.set("antigravity", rec);
+  const terms = Object.fromEntries(Object.entries(fixtureTerms()).map(([k, row]: [string, any]) => [k, { ...row, antigravity: `${k}-g` }]));
+  return world({ targets, terms, harnesses: [...HARNESSES, "antigravity"] }) as unknown as World;
+}
+
+/** The fixture stack with every unit aimed at the five harnesses. */
+function stackOfFive() {
+  const s = fixtureStack();
+  for (const u of s.units) u.harnesses = [...HARNESSES, "antigravity"];
+  return s as unknown as Stack;
+}
+
+test("antigravity: the frame is an always-on rule, the agent keeps name and description, and skills.json registers ~/.agents/skills", () => {
+  const d = render(stackOfFive(), withAntigravity());
+  assert.deepEqual(d.errors, []);
+  const gemini = [...d.entries.keys()].map(rel).filter((p) => p.startsWith("~/.gemini/")).sort();
+  assert.deepEqual(gemini, ["~/.gemini/config/agents/helper.md", "~/.gemini/config/rules/rig-frame.md", "~/.gemini/config/rules/style.md", "~/.gemini/config/skills.json"]);
+  const frame = text(d.entries.get(`${HOME}/.gemini/config/rules/rig-frame.md`));
+  assert.ok(frame.startsWith('---\ntrigger: "always_on"\n---\n'), frame);
+  assert.match(frame, /ask-user-g/, "the frame resolves terms with the antigravity row");
+  assert.ok(text(d.entries.get(`${HOME}/.gemini/config/rules/style.md`)).startsWith('---\ntrigger: "always_on"\n---\n# Style\n'));
+  const agent = text(d.entries.get(`${HOME}/.gemini/config/agents/helper.md`));
+  assert.match(agent, /^---\nname: helper\ndescription: "Helper agent: answers \\"why\\" questions\."\n---\nYou answer why questions/);
+  assert.doesNotMatch(agent, /^(model|tools):/m, "Claude model and tool keys do not reach an Antigravity agent");
+  assert.deepEqual(JSON.parse(text(d.entries.get(`${HOME}/.gemini/config/skills.json`))), { entries: [{ path: "~/.agents/skills" }] });
+  assert.ok(!gemini.some((p) => p.includes("/skills/")), "rig writes no skill copy under ~/.gemini");
+});
+
+test("antigravity: the claude and cursor frames keep their bytes when antigravity is installed", () => {
+  const four = render(fixtureStack() as unknown as Stack, world() as unknown as World);
+  const five = render(stackOfFive(), withAntigravity());
+  for (const p of [".claude/rules/rig-frame.md", ".cursor/rules/rig-frame.mdc"]) assert.equal(text(five.entries.get(`${HOME}/${p}`)), text(four.entries.get(`${HOME}/${p}`)), p);
+});
+
+test("antigravity: a skill_registry dir that reads.skills does not declare is E_INTERNAL, and no skills.json renders", () => {
+  const d = render(stackOfFive(), withAntigravity((rec) => (rec.skill_registry.dirs = ["~/.agents/skills", "~/elsewhere"])));
+  assert.deepEqual(d.errors.map((e) => `${e.code} ${e.harness} ${e.message}`), ["E_INTERNAL antigravity targets/antigravity.json skill_registry names ~/elsewhere, which reads.skills does not declare"]);
+  assert.ok(!d.entries.has(`${HOME}/.gemini/config/skills.json`));
+});

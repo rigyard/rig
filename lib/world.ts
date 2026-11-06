@@ -62,7 +62,7 @@ export type TargetRecord = {
   root: string;
   reads: {skills: ReadDir[], never_write: string[]};
   channels?: {plugin?: {marketplace: string, dir: string}};
-  units: {skill?: object, command?: {dir: string, format: string}, agent?: AgentFormat | null, rule?: {dir: string, format: "md"|"mdc"}};
+  units: {skill?: object, command?: {dir: string, format: string}, agent?: AgentFormat | null, rule?: {dir: string, format: "md"|"mdc"|"antigravity-md"}};
   hide: {method: "frontmatter-key"|"sidecar"|"none", key?: string, file?: string, value?: unknown};
   instructions: {path: string, mode: "whole-file"|"managed-block"};
   /** how the user types a skill by name in a prompt: `/craft` or `$craft` */
@@ -71,6 +71,8 @@ export type TargetRecord = {
   models?: {source: string, effort_table?: boolean};
   /** a rig-owned local plugin's manifest (Cursor, probe j) */
   plugin_manifest?: {path: string, value: unknown};
+  /** a rig-owned skills.json that registers read dirs (Antigravity) */
+  skill_registry?: {path: string, dirs: string[]};
   effort_syntax: "separate-key"|"colon-suffix"|"dash-fused"|"bracket";
   model_surfaces: ModelSurface[];
   project_scope: {channel: "plugin", enable_file: string} | null;
@@ -79,7 +81,7 @@ export type TargetRecord = {
   budget?: {description_max: number, listing_fraction?: number, instructions_max_bytes: number | null};
 };
 export type ReadDir = {path: string, writable: boolean, plugin?: boolean, dedupe: "none"|"identical-bytes"|"by-name"};
-export type AgentFormat = {dir: string, format: "claude-md"|"codex-toml"|"cursor-md"};
+export type AgentFormat = {dir: string, format: "claude-md"|"codex-toml"|"cursor-md"|"antigravity-md"};
 
 /** A model surface: {path, kind, consumer} plus the kind's parameters (section 8). */
 export type ModelSurface = {

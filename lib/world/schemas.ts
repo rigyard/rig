@@ -134,14 +134,16 @@ export const TARGET = S.rec(
     units: S.rec({
       skill: S.nul(S.rec({ frontmatter: S.enum(["keep", "strip-unknown"]), sidecar: S.nul(S.enum(["openai-yaml"])) })),
       command: S.nul(dirFormat(["md-frontmatter", "md-body", "skill-hidden"])),
-      agent: S.nul(dirFormat(["claude-md", "codex-toml", "cursor-md"])),
-      rule: S.nul(dirFormat(["md", "mdc"])),
+      agent: S.nul(dirFormat(["claude-md", "codex-toml", "cursor-md", "antigravity-md"])),
+      rule: S.nul(dirFormat(["md", "mdc", "antigravity-md"])),
     }),
     hide: S.rec({ method: S.enum(["frontmatter-key", "sidecar", "none"]), key: text(), file: text(), value: S.any() }, ["method"]),
     instructions: S.rec({ path: text(), mode: S.enum(["whole-file", "managed-block"]) }, ["path", "mode"]),
     skill_prefix: S.enum(["/", "$", "/skill:"]),
     // the manifest of a rig-owned local plugin; rendered when any file lands under its plugin root (probe j)
     plugin_manifest: S.rec({ path: text(), value: S.any() }, ["path", "value"]),
+    // a rig-owned skills.json whose entries name read dirs (Antigravity)
+    skill_registry: S.rec({ path: text(), dirs: S.arr(text(), { unique: true, nonEmpty: true }) }, ["path", "dirs"]),
     effort_syntax: S.enum(["separate-key", "colon-suffix", "dash-fused", "bracket"]),
     // where model choices live: the frame's Models line
     models: S.rec({ source: text(), effort_table: S.bool() }, ["source"]),

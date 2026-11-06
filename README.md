@@ -1,10 +1,10 @@
 # rig
 
-rig installs one pinned set of agent skills, commands, agents and rules into the coding-agent harnesses on your machine. v0 supports Claude Code, Codex, omp and Cursor. You keep one source of truth in a repository, and rig writes a copy of it into each harness in that harness's own format.
+rig installs one pinned set of agent skills, commands, agents and rules into the coding-agent harnesses on your machine. v0 supports Claude Code, Codex, omp, Cursor and Antigravity. You keep one source of truth in a repository, and rig writes a copy of it into each harness in that harness's own format.
 
 You get three things from it:
 
-- **The same stack in every harness.** A skill you add appears once in Claude Code, Codex, omp and Cursor, with no duplicates where one harness reads another's directories.
+- **The same stack in every harness.** A skill you add appears once in Claude Code, Codex, omp, Cursor and Antigravity, with no duplicates where one harness reads another's directories.
 - **No surprise updates.** rig installs copies pinned by a sha256 tree hash in `rig.lock.json`. Nothing updates itself. Only `rig pack add`, and `rig pin check` and `rig pin set` of a pack, use the network.
 - **One gate before every write.** rig checks every unit for pinned versions, executables, secrets, hidden Unicode and injection phrases, relative links, unit names in the mode skill, licenses, known CVEs, telemetry and token budget before it writes a byte. No flag skips the gate.
 

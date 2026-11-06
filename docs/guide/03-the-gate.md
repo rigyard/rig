@@ -14,7 +14,7 @@ Each finding has a severity. A `block` stops the write. A `warn` prints and lets
 
 | Check | Looks at | Result | Ackable |
 |---|---|---|---|
-| `pin` | Lock tree versus pack files, a pack with no lock entry, locked excludes, the port review (`E_PORT_STALE`), the core seal, and an install of a seeded upstream made outside rig (`E_FOREIGN_INSTALL`): a Claude Code, Cursor, Codex or omp plugin, a clone or link with the upstream name in a skill dir, or an unmanaged skill dir with a name that the pack leaves out. A disabled plugin, and a left-out name that the pack does not list in `foreign_block`, warn. | block | never |
+| `pin` | Lock tree versus pack files, a pack with no lock entry, locked excludes, the port review (`E_PORT_STALE`), the core seal, and an install of a seeded upstream made outside rig (`E_FOREIGN_INSTALL`): a Claude Code, Cursor, Codex, omp or Antigravity plugin, a clone or link with the upstream name in a skill dir, or an unmanaged skill dir with a name that the pack leaves out. A disabled plugin, and a left-out name that the pack does not list in `foreign_block`, warn. | block | never |
 | `exec` | Pack sources: exec bit, shebang, script extension, executable or archive magic bytes, `hooks.json`, `.mcp.json`, `package.json` scripts, symlinks. | block | yes |
 | `secret` | Sources and rendered text: token patterns, private key blocks, URLs with credentials. Also `private_terms` from the overlay `rig.json` inside a repo pack. | block | yes |
 | `unicode` | Sources and rendered text: zero-width, bidi and tag characters, pipe-to-shell, eval of fetched data. Injection phrases warn. | block, warn | yes |

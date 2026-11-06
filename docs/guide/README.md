@@ -1,6 +1,6 @@
 # The rig guide
 
-rig keeps one stack of skills, commands, agents and rules in a repository and installs pinned copies of it into Claude Code, Codex, omp and Cursor. You run `rig plan` to see what would change, and `rig apply` to write it. The rest of rig exists so that you can trust those two commands on a machine you use every day. This guide shows how, with commands you can run.
+rig keeps one stack of skills, commands, agents and rules in a repository and installs pinned copies of it into Claude Code, Codex, omp, Cursor and Antigravity. You run `rig plan` to see what would change, and `rig apply` to write it. The rest of rig exists so that you can trust those two commands on a machine you use every day. This guide shows how, with commands you can run.
 
 Here's what you'll learn:
 

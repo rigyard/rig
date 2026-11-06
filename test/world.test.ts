@@ -27,10 +27,10 @@ describe("loadWorld on the repo's own data", () => {
   test("loads, merges nothing, and returns a frozen world", () =>
     withFixture({}, (fx) => {
       const w = fx.load();
-      assert.deepEqual(w.config.harnesses, ["claude", "codex", "omp", "cursor"]);
+      assert.deepEqual(w.config.harnesses, ["claude", "codex", "omp", "cursor", "antigravity"]);
       assert.deepEqual(w.config.aliases, {});
       assert.deepEqual([...w.packs.keys()], ["core", "cli-for-agent", "cursor-team-kit", "product", "pstack"]);
-      assert.deepEqual([...w.targets.keys()], ["claude", "codex", "omp", "cursor"]);
+      assert.deepEqual([...w.targets.keys()], ["claude", "codex", "omp", "cursor", "antigravity"]);
       assert.deepEqual(Object.keys(w.terms), ["ask-user", "subagent"]);
       assert.equal(w.now.toISOString(), NOW);
       assert.deepEqual(w.locks, { repo: { schema: 2, core: null, packs: {} }, overlay: null });

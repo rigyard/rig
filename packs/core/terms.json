@@ -5,13 +5,15 @@
       "claude": "use AskUserQuestion",
       "codex": "ask in one short numbered list",
       "cursor": "use AskQuestion",
-      "omp": "use the ask tool"
+      "omp": "use the ask tool",
+      "antigravity": "use the ask_question tool"
     },
     "subagent": {
       "claude": "the Agent tool",
       "codex": "a spawned agent",
       "cursor": "a subagent",
-      "omp": "the task tool"
+      "omp": "the task tool",
+      "antigravity": "the invoke_subagent tool"
     }
   }
 }

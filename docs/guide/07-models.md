@@ -11,7 +11,7 @@ rig keeps model choices in two files under `models/`:
 
 A vendor release changes `tiers.json` only. Roles stay as they are. When a role asks for an effort that the harness does not have, rig uses the highest rung of the ladder at or below it, so `xhigh` becomes `high` on Cursor. Read [decision 0018](../decisions/0018-four-tiers-and-second-opinion-slot.md) for why there are four tiers.
 
-On main, `tiers.json` names a model per tier for all four harnesses. Claude tiers are aliases. The Codex, Cursor and omp values are ids that each harness lists, and you can change any of them with `rig models set`. The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
+On main, `tiers.json` names a model per tier for Claude Code, Codex, Cursor and omp. Antigravity has no model surface: a subagent file names only `inherit`, `flash` or `pro`. Claude tiers are aliases. The Codex, Cursor and omp values are ids that each harness lists, and you can change any of them with `rig models set`. The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
 
 ## Read the effective table
 

@@ -9,7 +9,7 @@ import { readSet as readSetOf } from "./targets/readset.ts";
 import { patch as patchRegion } from "./targets/patch.ts";
 import { substitute, substituteBytes } from "./targets/terms.ts";
 import { fill } from "./targets/vars.ts";
-import { codexAgent, cursorAgent, frontmatterValue, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
+import { alwaysOnRule, codexAgent, cursorAgent, frontmatterValue, mdBody, mdc, setFrontmatterKey, setYamlKey, skillHidden } from "./targets/formats.ts";
 import { absentLine, delivery, manifests, marketplaceOf, packOf, pluginDir, pluginPath } from "./targets/scope.ts";
 import type { Delivery, Plugin } from "./targets/scope.ts";
 import { renderModelSurfaces } from "./targets/models-render.ts";
@@ -49,7 +49,8 @@ const ANCHOR_LINK = "../craft/references/adapter.md";
 /**
  * Render every unit for every harness. Pure: reads nothing from disk; input bytes come through stack and world.
  * Owned units in this version: skills, the mode skill, commands, agents, rules, the frame, the alias commands
- * that compose emits, the plugin manifest of a harness whose local plugin received files, the `whole` model
+ * that compose emits, the plugin manifest of a harness whose local plugin received files, the skill registry of a
+ * harness that declares one, the `whole` model
  * surfaces (a pack's model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
  * `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. The other model
  * surfaces render as cells entries (frontmatter, cells, keys) and one block (the Codex [agents] table). Core
@@ -86,6 +87,7 @@ export function render(stack: Stack, world: World): Desired {
   for (const unit of stack.units) if (unit.type === "agent") renderUnit(ctx, unit);
   renderModels(ctx);
   renderPluginManifests(ctx);
+  renderSkillRegistries(ctx);
   renderMarketplaces(ctx);
   renderSessionHooks(ctx);
   return { entries: ctx.entries, errors: uniqueErrors(ctx.errors), info: ctx.info };
@@ -269,10 +271,12 @@ const FORMATS = {
     "claude-md": [(n) => `${n}.md`, (t) => t],
     "codex-toml": [(n) => `${n}.toml`, (t, n, note: string) => codexAgent(t, n, note)],
     "cursor-md": [(n) => `${n}.md`, (t, n, note: string) => cursorAgent(t, n, note)],
+    "antigravity-md": [(n: string) => `${n}.md`, (t: string, n: string, note: string) => cursorAgent(t, n, note)],
   },
   rule: {
     md: [(n) => `${n}.md`, (t) => t],
     mdc: [(n) => `${n}.mdc`, (t) => mdc(t)],
+    "antigravity-md": [(n: string) => `${n}.md`, (t: string) => alwaysOnRule(t)],
   },
 };
 
@@ -321,7 +325,7 @@ const HUB_SEARCH = /skills\/poteto-mode\/SKILL\.md/;
 /**
  * A one-line rig note for an agent whose text searches for the pstack hub: the path of the hub that this harness reads,
  * the first read dir in record order that holds the mode skill's hub.md (as frameTriggers). Empty when the text has no such
- * search, or when no read dir holds the hub. Only the codex-toml and cursor-md formats place the note. claude-md keeps the source bytes.
+ * search, or when no read dir holds the hub. Only the codex-toml, cursor-md and antigravity-md formats place the note. claude-md keeps the source bytes.
  */
 function hubNote(ctx: any, h: string, unit: Unit, text: string): string {
   if (!HUB_SEARCH.test(text) || !ctx.hubSkill) return "";
@@ -353,7 +357,9 @@ function renderFrame(ctx, unit) {
     const text = coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), frameVars(ctx, h));
     if (text === null) continue;
     if (instr.mode === "whole-file") {
-      const body = instr.path.endsWith(".mdc") ? mdc(text) : text;
+      const format: string | undefined = ctx.targets.get(h).units?.rule?.format;
+      const rule = format ? FORMATS.rule[format as keyof typeof FORMATS.rule] : undefined;
+      const body = rule ? rule[1](text) : instr.path.endsWith(".mdc") ? mdc(text) : text;
       emit(ctx, instr.path, { kind: "owned", bytes: encoder.encode(body), mode: FILE_MODE, unit: unit.id });
     } else if (instr.mode === "managed-block") {
       // The bytes between the markers. patch() owns the marker lines.
@@ -429,6 +435,26 @@ function renderPluginManifests(ctx) {
     if (![...ctx.owners.keys()].some((p) => p.startsWith(root))) continue;
     const bytes = encoder.encode(JSON.stringify(m.value, null, 2) + "\n");
     emit(ctx, m.path, { kind: "owned", bytes, mode: FILE_MODE, unit: `core/${h}-plugin` });
+  }
+}
+
+// ---- skill registries
+
+/**
+ * A record's skill_registry: a skills.json whose entries name its dirs, so the harness reads the shared copies without a
+ * copy of its own (agy-customizations docs/json_configs.md). A registry dir that the record does not read is a record bug.
+ */
+function renderSkillRegistries(ctx: any) {
+  for (const h of ctx.installed) {
+    const reg = ctx.targets.get(h).skill_registry;
+    if (!reg) continue;
+    const unread = reg.dirs.filter((d: string) => !ctx.targets.get(h).reads.skills.some((e: {path: string}) => e.path === d));
+    if (unread.length) {
+      ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `targets/${h}.json skill_registry names ${unread.join(", ")}, which reads.skills does not declare` });
+      continue;
+    }
+    const bytes = encoder.encode(JSON.stringify({ entries: reg.dirs.map((path: string) => ({ path })) }, null, 2) + "\n");
+    emit(ctx, reg.path, { kind: "owned", bytes, mode: FILE_MODE, unit: `core/${h}-skills` });
   }
 }
 
@@ -561,11 +587,12 @@ function uniqueErrors(errors) {
 
 /**
  * Every skill each harness sees, managed or not, for plan and doctor. Reads dirs, skips dot entries. Copies that a
- * harness collapses under its dedupe rule are one entry; `dir` names the read dir of each entry.
+ * harness collapses under its dedupe rule are one entry; `dir` names the read dir of each entry. `shadows` lists the
+ * managed copies that an unmanaged copy the harness reads first hides from it.
  * @param installed  installed.json, its `entries`, or a Map of path to entry; marks rig-written copies managed
  * @returns by harness
  */
-export function readSet(world: World, installed?: unknown): Map<string, {name: string, path: string, realpath: string, sha256: string, managed: boolean, dir: string}[]> {
+export function readSet(world: World, installed?: unknown): Map<string, {name: string, path: string, realpath: string, sha256: string, managed: boolean, dir: string, shadows?: string[]}[]> {
   return readSetOf(world, installed);
 }
 

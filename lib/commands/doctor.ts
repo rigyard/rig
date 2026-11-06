@@ -14,7 +14,8 @@ export type Line = {level: "error"|"warn"|"info", topic: string, text: string};
 
 /**
  * Effective duplicates per harness from targets.readSet: a name listed twice or more. An error when any copy is
- * managed (a placement bug), else info (section 7, "doctor duplicates").
+ * managed (a placement bug), else info (section 7, "doctor duplicates"). A warning when an unmanaged copy that the harness
+ * reads first shadows a rig copy: a user skill of the same name, or a harness builtin.
  * @param {object} world @param {Record<string, object>} installed   the plan's installed.json entries @returns {Line[]}
  */
 function duplicates(world, installed) {
@@ -26,6 +27,9 @@ function duplicates(world, installed) {
       if (group.length < 2) continue;
       const managed = group.some((e) => e.managed);
       out.push({ level: managed ? "error" : "info", topic: "duplicates", text: `${harness} lists ${name} ${group.length} times: ${group.map((e) => e.path).join(", ")}${managed ? " (one is managed: a placement bug)" : ""}` });
+    }
+    for (const e of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+      if (e.shadows) out.push({ level: "warn", topic: "duplicates", text: `${harness} loads ${e.name} from ${e.path}, which shadows the rig copy at ${e.shadows.join(", ")}` });
     }
   }
   return out;

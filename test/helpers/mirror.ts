@@ -31,6 +31,12 @@ export const MIRROR_UNITS = {
     [".cursor/skills", ".cursor/skills"],
     [".cursor/commands", ".cursor/commands"],
   ],
+  // agy-customizations: a workspace customization root is .agents/ with the subdirs of the global root ~/.gemini/config/.
+  antigravity: [
+    [".gemini/config/rules", ".agents/rules"],
+    [".gemini/config/agents", ".agents/agents"],
+    [".agents/skills", ".agents/skills"],
+  ],
 };
 
 /**
@@ -101,7 +107,7 @@ function copyTree(from, to, rel, written) {
  * @param opts realHome: injectable for tests
  * @returns project-relative files written, sorted
  */
-export function mirrorProject(home: string, harness: "claude"|"codex"|"cursor", dir: string, opts: {realHome?: string} = {}): string[] {
+export function mirrorProject(home: string, harness: "claude"|"codex"|"cursor"|"antigravity", dir: string, opts: {realHome?: string} = {}): string[] {
   const units = MIRROR_UNITS[harness];
   if (!units) throw new Error(`mirror: no project mirror for ${harness}${harness === "omp" ? "; run omp with PI_CODING_AGENT_DIR inside the fixture HOME" : ""}`);
   const real = opts.realHome ?? realHome();

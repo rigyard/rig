@@ -36,7 +36,7 @@ rig plan
 rig apply
 ```
 
-`rig apply` prints three `claude plugin` commands and a `settings.local.json` snippet. Run the commands once and paste the snippet into the project. Codex, omp and Cursor get no project copy: commit the paths that `rig doctor --project ~/src/app` prints. [Scope packs to projects](./05-scope-and-projects.md) explains why rig never writes into the repository.
+`rig apply` prints three `claude plugin` commands and a `settings.local.json` snippet. Run the commands once and paste the snippet into the project. Codex, omp, Cursor and Antigravity get no project copy: commit the paths that `rig doctor --project ~/src/app` prints. [Scope packs to projects](./05-scope-and-projects.md) explains why rig never writes into the repository.
 
 ## Review a week of usage
 

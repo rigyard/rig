@@ -235,6 +235,14 @@ describe("mirror", () => {
     assert.throws(() => mirrorProject(fx.home, "codex", x), /two sources write \.agents\/skills\/cs\/SKILL\.md/);
   });
 
+  test("antigravity: the global rules and agents land in the workspace .agents root, the shared skills next to them", (t) => {
+    const fx = makeFixtureHome({ ".gemini/config/rules/rig-frame.md": "f\n", ".gemini/config/agents/a.md": "a\n", ".gemini/config/skills.json": "{}\n", ".gemini/settings.json": "{}\n", ".agents/skills/as/SKILL.md": "as\n" });
+    const repo = scratchRepo();
+    t.after(() => (fx.cleanup(), repo.cleanup()));
+    assert.deepEqual(mirrorProject(fx.home, "antigravity", repo.dir), [".agents/agents/a.md", ".agents/rules/rig-frame.md", ".agents/skills/as/SKILL.md"]);
+    for (const absent of [".gemini", ".agents/skills.json"]) assert.equal(existsSync(join(repo.dir, absent)), false, absent);
+  });
+
   test("a second mirror shows only what HOME holds now and keeps other project files", (t) => {
     const fx = makeFixtureHome(units);
     const repo = scratchRepo();

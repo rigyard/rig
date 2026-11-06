@@ -42,6 +42,11 @@ export const REAL_CONFIG_PATHS = [
   ".omp/agent/skills",
   ".agents/skills",
   ".agents/commands",
+  ".gemini/settings.json",
+  ".gemini/antigravity-cli/settings.json",
+  ".gemini/config/skills.json",
+  ".gemini/config/rules",
+  ".gemini/config/agents",
 ];
 
 const UUID = "[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}";

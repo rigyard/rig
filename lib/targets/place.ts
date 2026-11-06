@@ -8,8 +8,8 @@ const RANK = { none: 0, "identical-bytes": 1, "by-name": 2 };
  * dedupe rule of their two dirs. Greedy and pairwise on purpose: a copy joins a group only when it merges with
  * every member, so the result can overcount copies but never undercount them.
  */
-export function collapseCopies(items: {dedupe: string, digest?: string}[]): {dedupe: string, digest?: string}[][] {
-  const groups = [];
+export function collapseCopies<T extends {dedupe: string, digest?: string}>(items: T[]): T[][] {
+  const groups: T[][] = [];
   for (const item of items) {
     const home = groups.find((g) => g.every((m) => mergeable(m, item)));
     if (home) home.push(item);
@@ -216,10 +216,13 @@ export function place(unit: {id: string, harnesses: string[], channel?: Record<s
       unhidden: best.unhidden,
     };
   }
-  return { error: readsetError(unit, pack, nearest?.r, installed, targets, wanted) };
+  return { error: readsetError(unit, pack, nearest?.r, installed, targets, wanted, cands) };
 }
 
-function readsetError(unit, pack, near, installed, targets, wanted) {
+type Cand = {path: string, readers: Map<string, string>};
+type Near = {chosen: Cand[], copies: Record<string, number>, sees: Record<string, string[]>, failing: string[]};
+
+function readsetError(unit, pack, near: Near | undefined, installed, targets, wanted: Set<string>, cands: Cand[]) {
   if (!near) {
     const h = unit.harnesses[0];
     return {
@@ -237,11 +240,21 @@ function readsetError(unit, pack, near, installed, targets, wanted) {
   const anchored = Object.entries(unit.anchored ?? {});
   if (anchored.length) {
     const packs = [...new Set(anchored.flatMap(([, p]) => p))].sort();
+    const packLists = packs.map((p) => `rig.json packs.${p}.harnesses`);
+    const anchoredDirs = new Set(anchored.map(([d]) => d));
+    const extra = near.chosen.filter((c) => !anchoredDirs.has(c.path) && c.readers.has(harness));
+    const pulled = [...wanted].filter((h) => {
+      const reaching = cands.filter((c) => c.readers.has(h));
+      return h !== harness && reaching.length > 0 && reaching.every((c) => extra.includes(c));
+    });
+    const exits = pulled.length
+      ? `add ${pulled.join(" and ")} to ${packLists.join(" and ")}, or remove ${pulled.join(" and ")} from rig.json harnesses`
+      : `give ${packLists.join(" and ")} one harness list, so the leaves share dirs`;
     return {
       code: "E_READSET",
       harness,
       path: dirs[0],
-      message: `${what}, via ${dirs.join(" and ")}: unit ${unit.id} must sit in ${anchored.map(([d]) => d).join(" and ")}, where vendored leaves link to it. Exits: give ${packs.map((p) => `rig.json packs.${p}.harnesses`).join(" and ")} one harness list, so the leaves share dirs.`,
+      message: `${what}, via ${dirs.join(" and ")}: unit ${unit.id} must sit in ${anchored.map(([d]) => d).join(" and ")}, where vendored leaves link to it. Exits: ${exits}.`,
     };
   }
   const exits = [`narrow the unit's harnesses in rig.json packs.${pack}.harnesses`];

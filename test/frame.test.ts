@@ -193,3 +193,14 @@ test("render twice is byte-identical", () => {
     fx.cleanup();
   }
 });
+
+test("antigravity: the repo frame is an always-on rule that types /craft and names the trigger units in ~/.agents/skills", () => {
+  const { at, desired } = renderRepo();
+  assert.deepEqual(desired.errors, []);
+  const frame = text(at.get("~/.gemini/config/rules/rig-frame.md"));
+  assert.ok(frame.startsWith('---\ntrigger: "always_on"\n---\n# rig frame\n'), frame.slice(0, 80));
+  assert.match(frame, /^For multi-step work, type `\/craft`, optionally with a domain: `\/craft eng: \.\.\.`\.$/m);
+  const lines = frame.split("\n").filter((l) => TRIGGER_LINE.test(l));
+  assert.deepEqual(lines, FRAME_TRIGGERS.map(([when, unit]) => `${when}: read ~/.agents/skills/${unit.split("/")[1]}/SKILL.md and apply it.`));
+  assert.equal(at.get("~/.gemini/GEMINI.md"), undefined, "rig leaves GEMINI.md alone");
+});

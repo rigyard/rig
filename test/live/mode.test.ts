@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "node:test";
 import type { TestContext } from "node:test";
-import { assertCursorMention, cursorGuard, readsPath } from "../helpers/cursor-guard.ts";
+import { assertMention, CURSOR, pathGuard, readsPath } from "../helpers/path-guard.ts";
 import { liveOmpTest, liveTest, runHarness } from "../helpers/live.ts";
 import { harnessArgv, mirrorProject, ompEnv, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
 import { craftFiles, craftFixture } from "../mode.helpers.ts";
@@ -107,7 +107,7 @@ async function typedAndHidden(t: TestContext, h: "codex" | "cursor" | "omp") {
   t.diagnostic(`typed form: ${typed(h, "craft")}`);
   const first = await ask(h, `${typed(h, "craft")} ${ROUTE}`, s);
   if (noVerdict(t, h, first.r)) return null;
-  if (h === "cursor") assertCursorMention(cursorGuard(first.r.stdout, { dir: s.dir, home: s.home }, t), (text) => readsPath(text, "craft/hub.md"), "craft/hub.md");
+  if (h === "cursor") assertMention(pathGuard(CURSOR, first.r.stdout, { dir: s.dir, home: s.home }, t), (text) => readsPath(text, "craft/hub.md"), "craft/hub.md");
   else assert.ok(reads(first.r, "craft/hub.md"), `exit ${first.r.code}: the ${h} transcript does not read craft/hub.md`);
   if (h === "omp") {
     const skills = ompSkills(s);

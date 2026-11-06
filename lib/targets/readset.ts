@@ -71,19 +71,23 @@ function managedFiles(installed, home) {
   return out;
 }
 
+type Listed = {name: string, path: string, realpath: string, sha256: string, managed: boolean, dir: string, shadows?: string[]};
+type Item = Omit<Listed, "shadows"> & {dedupe: string};
+
 /**
  * Every skill each harness lists, after its own dedupe rule. Reads the dirs the world's targets declare,
  * skips dot entries and, in plugin dirs that rig does not write, dirs marked `.orphaned_at` (a stale cache version the harness does not load), and
  * keys each skill by (name, realpath, SKILL.md sha256). Copies that the harness collapses become one entry.
- * Copies it keeps apart stay separate, even a symlink and its target.
+ * Copies it keeps apart stay separate, even a symlink and its target. When the harness reads an unmanaged copy first and
+ * collapses under it the rig copy it would otherwise load, and the two differ in bytes, `shadows` names that rig copy.
  * @param installed  installed.json (or its `entries`). With it, `managed` marks rig-written SKILL.md files.
  */
-export function readSet(world: {env: {home: string}, targets: Map<string, object>}, installed?: unknown): Map<string, {name: string, path: string, realpath: string, sha256: string, managed: boolean, dir: string}[]> {
+export function readSet(world: {env: {home: string}, targets: Map<string, object>}, installed?: unknown): Map<string, Listed[]> {
   const home = world.env.home;
   const managedSet = managedFiles(installed, home);
   const result = new Map();
   for (const [harness, record] of world.targets) {
-    const items = [];
+    const items: Item[] = [];
     for (const entry of record.reads.skills) {
       const dir = expand(entry.path, home);
       for (const s of skillsIn(dir, Boolean(entry.plugin), Boolean(entry.plugin) && !entry.writable)) {
@@ -98,13 +102,15 @@ export function readSet(world: {env: {home: string}, targets: Map<string, object
         });
       }
     }
-    const byName = new Map();
+    const byName = new Map<string, Item[]>();
     for (const it of items) byName.set(it.name, [...(byName.get(it.name) ?? []), it]);
-    const listed = [];
+    const listed: Listed[] = [];
     for (const group of byName.values()) {
       for (const copies of collapseCopies(group.map((it) => ({ ...it, digest: it.sha256 })))) {
         const { dedupe, digest, ...rep } = copies[0];
-        listed.push({ ...rep, managed: copies.some((c) => c.managed) });
+        const rigCopy = rep.managed ? undefined : copies.find((c) => c.managed && c.realpath !== rep.realpath);
+        const shadows = rigCopy && rigCopy.sha256 !== rep.sha256 ? [rigCopy.path] : [];
+        listed.push({ ...rep, managed: copies.some((c) => c.managed), ...(shadows.length ? { shadows } : {}) });
       }
     }
     result.set(harness, listed);

@@ -9,10 +9,12 @@ import { render } from "../lib/targets.ts";
 import { gate } from "../lib/gate.ts";
 import { insertAnchor, stripAnchor } from "../lib/mode.ts";
 import { setFrontmatterKey } from "../lib/targets/formats.ts";
-import { HARNESSES } from "./render.helpers.ts";
+import { HARNESSES as RENDER_HARNESSES } from "./render.helpers.ts";
 import { PACK, craftFiles, craftFixture, craftManifest, lockFor } from "./mode.helpers.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+/** The harnesses that the repo rig.json installs. */
+const HARNESSES = [...RENDER_HARNESSES, "antigravity"];
 const BIN = join(ROOT, "bin/rig.ts");
 type TargetRec = {reads: {skills: {path: string, dedupe: string}[]}, hide: {method: string, key?: string, file?: string, value?: unknown}};
 const RECORDS = new Map<string, TargetRec>(HARNESSES.map((h) => [h, JSON.parse(readFileSync(join(ROOT, `targets/${h}.json`), "utf8"))]));
@@ -63,8 +65,8 @@ const hub = (extra: string) => ({ files: { "skills/poteto-mode/SKILL.md": `${cra
 const modeFindings = (b: Built) => b.findings.filter((f: Finding) => f.check === "mode");
 
 /** Each harness sees one craft after its dedupe rule. Its adapter and the adapter next to each leaf it reads hold its section. */
-function assertOneCraft(b: Built, leafReaders: string[]) {
-  for (const h of HARNESSES) {
+function assertOneCraft(b: Built, leafReaders: string[], installed: string[] = HARNESSES) {
+  for (const h of installed) {
     const reads = record(h).reads.skills;
     const copies = reads.filter((d) => b.has(`${d.path}/craft/SKILL.md`));
     const distinct = (dedupe: string) => dedupe === "by-name" ? Math.min(copies.length, 1)
@@ -505,6 +507,7 @@ describe("adapter, hide switch and placement", () => {
     assert.deepEqual(b.info.filter((l: string) => l.includes("sealed")), [
       "fixture/sealed stays hidden on claude: its source sets disable-model-invocation",
       "fixture/sealed stays hidden on cursor: its source sets disable-model-invocation",
+      "fixture/sealed stays hidden on antigravity: its source sets disable-model-invocation",
     ]);
     assert.match(b.text("~/.claude/skills/sealed/SKILL.md"), /^disable-model-invocation: true$/m);
     assert.doesNotMatch(b.text("~/.agents/skills/sealed/SKILL.md"), /^hide:/m);
@@ -533,12 +536,42 @@ describe("adapter, hide switch and placement", () => {
     assertOneCraft(built(), HARNESSES);
   });
 
-  for (const h of HARNESSES) {
+  // Antigravity reads only ~/.agents/skills, so craft must sit there. A pack whose leaves anchor craft in a dir of their own
+  // gives codex (~/.codex/skills) or omp (~/.omp/agent/skills) a second craft.
+  const alone = ["claude", "cursor", "antigravity"];
+  for (const h of alone) {
     test(`a vendored pack limited to ${h}: craft sits next to its leaves, no anchor dangles, one craft per harness`, () => {
       const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } });
       assert.deepEqual(b.errors, []);
       assert.deepEqual(b.findings.filter((f: Finding) => f.check === "links"), []);
       assertOneCraft(b, [h]);
+    });
+  }
+
+  for (const h of HARNESSES.filter((x) => !alone.includes(x))) {
+    test(`a vendored pack limited to ${h} is E_READSET with antigravity installed, and adding antigravity to the pack places it`, () => {
+      const e = errorOf(built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } }), "E_READSET");
+      assert.equal(e.harness, h);
+      assert.match(e.message, new RegExp(`^${h} would see unit core/craft 2 times, via [^:]*~/\\.agents/skills[^:]*: unit core/craft must sit in `));
+      assert.match(e.message, /Exits: add antigravity to rig\.json packs\.fixture\.harnesses, or remove antigravity from rig\.json harnesses\.$/);
+      assert.doesNotMatch(e.message, /one harness list/);
+      const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h, "antigravity"] } }, fill: {} } });
+      assert.deepEqual(b.errors, []);
+      assertOneCraft(b, [h, "antigravity"]);
+      const without = built({ rig: { harnesses: RENDER_HARNESSES, packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } });
+      assert.deepEqual(without.errors, []);
+      assertOneCraft(without, [h], RENDER_HARNESSES);
+    });
+  }
+
+  for (const harnesses of [["antigravity"], ["claude", "antigravity"], ["cursor", "antigravity"], ["omp", "antigravity"]]) {
+    test(`harnesses [${harnesses.join(", ")}] is E_READSET: no writable dir reaches antigravity, and adding codex places it`, () => {
+      const e = errorOf(built({ rig: { harnesses, packs: { product: {}, [PACK]: {} }, fill: {} } }), "E_READSET");
+      assert.equal(e.harness, "antigravity");
+      assert.match(e.message, /antigravity/);
+      const placed = built({ rig: { harnesses: [...harnesses, "codex"], packs: { product: {}, [PACK]: {} }, fill: {} } });
+      assert.deepEqual(placed.errors, []);
+      assertOneCraft(placed, [...harnesses, "codex"], [...harnesses, "codex"]);
     });
   }
 

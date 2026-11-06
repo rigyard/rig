@@ -20,7 +20,7 @@ describe("core seal", () => {
     assert.deepEqual([...unit(s, "core/craft").files.keys()], ["SKILL.md"]);
     assert.deepEqual(unit(s, "core/rig-frame").type, "frame");
     assert.deepEqual([...unit(s, "core/rig-frame").files.keys()], ["frame.md"]);
-    assert.deepEqual(unit(s, "core/rig-frame").harnesses, ["claude", "codex", "omp", "cursor"]);
+    assert.deepEqual(unit(s, "core/rig-frame").harnesses, ["claude", "codex", "omp", "cursor", "antigravity"]);
   });
   test("each alias renders as a core command from the alias template", () => {
     const s = stackOf(TIDY_ALIAS);

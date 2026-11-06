@@ -25,6 +25,7 @@ function placeable(): string[] {
     for (const u of Object.values<any>(t.units)) if (u?.dir) probes(u.dir, (n) => (u.format === "skill-hidden" ? `${n}/SKILL.md` : `${n}.md`));
     if (t.instructions) out.add(tail(t.instructions.path));
     if (t.plugin_manifest) out.add(tail(t.plugin_manifest.path));
+    if (t.skill_registry) out.add(tail(t.skill_registry.path));
     for (const h of Object.values<any>(t.hooks ?? {})) if (h?.file) out.add(tail(h.file));
     for (const s of t.model_surfaces ?? []) surface(s);
   }
@@ -109,11 +110,11 @@ describe("live guard: harness-owned writes", () => {
 describe("live guard: everything rig could write stays guarded", () => {
   const paths = placeable();
 
-  test("the derived list holds the paths of all four targets and the pstack model surfaces", () => {
+  test("the derived list holds the paths of all five targets and the pstack model surfaces", () => {
     for (const p of [".claude/skills/rig-probe/SKILL.md", ".claude/agents/rig-probe.md", ".claude/rules/rig-frame.md", ".claude/rules/pstack-models.md",
       ".codex/agents/rig-probe.toml", ".codex/AGENTS.md", ".codex/config.toml", ".agents/skills/rig-probe/SKILL.md", ".cursor/rules/rig-frame.mdc",
       ".cursor/agents/rig-probe.md", ".cursor/plugins/local/rig/.cursor-plugin/plugin.json", ".omp/agent/AGENTS.md", ".omp/agent/config.yml",
-      ".claude/settings.json"]) assert.ok(paths.includes(p), p);
+      ".claude/settings.json", ".gemini/config/skills.json", ".gemini/config/rules/rig-frame.md", ".gemini/config/agents/rig-probe.md"]) assert.ok(paths.includes(p), p);
   });
 
   test("the guard watches every derived path", () => {

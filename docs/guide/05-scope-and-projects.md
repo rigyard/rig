@@ -9,7 +9,7 @@ A pack's `pack.json` lists the scope modes that it supports. You pick one mode p
 | Mode | What rig renders |
 |---|---|
 | `machine-hidden` | A copy in the harness dirs. Each skill copy carries the hide control of every harness that reads its dir, so the model does not pick it on its own. You invoke it by name. This is the default when the pack entry has no `scope` key. |
-| `project` | No machine copy. On Claude Code, a local plugin that you enable per project. On Codex, omp and Cursor, nothing: rig prints the repository paths for you to commit. |
+| `project` | No machine copy. On Claude Code, a local plugin that you enable per project. On Codex, omp, Cursor and Antigravity, nothing: rig prints the repository paths for you to commit. |
 | `hybrid` | The hidden machine copy, plus the Claude Code project plugin. |
 
 This overlay puts the `product` pack in project mode for one project:
@@ -65,7 +65,7 @@ One part is not verified end to end. Probe (k) did not check that Claude Code lo
 
 ## Commit files where no project channel exists
 
-Codex, omp and Cursor have no known per-project channel that stays out of the repository. On those harnesses the project part of a pack stays absent until you commit its files. `rig doctor --project` prints the paths: `.agents/skills/<name>/` for Codex, `.omp/skills/<name>/` for omp and `.cursor/skills/<name>/` for Cursor. Only skills have a known project path. A command unit gets a "no known project path" line. On Claude Code a rule unit has no plugin component, so `plan` prints an `absent` info line for it.
+Codex, omp, Cursor and Antigravity have no known per-project channel that stays out of the repository. On those harnesses the project part of a pack stays absent until you commit its files. `rig doctor --project` prints the paths: `.agents/skills/<name>/` for Codex and Antigravity, `.omp/skills/<name>/` for omp and `.cursor/skills/<name>/` for Cursor. Only skills have a known project path. A command unit gets a "no known project path" line. On Claude Code a rule unit has no plugin component, so `plan` prints an `absent` info line for it.
 
 ## Check a project with rig doctor --project
 

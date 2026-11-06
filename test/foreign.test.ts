@@ -1,5 +1,5 @@
 // E_FOREIGN_INSTALL of the pin check over a real fixture HOME: Claude Code plugin records with their scope and
-// enabledPlugins, omp plugins, clones or links with an upstream name, and unmanaged skill dirs that a pack leaves out.
+// enabledPlugins, omp and Antigravity plugins, clones or links with an upstream name, and unmanaged skill dirs that a pack leaves out.
 
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
@@ -100,6 +100,33 @@ describe("E_FOREIGN_INSTALL for omp plugins", () => {
   test("a disabled package warns", () => {
     const f = foreign({ ".omp/plugins/omp-plugins.lock.json": lock(false) });
     assert.match(f[0], /^warn harness:omp E_FOREIGN_INSTALL pstack: omp has the plugin @casualjim\/pi-pstack in ~\/\.omp\/plugins\/omp-plugins\.lock\.json but not enabled, /);
+  });
+});
+
+describe("E_FOREIGN_INSTALL for Antigravity plugins", () => {
+  const dir = ".gemini/config/plugins";
+
+  test("a plugin dir named after a seeded upstream blocks with the agy uninstall command; another plugin gives nothing", () => {
+    assert.deepEqual(foreign({ [`${dir}/pstack/plugin.json`]: json({ name: "pstack" }), [`${dir}/science/plugin.json`]: json({ name: "science" }) }), [
+      "block harness:antigravity E_FOREIGN_INSTALL pstack: Antigravity has the plugin pstack in ~/.gemini/config/plugins/pstack, and pack pstack seeds the same upstream; rig never deletes what it does not own, so run agy plugin uninstall pstack",
+    ]);
+  });
+
+  test("an imported Claude Code plugin whose manifest names the upstream blocks too", () => {
+    const f = foreign({ [`${dir}/cursor-pstack/.claude-plugin/plugin.json`]: json({ name: "pstack" }) });
+    assert.match(f[0], /^block harness:antigravity E_FOREIGN_INSTALL pstack: Antigravity has the plugin cursor-pstack in ~\/\.gemini\/config\/plugins\/cursor-pstack, .* run agy plugin uninstall cursor-pstack$/);
+  });
+
+  test("config.json plugins.<dir>.enabled false warns, and it wins over the manifest", () => {
+    const off = foreign({ [`${dir}/pstack/plugin.json`]: json({ name: "pstack" }), ".gemini/config/config.json": json({ plugins: { pstack: { enabled: false } } }) });
+    assert.match(off[0], /^warn harness:antigravity E_FOREIGN_INSTALL pstack: Antigravity has the plugin pstack in ~\/\.gemini\/config\/plugins\/pstack but not enabled, /);
+    const on = foreign({ [`${dir}/pstack/plugin.json`]: json({ name: "pstack", disabled: true }), ".gemini/config/config.json": json({ plugins: { pstack: { enabled: true } } }) });
+    assert.match(on[0], /^block harness:antigravity /);
+  });
+
+  test("a manifest that ships disabled warns; a dir with no manifest is no plugin", () => {
+    assert.match(foreign({ [`${dir}/pstack/plugin.json`]: json({ disabled: true }) })[0], /^warn harness:antigravity .* but not enabled, /);
+    assert.deepEqual(foreign({ [`${dir}/pstack/README.md`]: "x\n" }), []);
   });
 });
 
