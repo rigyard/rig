@@ -1,6 +1,6 @@
 // lib/targets/readset.ts — internal to targets. See docs/design/rig-architecture.md section 7, "doctor duplicates".
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { collapseCopies } from "./place.ts";
 
@@ -37,10 +37,14 @@ function subdirs(dir) {
   return out;
 }
 
-function skillsIn(dir, plugin) {
+/** Claude Code writes this file into a plugin cache dir that no install refers to any more; it does not load that dir. */
+const ORPHAN_MARKER = ".orphaned_at";
+
+function skillsIn(dir, plugin, skipOrphans: boolean) {
   const found = [];
   const walk = (d, depth) => {
     for (const sub of subdirs(d)) {
+      if (skipOrphans && existsSync(join(sub.path, ORPHAN_MARKER))) continue;
       const file = join(sub.path, "SKILL.md");
       let bytes = null;
       try {
@@ -69,8 +73,9 @@ function managedFiles(installed, home) {
 
 /**
  * Every skill each harness lists, after its own dedupe rule. Reads the dirs the world's targets declare,
- * skips dot entries, and keys each skill by (name, realpath, SKILL.md sha256). Copies that the harness collapses
- * become one entry. Copies it keeps apart stay separate, even a symlink and its target.
+ * skips dot entries and, in plugin dirs that rig does not write, dirs marked `.orphaned_at` (a stale cache version the harness does not load), and
+ * keys each skill by (name, realpath, SKILL.md sha256). Copies that the harness collapses become one entry.
+ * Copies it keeps apart stay separate, even a symlink and its target.
  * @param installed  installed.json (or its `entries`). With it, `managed` marks rig-written SKILL.md files.
  */
 export function readSet(world: {env: {home: string}, targets: Map<string, object>}, installed?: unknown): Map<string, {name: string, path: string, realpath: string, sha256: string, managed: boolean, dir: string}[]> {
@@ -81,7 +86,7 @@ export function readSet(world: {env: {home: string}, targets: Map<string, object
     const items = [];
     for (const entry of record.reads.skills) {
       const dir = expand(entry.path, home);
-      for (const s of skillsIn(dir, Boolean(entry.plugin))) {
+      for (const s of skillsIn(dir, Boolean(entry.plugin), Boolean(entry.plugin) && !entry.writable)) {
         items.push({
           name: s.name,
           path: s.path,

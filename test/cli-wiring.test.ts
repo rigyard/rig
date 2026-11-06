@@ -123,6 +123,29 @@ describe("rig doctor", () => {
     assert.doesNotMatch(r.stdout, /^info +duplicates +(claude|omp|cursor) /m, "harnesses that read one copy, or dedupe by name, list it once");
   });
 
+  test("a Claude plugin cache copy marked .orphaned_at is not a duplicate; two live copies still are", (t) => {
+    const body = (v: string) => `---\nname: dup\n---\n${v}\n`;
+    const cache = ".claude/plugins/cache/mkt/plug";
+    const stale = setup({ home: { [`${cache}/1.0.0/skills/dup/SKILL.md`]: body("old"), [`${cache}/1.0.0/.orphaned_at`]: "1\n", [`${cache}/2.0.0/skills/dup/SKILL.md`]: body("new") } });
+    t.after(() => stale.fx.cleanup());
+    const r1 = stale.rig(["doctor"]);
+    assert.equal(r1.code, 0, r1.stdout + r1.stderr);
+    assert.doesNotMatch(r1.stdout, /^\w+ +duplicates /m);
+
+    const live = setup({ home: { [`${cache}/1.0.0/skills/dup/SKILL.md`]: body("old"), [`${cache}/2.0.0/skills/dup/SKILL.md`]: body("new") } });
+    t.after(() => live.fx.cleanup());
+    const r2 = live.rig(["doctor"]);
+    assert.match(r2.stdout, /^info +duplicates +claude lists dup 2 times: .*1\.0\.0\/skills\/dup, .*2\.0\.0\/skills\/dup$/m);
+  });
+
+  test("a Claude plugin cache copy marked only .in_use is live, so it still counts as a duplicate", (t) => {
+    const body = (v: string) => `---\nname: dup\n---\n${v}\n`;
+    const cache = ".claude/plugins/cache/mkt/plug";
+    const s = setup({ home: { [`${cache}/1.0.0/skills/dup/SKILL.md`]: body("old"), [`${cache}/1.0.0/.in_use`]: "", [`${cache}/2.0.0/skills/dup/SKILL.md`]: body("new") } });
+    t.after(() => s.fx.cleanup());
+    assert.match(s.rig(["doctor"]).stdout, /^info +duplicates +claude lists dup 2 times: /m);
+  });
+
   test("--project with a path that is not a directory: exit 2", (t) => {
     const s = setup();
     t.after(() => s.fx.cleanup());

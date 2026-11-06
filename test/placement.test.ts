@@ -361,6 +361,34 @@ test("readSet reads plugin dirs: nested Claude plugin cache and the flat Cursor 
   }
 });
 
+test("readSet skips a plugin cache version marked .orphaned_at, and keeps one with only .in_use", () => {
+  const home = tempHome();
+  try {
+    const cache = join(home, ".claude/plugins/cache/mkt/plug");
+    skill(join(cache, "1.0.0/skills"), "dup", "old\n");
+    writeFileSync(join(cache, "1.0.0/.orphaned_at"), "1\n");
+    skill(join(cache, "2.0.0/skills"), "dup", "new\n");
+    skill(join(cache, "3.0.0/skills"), "kept", "kept\n");
+    mkdirSync(join(cache, "3.0.0/.in_use"));
+    const set = readSet(worldFor(home, {}));
+    assert.deepEqual(set.get("claude")?.map((e) => e.path).sort(), [join(cache, "2.0.0/skills/dup"), join(cache, "3.0.0/skills/kept")]);
+    assert.deepEqual(duplicatesOf(set).get("claude"), []);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("readSet keeps a skill under a writable (rig-managed) plugin dir even when it holds .orphaned_at", () => {
+  const home = tempHome();
+  try {
+    const dir = skill(join(home, ".cursor/plugins/local/rig/skills"), "managed", "rig\n");
+    writeFileSync(join(dir, ".orphaned_at"), "1\n");
+    assert.deepEqual(readSet(worldFor(home, {})).get("cursor")?.map((e) => e.path), [dir]);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("readSet on an empty HOME lists nothing for every harness", () => {
   const home = tempHome();
   try {
