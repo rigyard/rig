@@ -3,13 +3,14 @@
 // A case reads a transcript only for tool names, file paths and the final reply. It copies no message text to disk.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "node:test";
 import type { TestContext } from "node:test";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveOmpTest, liveTest, realHome, runHarness } from "../helpers/live.ts";
-import { harnessArgv, mirrorProject, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
+import { harnessArgv, mirrorProject, ompEnv, realBin, replyOf, scratchRepo } from "../helpers/mirror.ts";
 import { configCopy, json, manifest, rig, ROOT, runId } from "../helpers/seed.ts";
 
 const PLUGINS = process.env.RIG_LIVE_PLUGINS || "https://github.com/cursor/plugins";
@@ -160,22 +161,15 @@ function noVerdict(t: TestContext, h: Harness, r: Run) {
   return true;
 }
 
-/** omp records a skill load as a custom message {customType: "skill-prompt", details: {name}}. */
-function loads(r: Run, name: string) {
-  const ids = new Set<string>();
-  const walk = (v: any) => {
-    if (Array.isArray(v)) v.forEach(walk);
-    else if (v !== null && typeof v === "object") {
-      if (v.customType === "skill-prompt" && v.details?.name === name) ids.add(String(v.id ?? JSON.stringify(v)));
-      Object.values(v).forEach(walk);
-    }
-  };
-  events(r.stdout).forEach(walk);
-  return ids.size;
-}
-
 /** The names a listing reply gives, one per line, with bullets and code marks removed. */
 const listed = (text: string) => text.split("\n").map((l) => l.replace(/^[\s*\-\d.)]+/, "").replace(/[`*]/g, "").trim().toLowerCase()).filter(Boolean);
+
+/** `omp skill list --json` in the seeded fixture env. omp keeps `hide: true` skills out of the system prompt, so the omp listing check reads this instead of asking a model. */
+function ompSkills(s: {home: string, dir: string}) {
+  const r = spawnSync(realBin("omp"), ["skill", "list", "--json"], { env: ompEnv(s.home), cwd: s.dir, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  return (JSON.parse(r.stdout) as {skills: {name: string, hide?: boolean}[]}).skills;
+}
 
 async function typedAndHidden(t: TestContext, h: "codex" | "cursor" | "omp") {
   const s = seeded(t, h === "codex" ? ["codex"] : h === "cursor" ? ["claude", "codex", "cursor"] : []);
@@ -183,6 +177,12 @@ async function typedAndHidden(t: TestContext, h: "codex" | "cursor" | "omp") {
   const first = await ask(h, `${typed(h, "craft")} a test fails after the last merge, what do I do?`, s);
   if (noVerdict(t, h, first.r)) return null;
   assert.ok(reads(first.r, "craft/hub.md"), `exit ${first.r.code}: the ${h} transcript does not read craft/hub.md`);
+  if (h === "omp") {
+    const skills = ompSkills(s);
+    for (const name of ["craft", "how"]) assert.equal(skills.find((k) => k.name === name)?.hide, true, `omp skill list does not report ${name} with hide: true`);
+    assert.deepEqual(skills.filter((k) => k.hide !== true).map((k) => k.name), [], "omp skill list reports a visible rig skill");
+    return first;
+  }
   const listing = await ask(h, LISTING, s, { maxTurns: 3 });
   if (noVerdict(t, h, listing.r)) return null;
   assert.ok(listing.text !== null, `exit ${listing.r.code}: ${h} gave no listing`);
@@ -297,11 +297,7 @@ describe("first seed", () => {
 
   liveTest("cursor runs typed craft and hides leaves", (t) => typedAndHidden(t, "cursor"));
 
-  liveOmpTest("omp runs typed craft once", async (t) => {
-    const first = await typedAndHidden(t, "omp");
-    if (first === null) return;
-    assert.equal(loads(first.r, "craft"), 1, "omp does not load craft exactly once");
-  });
+  liveOmpTest("omp reads craft hub and hides skills", (t) => typedAndHidden(t, "omp"));
 
   liveTest("undo clears the seed", (t) => {
     const root = configCopy(ROOT);
