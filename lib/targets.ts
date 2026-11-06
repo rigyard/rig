@@ -78,10 +78,12 @@ export function render(stack: Stack, world: World): Desired {
     triggers: stack.mode?.triggers ?? [],
     types: new Map(stack.units.map((u) => [u.id, u.type])),
     anchored: {} as Record<string, string[]>,
+    hubSkill: stack.mode?.hub ? stack.units.find((u) => u.type === "mode")?.name : undefined,
   };
-  for (const unit of stack.units) if (unit.type !== "mode" && unit.type !== "frame") renderUnit(ctx, unit);
+  for (const unit of stack.units) if (unit.type !== "mode" && unit.type !== "frame" && unit.type !== "agent") renderUnit(ctx, unit);
   for (const unit of stack.units) if (unit.type === "frame") renderUnit(ctx, unit);
   for (const unit of stack.units) if (unit.type === "mode") renderMode(ctx, unit, stack.mode!);
+  for (const unit of stack.units) if (unit.type === "agent") renderUnit(ctx, unit);
   renderModels(ctx);
   renderPluginManifests(ctx);
   renderMarketplaces(ctx);
@@ -265,8 +267,8 @@ const FORMATS = {
   },
   agent: {
     "claude-md": [(n) => `${n}.md`, (t) => t],
-    "codex-toml": [(n) => `${n}.toml`, (t, n) => codexAgent(t, n)],
-    "cursor-md": [(n) => `${n}.md`, (t, n) => cursorAgent(t, n)],
+    "codex-toml": [(n) => `${n}.toml`, (t, n, note: string) => codexAgent(t, n, note)],
+    "cursor-md": [(n) => `${n}.md`, (t, n, note: string) => cursorAgent(t, n, note)],
   },
   rule: {
     md: [(n) => `${n}.md`, (t) => t],
@@ -308,8 +310,28 @@ function renderSingle(ctx, unit, kind) {
     const text = isCore(unit) ? coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), {}, [ALIAS_NAME]) : terms(ctx, unit, src, h);
     if (text === null) continue;
     const [file, transform] = format;
-    emit(ctx, `${spec.dir}/${file(unit.name)}`, { kind: "owned", bytes: encoder.encode(transform(text, unit.name)), mode: FILE_MODE, unit: unit.id });
+    const note = kind === "agent" ? hubNote(ctx, h, unit, text) : "";
+    emit(ctx, `${spec.dir}/${file(unit.name)}`, { kind: "owned", bytes: encoder.encode(transform(text, unit.name, note)), mode: FILE_MODE, unit: unit.id });
   }
+}
+
+/** The upstream fallback of an agent that finds the pstack hub in a plugin dir, which a rig install does not have. */
+const HUB_SEARCH = /skills\/poteto-mode\/SKILL\.md/;
+
+/**
+ * A one-line rig note for an agent whose text searches for the pstack hub: the path of the hub that this harness reads,
+ * the first read dir in record order that holds the mode skill's hub.md (as frameTriggers). Empty when the text has no such
+ * search, or when no read dir holds the hub. Only the codex-toml and cursor-md formats place the note. claude-md keeps the source bytes.
+ */
+function hubNote(ctx: any, h: string, unit: Unit, text: string): string {
+  if (!HUB_SEARCH.test(text) || !ctx.hubSkill) return "";
+  const dirs: string[] = ctx.targets.get(h).reads.skills.map((e: {path: string}) => e.path);
+  const dir = dirs.find((d) => ctx.owners.has(`${d}/${ctx.hubSkill}/hub.md`));
+  if (!dir) {
+    ctx.info.push(`absent ${h} ${unit.id}: no skill dir of the harness holds ${ctx.hubSkill}/hub.md, so the agent keeps the upstream hub search`);
+    return "";
+  }
+  return `rig install note: the poteto-mode hub is the file \`${dir}/${ctx.hubSkill}/hub.md\`. When your parent gives no path, read that file and skip the plugin search below.`;
 }
 
 // ---- the frame

@@ -98,12 +98,13 @@ export function mdc(text) {
 
 /**
  * units.agent.format "cursor-md": name, description and body. Model keys are cells and belong to the models
- * surfaces (section 8), so they are not copied from the Claude-shaped source.
+ * surfaces (section 8), so they are not copied from the Claude-shaped source. A non-empty `note` opens the body, and the
+ * source body follows it unchanged.
  */
-export function cursorAgent(text, name) {
+export function cursorAgent(text, name, note = "") {
   const kept = keepKeys(text, ["name", "description"]);
   const lines = kept.lines.some((l) => l.startsWith("name:")) ? kept.lines : [`name: ${name}`, ...kept.lines];
-  return joinFrontmatter(lines, kept.body);
+  return joinFrontmatter(lines, note ? `${note}\n${kept.body}` : kept.body);
 }
 
 /** A TOML multi-line basic string. */
@@ -117,15 +118,16 @@ function tomlMultiline(s) {
 
 /**
  * units.agent.format "codex-toml": name, description and developer_instructions. The model and
- * model_reasoning_effort keys are cells (section 8) and are not rendered here.
+ * model_reasoning_effort keys are cells (section 8) and are not rendered here. A non-empty `note` opens developer_instructions,
+ * and the source body follows it unchanged.
  * JSON.stringify output is a valid TOML basic string: every JSON escape is a TOML escape.
  */
-export function codexAgent(text, name) {
+export function codexAgent(text, name, note = "") {
   const description = frontmatterValue(text, "description") ?? "";
   const lines = [
     `name = ${JSON.stringify(name)}`,
     `description = ${JSON.stringify(description)}`,
-    `developer_instructions = ${tomlMultiline(mdBody(text))}`,
+    `developer_instructions = ${tomlMultiline(note ? `${note}\n${mdBody(text)}` : mdBody(text))}`,
   ];
   return lines.join("\n") + "\n";
 }

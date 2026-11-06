@@ -117,6 +117,23 @@ describe("the first seed over the committed config", () => {
     assert.ok(assertByteIdentity(run.h1.home, run.root, targetsOf(run.root), "pstack") > 100);
   });
 
+  test("the poteto-agent copies on Codex and Cursor name the rig hub, which exists in the seeded HOME", () => {
+    const upstream = readFileSync(join(run.root, "packs/pstack/agents/poteto-agent.md"), "utf8");
+    const body = upstream.slice(upstream.indexOf("\n---\n", 4) + 5);
+    assert.match(body, /skills\/poteto-mode\/SKILL\.md/, "the upstream fallback that rig points away from");
+    for (const [rel, expected] of [
+      [".codex/agents/poteto-agent.toml", "~/.agents/skills/craft/hub.md"],
+      [".cursor/agents/poteto-agent.md", "~/.agents/skills/craft/hub.md"],
+    ]) {
+      const text = readFileSync(join(run.h1.home, rel), "utf8");
+      const named = [...text.matchAll(/`(~\/[^`\s]*craft\/hub\.md)`/g)].map((m) => m[1]);
+      assert.deepEqual(named, [expected], rel);
+      assert.ok(existsSync(join(run.h1.home, named[0].slice(2))), `${rel} names ${named[0]}, which is absent from the HOME`);
+      assert.ok(text.includes(body.trimEnd()), `${rel} keeps the upstream body`);
+    }
+    assert.equal(readFileSync(join(run.h1.home, ".claude/agents/poteto-agent.md"), "utf8"), upstream, "the Claude copy stays the upstream bytes");
+  });
+
   test("A9: every relative Markdown link of a seeded skill dir resolves inside that dir", () => {
     assert.ok(assertLinks(run.h1.home, targetsOf(run.root)) > 100);
   });
