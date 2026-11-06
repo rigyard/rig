@@ -6,17 +6,29 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LockError } from "./errors.ts";
 
-const ENV = (() => {
-  const env = {};
-  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith("GIT_")) env[k] = v;
+// git 2.54 starts `git maintenance run --auto --detach` after every fetch. That process can still write in a
+// scratch clone when withClone deletes it, so maintenance and gc are off for every call.
+const CONFIG: [string, string][] = [["maintenance.auto", "false"], ["gc.auto", "0"]];
+
+/** The environment for every git child: no GIT_* from `base`, no config files, no prompts, no auto maintenance. */
+export function gitEnv(base: NodeJS.ProcessEnv = process.env): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(base)) if (!k.startsWith("GIT_")) env[k] = v;
+  CONFIG.forEach(([key, value], i) => {
+    env[`GIT_CONFIG_KEY_${i}`] = key;
+    env[`GIT_CONFIG_VALUE_${i}`] = value;
+  });
   return {
     ...env,
+    GIT_CONFIG_COUNT: String(CONFIG.length),
     GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_TERMINAL_PROMPT: "0",
     GIT_ALLOW_PROTOCOL: "file:http:https:ssh:git",
   };
-})();
+}
+
+const ENV = gitEnv();
 
 export function git(args: string[], opts: {cwd?: string, input?: Uint8Array} = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
