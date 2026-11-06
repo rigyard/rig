@@ -1175,7 +1175,7 @@ Each module owns one body of knowledge and exports one to three functions. Files
 | Config writes | any module other than `lib/lock.ts` and `lib/models.ts` imports `writeConfig` |
 | State writes | any module other than `state`, `metrics`, `gate` imports `writeState` or `appendState` |
 | Raw fs writes | any module other than `lib/fs.ts` imports a write function of `node:fs` (`writeFile*`, `rename*`, `unlink*`, `rm*`, `open` with a write flag, `appendFile*`, `chmod*`) |
-| Network and spawn | any module other than `lib/lock.ts` imports `node:net`, `node:http(s)`, or references `fetch`; any module other than `lib/lock.ts` and `lib/fs.ts` imports `node:child_process`. `lib/fs.ts` spawns only node, on its own `lib/fs/fsync-batch.ts`. |
+| Network and spawn | any module other than `lib/lock.ts` imports `node:net`, `node:http(s)`, or references `fetch`; any module other than `lib/lock.ts` and `lib/fs.ts` imports `node:child_process`. `lib/fs.ts` spawns only node on its own `lib/fs/fsync-batch.ts`: its one `child_process` call must match the pin in `test/boundaries.test.ts` (rule "spawn pin": command, argv, option keys and env keys are fixed, and the file holds no second use). |
 | Code plugins | any dynamic `import()`, or any spawn argument built from a pack path |
 | Test hooks | any module other than `lib/state.ts` and `lib/state/*` reads `RIG_TEST` or `RIG_TEST_ABORT_AFTER` |
 | Logger | the `plan` and `doctor` code paths reach `log` (checked by a call-graph walk from `planCmd` and `doctorCmd`) |

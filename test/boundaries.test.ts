@@ -15,6 +15,11 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
  * fsync a batch at once; gate() is pure (doc section 4).
  */
 const SPAWN_ALLOW = ["lib/lock.ts", "lib/lock/git.ts", "lib/fs.ts"];
+/** Modules whose child_process use is pinned to one script, and the shapes the one allowed call may take (rule "spawn pin"). */
+const SPAWN_PINNED: Record<string, string> = { "lib/fs.ts": "lib/fs/fsync-batch.ts" };
+const SPAWN_FNS = ["spawnSync", "spawn", "execFileSync", "execFile"];
+const SPAWN_OPTIONS = ["input", "encoding", "timeout", "killSignal", "env"];
+const SPAWN_ENV = ["UV_THREADPOOL_SIZE"];
 /** Modules that may import a network module or reference fetch. */
 const NETWORK_ALLOW = ["lib/lock.ts", "lib/lock/git.ts"];
 const NETWORK_MODULES = ["node:net", "node:http", "node:https", "node:http2", "node:tls", "node:dgram"];
@@ -100,6 +105,81 @@ function resolveSpec(from, spec) {
   return spec;
 }
 
+function bracketParts(src: string, open: number): string[] | null {
+  const parts: string[] = [];
+  let depth = 0;
+  let from = open + 1;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (c === '"' || c === "'" || c === "`") {
+      i++;
+      while (i < src.length && src[i] !== c) i += src[i] === "\\" ? 2 : 1;
+    } else if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c) && --depth === 0) {
+      parts.push(src.slice(from, i).trim());
+      return parts.filter((p, k) => p || k < parts.length - 1);
+    } else if (c === "," && depth === 1) (parts.push(src.slice(from, i).trim()), (from = i + 1));
+  }
+  return null;
+}
+
+type Statement = { index: number; end: number; kw: string; clause: string; spec: string };
+
+/** The whole file counts, whatever the order of import and use: exactly one use of a SPAWN_FNS name, and it is the pinned call. */
+function spawnPinBreaks(rel: string, src: string, imports: Statement[], script: string): { index: number; why: string }[] {
+  const out: { index: number; why: string }[] = [];
+  const bad = (index: number, why: string) => out.push({ index, why });
+  const word = (name: string) => new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`, "g");
+  let body = src;
+  const names = new Set<string>();
+  for (const s of imports) {
+    body = body.slice(0, s.index) + " ".repeat(s.end - s.index) + body.slice(s.end);
+    if (s.kw !== "import") bad(s.index, "re-exports node:child_process");
+    if (/\sas\s/.test(s.clause)) bad(s.index, "aliases a child_process import");
+    for (const n of importedNames(s.clause)) {
+      if (SPAWN_FNS.includes(n)) names.add(n);
+      else bad(s.index, `imports ${n} from node:child_process; allowed: ${SPAWN_FNS.join(", ")}`);
+    }
+  }
+  const node = /\bNODE_(OPTIONS|PATH)\b/.exec(body);
+  if (node) bad(node.index, `mentions ${node[0]}, which changes what node loads`);
+  const uses = [...names].flatMap((n) => [...body.matchAll(word(n))]).sort((a, b) => a.index - b.index);
+  if (uses.length !== 1) bad(uses[1]?.index ?? imports[0].index, `${uses.length} uses of child_process functions, expected exactly one call`);
+
+  for (const use of uses) {
+    const at = use.index;
+    const open = at + use[0].length + (body.slice(at + use[0].length).match(/^\s*/)?.[0].length ?? 0);
+    const args = body[open] === "(" ? bracketParts(body, open) : null;
+    if (!args) bad(at, "child_process function used other than as a direct call");
+    else if (args[0] !== "process.execPath") bad(at, `command is ${args[0]}, not process.execPath`);
+    else if (args.length !== 3) bad(at, `${args.length} arguments, expected a command, an argv array and options`);
+    if (!args || args.length !== 3 || args[0] !== "process.execPath") continue;
+
+    const name = args[1].match(/^\[\s*([\w$]+)\s*\]$/)?.[1];
+    const url = String.raw`fileURLToPath\(\s*new URL\(\s*(["'])([^"']+)\1\s*,\s*import\.meta\.url\s*\)\s*\)`;
+    const bound = name && body.match(new RegExp(String.raw`\bconst\s+${name.replace(/\$/g, "\\$")}\s*=\s*${url}\s*;`));
+    if (!name || !bound) bad(at, `argv ${args[1]} is not [<const>] bound to fileURLToPath(new URL("<path>", import.meta.url))`);
+    else if ([...body.matchAll(word(name))].length !== 2) bad(at, `${name} appears other than twice: exactly one binding and this argv`);
+    else if (resolveSpec(rel, bound[2]) !== script) bad(at, `argv script resolves to ${resolveSpec(rel, bound[2])}, not ${script}`);
+
+    const options = args[2].startsWith("{") ? bracketParts(args[2], 0) : null;
+    if (!options) bad(at, "options are not an object literal");
+    for (const part of options ?? []) {
+      const key = part.match(/^(\w+)\s*(?::|$)/)?.[1];
+      if (!key || !SPAWN_OPTIONS.includes(key)) bad(at, `option ${part.slice(0, 24)} is not one of ${SPAWN_OPTIONS.join(", ")}`);
+      if (key !== "env") continue;
+      const entries = /^env\s*:\s*\{/.test(part) ? bracketParts(part, part.indexOf("{")) : null;
+      if (!entries) bad(at, "env is not an object literal");
+      for (const e of entries ?? []) {
+        if (e.replace(/\s+/g, "") !== "...process.env" && !SPAWN_ENV.includes(e.match(/^(\w+)\s*:/)?.[1] ?? "")) {
+          bad(at, `env entry ${e.slice(0, 24)} is neither ...process.env nor one of ${SPAWN_ENV.join(", ")}`);
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Every boundary violation in a set of files. Pure.
  * @param {Map<string, string>} files root-relative posix path -> source
@@ -119,15 +199,17 @@ function violations(files) {
       if (!inModules(rel, TEST_HOOK_ALLOW)) fail(m.index, "test hooks", `reads ${m[0]}`);
     }
 
-    const statements = [
-      ...[...src.matchAll(/\b(import|export)\s+([^;'"]*?)\s*from\s*(["'])([^"']+)\3/g)].map((m) => ({ index: m.index, kw: m[1], clause: m[2], spec: m[4] })),
-      ...[...src.matchAll(/\bimport\s*(["'])([^"']+)\1/g)].map((m) => ({ index: m.index, kw: "import", clause: "", spec: m[2] })),
+    const statements: Statement[] = [
+      ...[...src.matchAll(/\b(import|export)\s+([^;'"]*?)\s*from\s*(["'])([^"']+)\3/g)].map((m) => ({ index: m.index, end: m.index + m[0].length, kw: m[1], clause: m[2], spec: m[4] })),
+      ...[...src.matchAll(/\bimport\s*(["'])([^"']+)\1/g)].map((m) => ({ index: m.index, end: m.index + m[0].length, kw: "import", clause: "", spec: m[2] })),
     ];
-    for (const { index, kw, clause, spec } of statements) {
+    const childProcess: Statement[] = [];
+    for (const { index, end, kw, clause, spec } of statements) {
       const target = resolveSpec(rel, spec);
       const names = importedNames(clause);
 
       if (target === "node:child_process" && !SPAWN_ALLOW.includes(rel)) fail(index, "network and spawn", `imports ${target}`);
+      if (target === "node:child_process") childProcess.push({ index, end, kw, clause, spec });
       if (NETWORK_MODULES.includes(target) && !NETWORK_ALLOW.includes(rel)) fail(index, "network and spawn", `imports ${target}`);
 
       if (FS_MODULES.includes(target) && !RAW_FS_ALLOW.includes(rel)) {
@@ -148,6 +230,9 @@ function violations(files) {
           if (allow && !inModules(rel, allow)) fail(index, "fs exports", `imports ${n}; allowed: ${allow.join(", ")}`);
         }
       }
+    }
+    if (SPAWN_PINNED[rel] && childProcess.length) {
+      for (const { index, why } of spawnPinBreaks(rel, src, childProcess, SPAWN_PINNED[rel])) fail(index, "spawn pin", why);
     }
   }
   return out;
@@ -228,4 +313,65 @@ describe("each rule catches its violation", () => {
   test("internals from their own module", () => assert.deepEqual(check("lib/targets.ts", 'import { place } from "./targets/place.ts";'), []));
   test("RIG_TEST outside state", () => fails("bin/rig.ts", 'if (process.env.RIG_TEST === "1") {}', /test hooks: reads RIG_TEST/));
   test("RIG_TEST_ABORT_AFTER inside state", () => assert.deepEqual(check("lib/state.ts", "const n = process.env.RIG_TEST_ABORT_AFTER;"), []));
+});
+
+describe("the lib/fs.ts spawn pin", () => {
+  const real = readFileSync(join(ROOT, "lib/fs.ts"), "utf8");
+  const swap = (re: RegExp, to: string): string[] => {
+    assert.match(real, re, `lib/fs.ts no longer matches ${re}; update this test`);
+    return violations(new Map([["lib/fs.ts", real.replace(re, to)]]));
+  };
+  const added = (before: string, after = ""): string[] => violations(new Map([["lib/fs.ts", before + real + after]]));
+  const pin = (v: string[], expected: RegExp) => {
+    assert.ok(v.length > 0 && v.every((m) => /^lib\/fs\.ts:\d+ spawn pin: /.test(m)), JSON.stringify(v));
+    assert.ok(v.some((m) => expected.test(m)), `none of ${JSON.stringify(v)} matches ${expected}`);
+  };
+  const BATCH = /\[BATCH\]/;
+  const CALLING = /\bspawnSync\b(?=\s*\()/;
+
+  test("the real lib/fs.ts holds the pin", () => assert.deepEqual(violations(new Map([["lib/fs.ts", real]])), []));
+  test("every function in SPAWN_FNS passes by name", () => {
+    for (const fn of SPAWN_FNS) assert.deepEqual(violations(new Map([["lib/fs.ts", real.replace(/\bspawnSync\b/g, fn)]])), [], fn);
+  });
+  test("a reformatted call passes", () => assert.deepEqual(swap(/,\s*\[BATCH\],\s*\{/, ",\n\n    [BATCH],\n    {"), []));
+
+  test("a second binding of the argv name inside a function", () => pin(added("", '\nfunction evil() { const BATCH = "/tmp/evil.js"; }\n'), /BATCH appears other than twice/));
+  test("a parameter that shadows the argv name", () => pin(added("", "\nfunction evil(BATCH) { return BATCH; }\n"), /BATCH appears other than twice/));
+  test("an argv name bound to something else", () => pin(swap(/\bconst BATCH = [^;]*;/, 'const BATCH = "/tmp/evil.js";'), /not \[<const>\] bound to fileURLToPath/));
+  test("an argv name whose fileURLToPath result is changed after the call", () => pin(swap(/(\bconst BATCH = fileURLToPath\([^;]*\));/, '$1.replace("fsync-batch", "evil");'), /not \[<const>\] bound to fileURLToPath/));
+  test("a use above the import line", () => pin(added('function early() { spawnSync("sh", ["-c", "ls"]); }\n'), /2 uses of child_process functions/));
+  test("a second call below the real one", () => pin(added("", "\nspawnSync(process.execPath, [BATCH], {});\n"), /2 uses of child_process functions/));
+  test("execSync, which runs a shell", () => {
+    const src = real.replace(/\{ spawnSync \}/, "{ spawnSync, execSync }") + '\nexecSync("ls");\n';
+    pin(violations(new Map([["lib/fs.ts", src]])), /imports execSync from node:child_process; allowed/);
+  });
+  test("fork by name", () => pin(swap(/\{ spawnSync \}/, "{ fork }"), /imports fork from node:child_process; allowed/));
+  test("NODE_OPTIONS in the env literal", () => pin(swap(/env:\s*\{/, 'env: { NODE_OPTIONS: "--require /tmp/evil.js",'), /env entry NODE_OPTIONS.* is neither/));
+  test("NODE_OPTIONS in a quoted env key", () => pin(swap(/env:\s*\{/, 'env: { "NODE_OPTIONS": "--require /tmp/evil.js",'), /mentions NODE_OPTIONS/));
+  test("NODE_OPTIONS set on process.env", () => pin(added("", '\nprocess.env.NODE_OPTIONS = "--require /tmp/evil.js";\n'), /mentions NODE_OPTIONS/));
+  test("env as a variable", () => pin(swap(/env:\s*\{[^}]*\}/, "env: process.env"), /env is not an object literal/));
+  test("env as a shorthand property", () => pin(swap(/env:\s*\{[^}]*\}/, "env"), /env is not an object literal/));
+  test("env that spreads another object", () => pin(swap(/\.\.\.process\.env/, "...extra"), /env entry \.\.\.extra is neither/));
+  test("shell in the options", () => pin(swap(/\btimeout:/, "shell: true, timeout:"), /option shell: true is not one of/));
+  test("shell as a quoted key", () => pin(swap(/\btimeout:/, '"shell": "/bin/sh", timeout:'), /option "shell"/));
+  test("shell as a shorthand property", () => pin(swap(/\btimeout:/, "shell, timeout:"), /option shell is not one of/));
+  test("an option outside the list", () => pin(swap(/\btimeout:/, 'cwd: "/tmp", timeout:'), /option cwd/));
+  test("options that spread another object", () => pin(swap(/\btimeout:/, "...extra, timeout:"), /option \.\.\.extra is not one of/));
+  test("options passed as a variable", () => pin(swap(/(\[BATCH\],\s*)\{/, "$1opts); void {"), /options are not an object literal/));
+  test("a command other than process.execPath", () => pin(swap(/\bprocess\.execPath\b/, '"sh"'), /command is "sh", not process\.execPath/));
+  test("a command built from a variable", () => pin(swap(/\bprocess\.execPath\b/, "process.argv[0]"), /command is process\.argv\[0\]/));
+  test("another script in the argv", () => pin(swap(/\.\/fs\/fsync-batch\.ts/, "./fs/other.ts"), /resolves to lib\/fs\/other\.ts, not lib\/fs\/fsync-batch\.ts/));
+  test("a script outside lib/fs/", () => pin(swap(/\.\/fs\/fsync-batch\.ts/, "../bin/rig.ts"), /resolves to bin\/rig\.ts/));
+  test("an extra argv element", () => pin(swap(BATCH, '[BATCH, "-e"]'), /is not \[<const>\]/));
+  test("an argv that is not an array", () => pin(swap(BATCH, "args"), /is not \[<const>\]/));
+  test("an argv element that is a string", () => pin(swap(BATCH, '["x.js"]'), /is not \[<const>\]/));
+  test("a call with the options left out", () => pin(swap(/(\[BATCH\]),\s*\{/, "$1); void {"), /2 arguments, expected/));
+  test("a child_process function used without a direct call", () => pin(swap(CALLING, "(0, spawnSync)"), /used other than as a direct call/));
+  test("an aliased import", () => pin(swap(/\{ spawnSync \}/, "{ spawnSync as run }"), /aliases a child_process import/));
+  test("a namespace import", () => pin(swap(/\{ spawnSync \}/, "* as cp"), /imports \* from node:child_process/));
+  test("a re-export", () => pin(added("", '\nexport { spawn } from "node:child_process";\n'), /re-exports node:child_process/));
+  test("a second import statement that adds a second use", () => pin(added('import { spawn } from "node:child_process";\n', "\nspawn(process.execPath, [BATCH], {});\n"), /2 uses of child_process functions/));
+  test("the pin binds only the pinned module", () => {
+    assert.deepEqual(violations(new Map([["lib/lock/git.ts", 'import { spawnSync } from "node:child_process";\nspawnSync("git", ["status"], { shell: false });']])), []);
+  });
 });
