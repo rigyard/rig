@@ -1,7 +1,14 @@
-// Overlay merge: the overlay adds keys and entries. It never changes a value that the repo sets.
-// Records and maps merge key by key. A `union` array appends. Any other value set in both roots conflicts.
+// Overlay merge: the overlay adds keys and entries. It does not change a value that the repo sets, with the exceptions below.
+// Records and maps merge key by key. A `union` array appends. Any other value set in both roots conflicts,
+// except the keys in OVERLAY_OVERRIDES, where the overlay value wins.
 
 import { RigError, keyPath } from "./errors.ts";
+
+/**
+ * Keys a person may set for themselves over the repo's value, by key path. Each one acts only on the HOME of the
+ * person whose overlay sets it: `metrics.session_hook` renders one json-element into ~/.claude/settings.json.
+ */
+export const OVERLAY_OVERRIDES: ReadonlySet<string> = new Set(["metrics.session_hook"]);
 
 const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
@@ -51,5 +58,6 @@ export function mergeOverlay(spec: object, repo: unknown, overlay: unknown, file
     });
     return [...repo, ...overlay];
   }
+  if (OVERLAY_OVERRIDES.has(keyPath(path))) return overlay;
   return conflict();
 }

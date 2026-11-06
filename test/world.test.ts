@@ -198,8 +198,16 @@ describe("overlay merge adds only", () => {
       repo: { "rig.json": rigJson({ packs: { own: {} } }), ...pack("own", skill("explain"), { scopes: ["machine-hidden", "hybrid"] }) },
       overlay: { "rig.json": { schema: 2, packs: { own: { scope: "hybrid", projects: ["~/src/app"] } } } },
     }, (fx) => assert.deepEqual(fx.load().config.packs.own, { scope: "hybrid", projects: ["~/src/app"] })));
-  test("a scalar the repo sets", () =>
-    loads({ overlay: { "rig.json": { schema: 2, metrics: { session_hook: true } } } }, "E_OVERLAY_CONFLICT", { file: "~/.config/rig/rig.json", path: "metrics.session_hook" }));
+  test("metrics.session_hook: the overlay turns the hook on over a repo false", () =>
+    withFixture({ overlay: { "rig.json": { schema: 2, metrics: { session_hook: true } } } }, (fx) => assert.equal(fx.load().config.metrics.session_hook, true)));
+  test("metrics.session_hook: the overlay turns the hook off over a repo true", () =>
+    withFixture({ repo: { "rig.json": rigJson({ metrics: { session_hook: true } }) }, overlay: { "rig.json": { schema: 2, metrics: { session_hook: false } } } }, (fx) =>
+      assert.equal(fx.load().config.metrics.session_hook, false)));
+  test("metrics.session_hook: the exception covers that key only", () =>
+    loads({
+      repo: { "rig.json": rigJson({ fill: { "eng:ground": "a/b" } }) },
+      overlay: { "rig.json": { schema: 2, metrics: { session_hook: true }, fill: { "eng:ground": "c/d" } } },
+    }, "E_OVERLAY_CONFLICT", { file: "~/.config/rig/rig.json", path: 'fill["eng:ground"]' }));
   test("a fill the repo sets", () =>
     loads({ repo: { "rig.json": rigJson({ fill: { "eng:ground": "a/b" } }) }, overlay: { "rig.json": { schema: 2, fill: { "eng:ground": "c/d" } } } }, "E_OVERLAY_CONFLICT", { path: 'fill["eng:ground"]' }));
   test("a list entry the repo already has", () =>

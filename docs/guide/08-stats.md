@@ -116,7 +116,7 @@ create  json-element  claude  ~/.claude/settings.json                           
 
 rig adds one element to `hooks.SessionEnd` in `~/.claude/settings.json` and keeps every other byte, foreign hooks included. The hook runs your `node` on the checkout's `bin/rig.ts` with `stats --record`. Set the line back to `false`, and the next apply removes only rig's element.
 
-The repo sets `session_hook` to `false`, so an overlay `rig.json` cannot turn it on. It fails with `E_OVERLAY_CONFLICT`. Only Claude Code has a hook: the other target records set `session_end` to `null`.
+The repo sets `session_hook` to `false`. You can turn it on for yourself without editing the checkout: set `"metrics": {"session_hook": true}` in your overlay `~/.config/rig/rig.json`. This is the one key where the overlay value wins over the repo's, because the hook writes only into your own HOME (`test/stats.test.ts`, "an overlay true over the team's false"). Only Claude Code has a hook: the other target records set `session_end` to `null`.
 
 The hook prints 0 bytes and exits 0 on every error, so it never fails your session. It writes one content-free line to `~/.local/state/rig/log/rig.log` instead, for example `{"ts":"2026-11-05T05:54:34Z","event":"metrics.record.error","code":"E_HOOK_PAYLOAD"}`. The tests `hook mode: bad input returns 0, prints nothing and logs one content-free error line` and `the rendered hook command prints 0 bytes, exits 0, and records the session` pin this.
 

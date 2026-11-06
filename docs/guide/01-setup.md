@@ -38,7 +38,7 @@ rig reads two config roots and keeps its own files in two more roots. Each root 
 | State | `$XDG_STATE_HOME/rig`, else `~/.local/state/rig` | `installed.json`, `journal/`, `backups/`, `log/rig.log`, `metrics.jsonl`, `cache/` | `rig apply`, `rig stats --record` (`metrics.jsonl`), the network commands (`cache/osv/`) |
 | Data | `$XDG_DATA_HOME/rig`, else `~/.local/share/rig` | `marketplace/`, the local Claude Code marketplace for project packs | `rig apply` |
 
-The overlay only adds keys and entries. If an overlay file sets a value that the repo already sets, rig stops with `E_OVERLAY_CONFLICT` and exit 2. This keeps the repo generic and your private additions in one place. [Decision 0002](../decisions/0002-generic-repo-private-overlay.md) explains the split.
+The overlay only adds keys and entries. If an overlay file sets a value that the repo already sets, rig stops with `E_OVERLAY_CONFLICT` and exit 2. The one exception is `metrics.session_hook`: your overlay value wins ([Make it yours](./09-make-it-yours.md)). This keeps the repo generic and your private additions in one place. [Decision 0002](../decisions/0002-generic-repo-private-overlay.md) explains the split.
 
 The state root and the data root must resolve inside `$HOME`. If not, rig stops with `E_STATE_ROOT` and exit 2.
 

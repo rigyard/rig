@@ -6,7 +6,7 @@ In this page you change the stack without forking it. You put your additions in 
 
 The overlay lives at `~/.config/rig` (or `$XDG_CONFIG_HOME/rig`). It has the same layout as the repo: `rig.json`, `packs/`, `models/`, `rig.lock.json` and `audit.allow.json`. Keep it in its own git repository. Then the repo stays generic, and your private packs and model ids stay in the overlay ([decision 0002](../decisions/0002-generic-repo-private-overlay.md)).
 
-The overlay only adds. It can add packs, list entries, tier cells and roles. It cannot change a value that the repo sets:
+The overlay only adds. It can add packs, list entries, tier cells and roles. It cannot change a value that the repo sets. One key is the exception: `metrics.session_hook`. Your overlay value wins over the repo's, because the hook writes only into your own HOME:
 
 ```text
 mkdir -p ~/.config/rig
@@ -14,7 +14,7 @@ echo '{"schema": 2, "metrics": {"session_hook": true}}' > ~/.config/rig/rig.json
 rig plan
 ```
 
-That plan exits 2 with `rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: metrics.session_hook: the repo already sets this value; the overlay only adds`. A list entry that the repo already has, a tier cell and a role fail the same way (tests under `overlay merge adds only` in `test/world.test.ts`).
+That plan shows the `json-element` line for `~/.claude/settings.json`, even when the repo's `rig.json` sets `session_hook` to `false`. Any other key that the repo sets fails with `E_OVERLAY_CONFLICT` and exit 2, for example `rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: fill["eng:ground"]: the repo already sets this value; the overlay only adds`. A list entry that the repo already has, a tier cell and a role fail the same way (tests under `overlay merge adds only` in `test/world.test.ts`). The list of exceptions is `OVERLAY_OVERRIDES` in `lib/world/merge.ts`.
 
 ## Disable a default unit
 

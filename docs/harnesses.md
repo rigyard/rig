@@ -32,7 +32,7 @@ A file that rig only adopts, such as `~/.omp/agent/config.yml` or a Cursor agent
 - Frame: `~/.claude/rules/rig-frame.md`, a whole file that rig owns.
 - Project packs: a local plugin in the `rig-local` marketplace at `$XDG_DATA_HOME/rig/marketplace`, by default `~/.local/share/rig/marketplace`. You enable it in a project's `.claude/settings.local.json`. See [Scope packs to projects](./guide/05-scope-and-projects.md).
 - Model surfaces: `~/.claude/agents/{role}.md`, kind `frontmatter`, keys `model` and `effort`, plus the model name in `description`. For the roles in `models/roles.json`, rig patches the agent files that you wrote and creates none. A pack can add its own surfaces in `pack.json` `model_surfaces`, for example a `whole` rules file that keeps its header lines.
-- Session hook: one `SessionEnd` element in `~/.claude/settings.json` at `/hooks/SessionEnd`, only when `rig.json` sets `metrics.session_hook` to `true`. The default is `false`. The element runs `rig stats --record` and keeps every hook entry that rig did not write (`test/scope.test.ts`, "a session-hook element whose command differs only in the node path").
+- Session hook: one `SessionEnd` element in `~/.claude/settings.json` at `/hooks/SessionEnd`, only when `rig.json` or your overlay `rig.json` sets `metrics.session_hook` to `true`. The default is `false`. The element runs `rig stats --record` and keeps every hook entry that rig did not write (`test/scope.test.ts`, "a session-hook element whose command differs only in the node path").
 
 ## Codex
 

@@ -342,6 +342,34 @@ describe("rig apply with metrics.session_hook (S5.5)", () => {
     assert.equal(s.fx.read(".claude/settings.json"), fourSpaces);
   });
 
+  test("an overlay true over the team's false renders the hook into the fixture HOME and writes nothing else outside it", (t) => {
+    const s = setup({ home: { ".claude/settings.json": SETTINGS, ".config/rig/rig.json": canon({ schema: 2, metrics: { session_hook: true } }) } });
+    t.after(() => s.fx.cleanup());
+    const before = s.fx.snapshot();
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 0, p.all);
+    assert.match(p.stdout, /^update +json-element +claude +~\/\.claude\/settings\.json +core\/session-end$/m);
+    const a = s.rig(["apply"]);
+    assert.equal(a.code, 0, a.all);
+    const ends = JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd;
+    assert.equal(ends.length, 2);
+    assert.match(ends[1].hooks[0].command, / stats --record$/);
+    const diff = changed(before, s.fx.snapshot()).filter((x) => !x.startsWith(STATE));
+    assert.ok(diff.includes(".claude/settings.json"));
+    assert.deepEqual(diff.filter((x) => x.startsWith("rig/") || x.startsWith(".config/")), [], "the checkout and the overlay keep their bytes");
+  });
+
+  test("an overlay false over the team's true removes rig's element and keeps the foreign one", (t) => {
+    const s = setup({ rig: { metrics: { session_hook: true } }, home: { ".claude/settings.json": SETTINGS } });
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    mkdirSync(s.fx.path(".config/rig"), { recursive: true });
+    writeFileSync(s.fx.path(".config/rig/rig.json"), canon({ schema: 2, metrics: { session_hook: false } }));
+    const off = s.rig(["apply"]);
+    assert.equal(off.code, 0, off.all);
+    assert.equal(s.fx.read(".claude/settings.json"), SETTINGS);
+  });
+
   test("turning the hook off removes rig's element and keeps the foreign one", (t) => {
     const s = setup({ rig: { metrics: { session_hook: true } }, home: { ".claude/settings.json": SETTINGS } });
     t.after(() => s.fx.cleanup());
