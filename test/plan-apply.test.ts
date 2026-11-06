@@ -3,10 +3,11 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
+import type { TestContext } from "node:test";
 import { modelBearing } from "../lib/commands/models.ts";
 import { plan } from "../lib/state.ts";
 import { treeHash } from "../lib/tree.ts";
@@ -343,5 +344,42 @@ describe("treeHash modes", () => {
     assert.equal(treeHash(f(0o100664)), treeHash(f(0o644)));
     assert.notEqual(treeHash(f(0o755)), treeHash(f(0o644)));
     assert.equal(treeHash(f(0o775)), treeHash(f(0o755)));
+  });
+});
+
+describe("rig doctor drift summary", () => {
+  const MANAGED = ".claude/rules/rig-frame.md";
+  const MATCH = /^info +drift +managed files match installed\.json and the render$/m;
+  const applied = (t: TestContext) => {
+    const s = setup();
+    t.after(s.cleanup);
+    assert.equal(s.rig(["apply"]).code, 0);
+    return s;
+  };
+
+  test("a removed managed file: the E_DRIFT error and no match line", (t) => {
+    const s = applied(t);
+    rmSync(s.fx.path(MANAGED));
+    const d = s.rig(["doctor"]);
+    assert.equal(d.code, 1, d.all);
+    assert.match(d.stdout, /^error +drift +~\/\.claude\/rules\/rig-frame\.md: E_DRIFT managed file ~\/\.claude\/rules\/rig-frame\.md was removed$/m);
+    assert.doesNotMatch(d.stdout, MATCH);
+  });
+
+  test("an edited managed file: the E_DRIFT error and no match line", (t) => {
+    const s = applied(t);
+    writeFileSync(s.fx.path(MANAGED), `${s.fx.read(MANAGED)}appended by hand\n`);
+    const d = s.rig(["doctor"]);
+    assert.equal(d.code, 1, d.all);
+    assert.match(d.stdout, /^error +drift +~\/\.claude\/rules\/rig-frame\.md: E_DRIFT ~\/\.claude\/rules\/rig-frame\.md changed since rig wrote it$/m);
+    assert.doesNotMatch(d.stdout, MATCH);
+  });
+
+  test("a clean HOME after apply: the match line, no drift error, exit 0", (t) => {
+    const s = applied(t);
+    const d = s.rig(["doctor"]);
+    assert.equal(d.code, 0, d.all);
+    assert.match(d.stdout, MATCH);
+    assert.doesNotMatch(d.stdout, /^error /m);
   });
 });

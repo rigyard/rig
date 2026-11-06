@@ -38,9 +38,11 @@ function duplicates(world, installed) {
  */
 function stateLines(planned) {
   const out = [];
+  let blocked = false;
   for (const o of planned.ops) {
     const code = o.error?.code ?? "E_INTERNAL";
     if (o.op === "block") {
+      if (code !== "E_ADOPT_MISMATCH") blocked = true;
       const level = code === "E_ADOPT_MISMATCH" ? "warn" : "error";
       const topic = code === "E_DRIFT" ? "drift" : code === "E_ADOPT_MISMATCH" ? "adopt" : "state";
       out.push({ level, topic, text: `${o.path}: ${code} ${o.error?.message ?? ""}`.trimEnd() });
@@ -50,7 +52,8 @@ function stateLines(planned) {
   }
   const pending = planned.ops.filter((o) => o.op !== "block").length;
   for (const run of planned.interrupted) out.push({ level: "warn", topic: "drift", text: `run ${run} was interrupted; rig apply recovers it first` });
-  out.push({ level: "info", topic: "drift", text: pending ? `${pending} changes pending; rig plan lists them` : "managed files match installed.json and the render" });
+  if (pending) out.push({ level: "info", topic: "drift", text: `${pending} changes pending; rig plan lists them` });
+  else if (!blocked) out.push({ level: "info", topic: "drift", text: "managed files match installed.json and the render" });
   return out;
 }
 
