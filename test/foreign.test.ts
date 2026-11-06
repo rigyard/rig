@@ -103,6 +103,54 @@ describe("E_FOREIGN_INSTALL for omp plugins", () => {
   });
 });
 
+describe("E_FOREIGN_INSTALL for Codex plugins", () => {
+  const cached = { ".codex/plugins/cache/cursor-plugins/pstack/local/.codex-plugin/plugin.json": "{}\n" };
+  const config = (enabled: boolean) => `[plugins."pstack@cursor-plugins"]\nenabled = ${enabled}\n\n[plugins."github@openai-curated"]\nenabled = true\n`;
+
+  test("a cached plugin with an enabled table blocks and names the Codex path and the remove command", () => {
+    assert.deepEqual(foreign({ ...cached, ".codex/plugins/cache/openai-curated/github/1.0.0/.codex-plugin/plugin.json": "{}\n", ".codex/config.toml": config(true) }), [
+      "block harness:codex E_FOREIGN_INSTALL pstack: Codex has the plugin pstack@cursor-plugins in ~/.codex/plugins/cache/cursor-plugins/pstack, and pack pstack seeds the same upstream; rig never deletes what it does not own, so run codex plugin remove pstack@cursor-plugins",
+    ]);
+  });
+
+  test("a table without `enabled` counts as enabled and blocks", () => {
+    assert.match(foreign({ ...cached, ".codex/config.toml": '[plugins."pstack@cursor-plugins"]\n' })[0], /^block harness:codex /);
+  });
+
+  test("a plugin that config.toml disables warns", () => {
+    const f = foreign({ ...cached, ".codex/config.toml": config(false) });
+    assert.equal(f.length, 1);
+    assert.match(f[0], /^warn harness:codex E_FOREIGN_INSTALL pstack: Codex has the plugin pstack@cursor-plugins in ~\/\.codex\/plugins\/cache\/cursor-plugins\/pstack but not enabled, /);
+  });
+
+  test("a cache dir with no config.toml, or no table for it, is not installed and gives nothing", () => {
+    assert.deepEqual(foreign(cached), []);
+    assert.deepEqual(foreign({ ...cached, ".codex/config.toml": '[plugins."github@openai-curated"]\nenabled = true\n' }), []);
+  });
+
+  test("a commented header before the real table does not hide enabled = false", () => {
+    const f = foreign({ ...cached, ".codex/config.toml": '# [plugins."pstack@cursor-plugins"]\n#enabled = true\n\n[plugins."pstack@cursor-plugins"]\nenabled = false\n' });
+    assert.equal(f.length, 1);
+    assert.match(f[0], /^warn harness:codex /);
+  });
+
+  test("a commented header alone is not a table", () => {
+    assert.deepEqual(foreign({ ...cached, ".codex/config.toml": '# [plugins."pstack@cursor-plugins"]\nenabled = true\n' }), []);
+  });
+
+  test("spaces inside the brackets, and an indented header, still match the table", () => {
+    const f = foreign({ ...cached, ".codex/config.toml": '[ plugins."pstack@cursor-plugins" ]\nenabled = false\n' });
+    assert.equal(f.length, 1);
+    assert.match(f[0], /^warn harness:codex /);
+    assert.match(foreign({ ...cached, ".codex/config.toml": '  [ plugins."pstack@cursor-plugins" ]\n  enabled = true\n' })[0], /^block harness:codex /);
+  });
+
+  test("no Codex plugin cache, or only other plugins, gives nothing", () => {
+    assert.deepEqual(foreign(), []);
+    assert.deepEqual(foreign({ ".codex/plugins/cache/openai-curated/github/1.0.0/.codex-plugin/plugin.json": "{}\n", ".codex/config.toml": config(false) }), []);
+  });
+});
+
 describe("E_FOREIGN_INSTALL for skill dirs in a read-set", () => {
   test("a gstack clone dir or a gstack link in ~/.claude/skills blocks", () => {
     assert.deepEqual(foreign({ ".claude/skills/gstack/README.md": "# gstack\n" }), [

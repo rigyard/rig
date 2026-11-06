@@ -125,6 +125,26 @@ function cursorPlugins(home: string) {
   return [...cached, ...dirs(join(root, "local")).map((name) => ({ name, dir: `~/.cursor/plugins/local/${name}` }))];
 }
 
+/** One record per ~/.codex/plugins/cache/<marketplace>/<name> dir that config.toml lists as `[plugins."<name>@<marketplace>"]`, with its `enabled` flag. A cache dir with no such table is not installed in Codex. */
+function codexPlugins(home: string) {
+  const root = join(home, ".codex/plugins/cache");
+  let config = "";
+  try {
+    config = readFileSync(join(home, ".codex/config.toml"), "utf8");
+  } catch {}
+  const state = (id: string) => {
+    const quoted = `"${id}"`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const header = new RegExp(`^[ \\t]*\\[[ \\t]*plugins\\.${quoted}[ \\t]*\\]`, "m").exec(config);
+    if (!header) return undefined;
+    const table = config.slice(header.index + header[0].length).split(/^[ \t]*\[/m)[0];
+    return !/^\s*enabled\s*=\s*false\b/m.test(table);
+  };
+  return dirs(root).flatMap((m) => dirs(join(root, m)).flatMap((name) => {
+    const enabled = state(`${name}@${m}`);
+    return enabled === undefined ? [] : [{ name, id: `${name}@${m}`, dir: `~/.codex/plugins/cache/${m}/${name}`, enabled }];
+  }));
+}
+
 /** The plugins of ~/.omp/plugins/omp-plugins.lock.json, by npm package name, with their enabled flag. */
 function ompPlugins(home: string) {
   const plugins = readJson(join(home, ".omp/plugins/omp-plugins.lock.json"))?.plugins;
@@ -173,7 +193,7 @@ function readDirs(world: World) {
 
 /**
  * E_FOREIGN_INSTALL: an install of an upstream that a pack of this config seeds, made outside rig. That is a Claude Code,
- * Cursor or omp plugin, a clone or link with the upstream name in a skill read-set dir, or an unmanaged skill dir with a
+ * Cursor, Codex or omp plugin, a clone or link with the upstream name in a skill read-set dir, or an unmanaged skill dir with a
  * name that the pack excludes or adopts. rig never deletes it. A disabled plugin and a left-out name that the pack does not
  * list in `foreign_block` warn; the rest block.
  */
@@ -205,6 +225,9 @@ function foreignFindings(world: World, desired: Desired | undefined) {
   }
   for (const p of cursorPlugins(home)) {
     if (seeded.has(p.name)) plugin("cursor", p.name, `Cursor has the plugin ${p.name} in ${p.dir}`, `remove it in Cursor, or delete ${p.dir} by hand (cursor-agent has no plugin uninstall command)`);
+  }
+  for (const p of codexPlugins(home)) {
+    if (seeded.has(p.name)) plugin("codex", p.name, `Codex has the plugin ${p.id} in ${p.dir}${p.enabled ? "" : " but not enabled"}`, `run codex plugin remove ${p.id}`, p.enabled);
   }
   for (const p of ompPlugins(home)) {
     const name = ompUpstream(p.pkg, seeded);

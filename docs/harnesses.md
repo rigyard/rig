@@ -36,7 +36,7 @@ info absent omp models/omp: tiers.json names no omp model, so ~/.omp/agent/confi
 ## Codex
 
 - Read dirs: `~/.codex/skills` and `~/.agents/skills`, both writable, dedupe `none`. On a default install, `rig plan` places Codex copies in `~/.agents/skills`, which omp and Cursor also read.
-- Never write: none declared.
+- Never write: none declared. rig reads the plugin cache `~/.codex/plugins/cache/<marketplace>/<name>` and `~/.codex/config.toml`. A cached plugin with the name of a seeded upstream, such as `pstack`, counts as installed only when `config.toml` has a `[plugins."<name>@<marketplace>"]` table for it; a cache dir with no table gives no finding, as Codex lists it as available, not installed. An installed one blocks `rig plan` with `E_FOREIGN_INSTALL` and the `codex plugin remove` command. It only warns when that table sets `enabled = false` (`test/foreign.test.ts`, "E_FOREIGN_INSTALL for Codex plugins").
 - Skills: hide is the sidecar `agents/openai.yaml` with `policy.allow_implicit_invocation: false`. Codex ignores `disable-model-invocation` (probe (f)).
 - Commands: `~/.codex/prompts/<name>.md`, body only, frontmatter dropped. You type `/prompts:<name>`.
 - Agents: `~/.codex/agents/<name>.toml` with `name`, `description` and `developer_instructions`.

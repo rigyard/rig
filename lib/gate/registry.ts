@@ -30,7 +30,7 @@ export type CheckRow = {
 export const REGISTRY = Object.freeze([
   {
     id: "pin", runsOn: "lock, sources", inputs: ["lock", "sources"],
-    finds: "lock tree mismatch, pack with no lock entry, port not reviewed (`E_PORT_STALE`), core seal mismatch, an install of a seeded upstream made outside rig: a Claude Code, Cursor or omp plugin, a clone or link with the upstream name, or an unmanaged skill dir with a left-out name (`E_FOREIGN_INSTALL`)",
+    finds: "lock tree mismatch, pack with no lock entry, port not reviewed (`E_PORT_STALE`), core seal mismatch, an install of a seeded upstream made outside rig: a Claude Code, Cursor, Codex or omp plugin, a clone or link with the upstream name, or an unmanaged skill dir with a left-out name (`E_FOREIGN_INSTALL`)",
     severity: "block", ackable: false, ackNote: "never", run: runPin,
   },
   {
