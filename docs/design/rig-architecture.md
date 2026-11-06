@@ -1330,7 +1330,7 @@ Remove never deletes. `remove-to-backup` keeps the old bytes in `backups/<run-id
 `rig apply --undo <run-id>`:
 
 1. Read the run's journal. Walk its intents in reverse order.
-2. Per path: current sha equals the run's `after_sha` -> restore the pre-image (or, for a create, move the current bytes to the new run's backups). Otherwise the path conflicts: `E_UNDO_CONFLICT`. A run that never committed skips each intent that its `done` list does not name, because a later run may have written the same bytes since.
+2. Per path: current sha equals the run's `after_sha` -> restore the pre-image (or, for a create, move the current bytes to the new run's backups). Otherwise the path conflicts: `E_UNDO_CONFLICT`. A run that never committed skips each intent that its `done` list does not name, because a later run may have written the same bytes since. A journal without a `done` list (written by an older rig) keeps the old rule: an intent is skipped when the path still holds its before state and not its after state.
 3. Any conflict stops the whole undo before the first write. The output lists every conflicting path, not only the first. No path restores. You resolve each path and run the undo again.
 4. The undo is a new journaled run, with its own backups and its own `commit`. `installed.json` returns to each intent's `entry_before`.
 

@@ -165,6 +165,26 @@ describe("fs containment", () => {
     assert.equal(withSpawnSync(dead, () => fsyncsIn(() => fsyncAll(files, [home]))), 21, "a child killed by its timeout");
   });
 
+  test("fsyncAll falls back to one fsync per path in this process when the batch child's reply is garbled", () => {
+    const home = fresh();
+    const files = textFiles(home, 20);
+    const n = files.length + 1;
+    const replies: Record<string, string> = {
+      "bad JSON": "{not json",
+      "empty stdout": "",
+      "not a list": '{"0":null}',
+      "a list that is too short": JSON.stringify(Array(n - 1).fill(null)),
+      "a list that is too long": JSON.stringify(Array(n + 1).fill(null)),
+      "an empty list": "[]",
+    };
+    for (const [name, stdout] of Object.entries(replies)) {
+      let calls = 0;
+      const garbled: SpawnSync = () => (calls++, { status: 0, stdout });
+      assert.equal(withSpawnSync(garbled, () => fsyncsIn(() => fsyncAll(files, [home]))), n, `${name}: each path is synced once in this process`);
+      assert.equal(calls, 1, `${name}: the child ran once and was not retried`);
+    }
+  });
+
   test("under ulimit -n 64, the batch child syncs 200 paths and this process syncs none", () => {
     const dir = fresh();
     textFiles(dir, 200);
