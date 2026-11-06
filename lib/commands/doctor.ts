@@ -33,16 +33,20 @@ function duplicates(world, installed) {
 
 /**
  * Drift and adopt state from the plan's ops. Drift and every other block is an error; an unmanaged file that
- * differs from the render is a warning (rig plan blocks on it, and nothing managed changed).
+ * differs from the render is a warning (rig plan blocks on it, and nothing managed changed). With nothing pending and
+ * no other block, the summary line says only what holds: after an interrupted run it speaks of the entries rig apply
+ * rebuilds from the journal, and each unmanaged path that blocks rig plan is counted.
  * @param {import("../state.ts").Plan} planned @returns {Line[]}
  */
 function stateLines(planned) {
   const out = [];
   let blocked = false;
+  const unmanaged = new Set<string>();
   for (const o of planned.ops) {
     const code = o.error?.code ?? "E_INTERNAL";
     if (o.op === "block") {
       if (code !== "E_ADOPT_MISMATCH") blocked = true;
+      else unmanaged.add(o.path);
       const level = code === "E_ADOPT_MISMATCH" ? "warn" : "error";
       const topic = code === "E_DRIFT" ? "drift" : code === "E_ADOPT_MISMATCH" ? "adopt" : "state";
       out.push({ level, topic, text: `${o.path}: ${code} ${o.error?.message ?? ""}`.trimEnd() });
@@ -53,7 +57,13 @@ function stateLines(planned) {
   const pending = planned.ops.filter((o) => o.op !== "block").length;
   for (const run of planned.interrupted) out.push({ level: "warn", topic: "drift", text: `run ${run} was interrupted; rig apply recovers it first` });
   if (pending) out.push({ level: "info", topic: "drift", text: `${pending} changes pending; rig plan lists them` });
-  else if (!blocked) out.push({ level: "info", topic: "drift", text: "managed files match installed.json and the render" });
+  else if (!blocked) {
+    const base = planned.interrupted.length
+      ? "no changes pending against installed.json as rig apply rebuilds it from the journal"
+      : "managed files match installed.json and the render";
+    const n = unmanaged.size;
+    out.push({ level: "info", topic: "drift", text: n ? `${base}; ${n} unmanaged ${n === 1 ? "path blocks" : "paths block"} rig plan` : base });
+  }
   return out;
 }
 

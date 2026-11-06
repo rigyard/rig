@@ -375,6 +375,37 @@ describe("rig doctor drift summary", () => {
     assert.doesNotMatch(d.stdout, MATCH);
   });
 
+  test("a new pack colliding with a hand-written file: the match line names the unmanaged path that blocks, exit 0 with a warning", (t) => {
+    const s = applied(t);
+    const state = JSON.parse(s.fx.read(`${STATE}installed.json`));
+    delete state.entries[`~/${MANAGED}`];
+    writeFileSync(s.fx.path(`${STATE}installed.json`), `${JSON.stringify(state)}\n`);
+    writeFileSync(s.fx.path(MANAGED), "my own frame\n");
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 1, p.all);
+    assert.match(p.stdout, /, 1 block$/m);
+    const d = s.rig(["doctor"]);
+    assert.equal(d.code, 0, d.all);
+    assert.match(d.stdout, /^warn +adopt +~\/\.claude\/rules\/rig-frame\.md: E_ADOPT_MISMATCH /m);
+    assert.match(d.stdout, /^info +drift +managed files match installed\.json and the render; 1 unmanaged path blocks rig plan$/m);
+    assert.doesNotMatch(d.stdout, MATCH);
+  });
+
+  test("an interrupted run with nothing left to write: no match line, the rebuilt installed.json is named", (t) => {
+    const s = setup();
+    t.after(s.cleanup);
+    const n = creates(s.rig(["plan"]).stdout).length;
+    const killed = s.rig(["apply"], { RIG_TEST: "1", RIG_TEST_ABORT_AFTER: String(n) });
+    assert.equal(killed.signal, "SIGKILL", killed.all);
+    const before = s.fx.snapshot();
+    const d = s.rig(["doctor"]);
+    assert.equal(d.code, 0, d.all);
+    assert.match(d.stdout, /^warn +drift +run \S+ was interrupted; rig apply recovers it first$/m);
+    assert.match(d.stdout, /^info +drift +no changes pending against installed\.json as rig apply rebuilds it from the journal$/m);
+    assert.doesNotMatch(d.stdout, MATCH);
+    assert.deepEqual(changed(before, s.fx.snapshot()), [], "doctor writes nothing");
+  });
+
   test("a clean HOME after apply: the match line, no drift error, exit 0", (t) => {
     const s = applied(t);
     const d = s.rig(["doctor"]);
