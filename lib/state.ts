@@ -55,6 +55,7 @@ import { backupRel, listJournals, newRunId, readJournal, RUN_RE } from "./state/
 import {
   blockDigest, cellsDigest, fsCtx, hex, jsonDigest, observe, readInstalled, sameSig, sha, sigOf,
 } from "./state/observe.ts";
+import { kindChange } from "./state/migrate.ts";
 import { recover, simulate } from "./state/recover.ts";
 import { execute, releaseLock, takeLock } from "./state/txn.ts";
 
@@ -134,8 +135,10 @@ function planOwned(e, o, ent, patch) {
 function planPatched(e, o, ent, patch) {
   if (!patch) return blockOp(e.kind, o, e, ent, err("E_INTERNAL", `${e.kind} entries need a patch function`, o.tilde));
   if (e.kind === "cells" && o.sha === null && (e.surfaces ?? []).every((s) => s.kind === "frontmatter")) return null;
-  if (ent && ent.kind !== e.kind) return blockOp(e.kind, o, e, ent, err("E_DRIFT", `${o.tilde} is recorded as ${ent.kind}, desired as ${e.kind}`, o.tilde));
-  const r = patch(o.bytes, e);
+  const mismatch = ent && ent.kind !== e.kind;
+  const convert = mismatch && kindChange(ent, e.kind, sigOf(o)) === "convert";
+  if (mismatch && !convert) return blockOp(e.kind, o, e, ent, err("E_DRIFT", `${o.tilde} is recorded as ${ent.kind}, desired as ${e.kind}`, o.tilde));
+  const r = patch(convert ? null : o.bytes, e);
   if (r.error) return blockOp(e.kind, o, e, ent, r.error);
   const have = currentDigest(e.kind, r.current);
   const want = desiredDigest(e);
@@ -148,6 +151,7 @@ function planPatched(e, o, ent, patch) {
   if (e.kind === "json-element") Object.assign(f.entry_after, { pointer: e.pointer, id: e.id });
   const write = (name) => mkOp(name, e.kind, o, e, { ...f, next, after: { sha: sha(next), mode } });
   const diff = e.kind === "cells" ? cellDiff(o.tilde, r.current, e.values) : unifiedDiff(o.tilde, o.bytes, next);
+  if (convert) return write("update");
   if (!ent) {
     if (have === want) return writes ? write("insert-markers") : mkOp("adopt", e.kind, o, e, f);
     if (have === null && e.kind !== "cells") return write(o.sha === null ? "create" : "update");
