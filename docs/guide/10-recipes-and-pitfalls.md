@@ -67,7 +67,9 @@ block  owned  claude  ~/.claude/rules/rig-frame.md  E_DRIFT ~/.claude/rules/rig-
 
 Put the render back from the diff, and make the change in the pack unit instead. A removed file blocks the same way (`E_DRIFT managed file ... was removed`). v0 has no command that writes it again, so keep rig's files in place.
 
-When a harness record moves a file from a whole-file write to a managed block, rig converts the entry without a block if the file still has the bytes and mode rig recorded: the plan shows an `update` and apply replaces the file with the block. A file you edited keeps the `E_DRIFT ... is recorded as owned, desired as block` block. Move your text out of the file, then plan again.
+A change of mode alone blocks the same way. After `chmod 600` on `~/.claude/rules/rig-frame.md`, the plan prints the same `E_DRIFT ... changed since rig wrote it (diff below)` line, and the diff holds only the two header lines `--- ... (current)` and `+++ ... (desired)`, with no changed line. An empty diff means the bytes match and the mode differs. Restore the mode rig wrote (`chmod 644` for that file), and the next plan shows 0 blocks.
+
+When a harness record moves a file from a whole-file write to a managed block, rig converts the entry without a block if the file still has the bytes and mode rig recorded: the plan shows an `update` and apply replaces the file with the block. A file you edited keeps the `E_DRIFT ... is recorded as owned, desired as block` block. Move your text out of the file, then plan again. A changed mode keeps the block too, even when the bytes match: `chmod` the file back to the mode rig wrote, then plan again.
 
 **Setting a repo value in the overlay.** The overlay only adds. `metrics.session_hook`, `harnesses` and the model cells of the four seeded harnesses are set in the repo's files, so an overlay value for them fails with `E_OVERLAY_CONFLICT` and exit 2. Change them in your checkout.
 
