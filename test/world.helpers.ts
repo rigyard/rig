@@ -82,7 +82,7 @@ export function pack(name: string, unitFiles: Record<string, string>, manifest: 
 export const skill = (name) => ({ [`skills/${name}/SKILL.md`]: `---\nname: ${name}\ndescription: Fixture skill ${name}.\n---\nBody.\n` });
 
 /** Run fn with a fixture; always clean up. */
-export function withFixture(spec, fn) {
+export function withFixture<T>(spec, fn: (fx: ReturnType<typeof fixture>) => T): T {
   const fx = fixture(spec);
   try {
     return fn(fx);
