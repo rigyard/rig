@@ -185,7 +185,7 @@ Each live lane runs in its own git worktree at the PR head, on the operator's ma
 
 - [ ] Lane 1. Regression lane against trunk. Case `vendor pstack from GitHub`. Run the design's pstack `pack add` without its two `--port` flags against `https://github.com/cursor/plugins` at `2776ddd2355d6d6c8747d3964600f28daf62f049` at trunk and at head. Trunk has no `--root` or `--exclude`, so the lane records that and gates head. Save `vendor-pstack.tap`. Pass when head prints `0 blocks` and 107 kept files.
 - [ ] Lane 2. Case `vendor twice is a no-op`. Run the same command twice. Save `vendor-noop.tap`. Pass when the second run prints `already vendored` and the lock bytes do not change.
-- [ ] Lane 3. Case `claude lists a vendored leaf`. Enable the vendored pack, seed a fixture HOME, mirror it, and ask `claude -p` whether a skill named `how` exists. Save `vendor-claude.tap`. Pass when Claude finds `how` through the skill tool and the four real config hashes are unchanged.
+- [ ] Lane 3. Case `claude lists a vendored leaf`. Enable the vendored pack, seed a fixture HOME, mirror it, and ask `claude -p` whether a skill named `how` exists. Save `vendor-claude.tap`. Pass when the init event's skill listing holds `how` and the four real config hashes are unchanged. The lane checks the listing, not a Skill tool call, because D4 hides every unit and the Skill tool refuses a hidden skill.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 

@@ -8,7 +8,7 @@ import { describe } from "node:test";
 import { treeHash } from "../../lib/tree.ts";
 import { makeFixtureHome } from "../helpers/fixture-home.ts";
 import { liveTest, runHarness } from "../helpers/live.ts";
-import { harnessArgv, mirrorProject, realBin, scratchRepo, sentinel } from "../helpers/mirror.ts";
+import { harnessArgv, mirrorProject, realBin, scratchRepo } from "../helpers/mirror.ts";
 import { filesUnder, json, repoJson, ROOT } from "../pstack.helpers.ts";
 
 const BIN = join(ROOT, "bin/rig.ts");
@@ -78,27 +78,18 @@ describe("vendor", () => {
     t.after(() => repo.cleanup());
     mirrorProject(fx.home, "claude", repo.dir);
 
-    const token = sentinel("RIGVENDOR");
-    const prompt = `Use the Skill tool to load the skill named how. If it loads, reply with ${token} and nothing else. If no skill named how exists, reply MISSING.`;
-    const h = harnessArgv("claude", prompt, { dir: repo.dir, maxTurns: 3 });
+    const h = harnessArgv("claude", "Reply OK.", { dir: repo.dir, maxTurns: 1 });
     const args = h.args.map((x) => (x === "json" ? "stream-json" : x));
     args.splice(args.indexOf("--output-format"), 0, "--verbose");
     const run = runHarness as unknown as (o: typeof h & {timeoutMs: number}) => Promise<{code: number | null, stdout: string}>;
     const r = await run({ ...h, args, bin: realBin(h.bin, h.env.PATH), timeoutMs: 180_000 });
-    const events = r.stdout.split("\n").flatMap((l) => {
+    const init = r.stdout.split("\n").flatMap((l) => {
       try {
         return [JSON.parse(l)];
       } catch {
         return [];
       }
-    });
-    const skillCalls = events
-      .filter((e) => e.type === "assistant")
-      .flatMap((e) => e.message?.content ?? [])
-      .filter((c) => c.type === "tool_use" && c.name === "Skill")
-      .map((c) => c.input?.skill ?? c.input?.command);
-    assert.ok(skillCalls.includes("how"), `exit ${r.code}: no Skill call for how, saw ${JSON.stringify(skillCalls)}`);
-    const result = events.find((e) => e.type === "result");
-    assert.ok(result?.is_error === false && String(result.result).includes(token), `exit ${r.code}: no token in the reply`);
+    }).find((e) => e.type === "system" && e.subtype === "init");
+    assert.ok(init?.skills?.includes("how"), `exit ${r.code}: the claude session does not list the skill how`);
   });
 });

@@ -10,9 +10,13 @@ import { basename, delimiter, dirname, isAbsolute, join, relative, sep } from "n
 import { assertOutsideHomeDotDirs } from "./fixture-home.ts";
 import { ompModelArgs, realHome, runHarness } from "./live.ts";
 
+/** Claude loads project and local settings only, so the operator's user scope cannot shadow the mirrored units. */
+const CLAUDE_PROJECT_ONLY = ["--setting-sources", "project,local"];
+
 /** Per harness: [fixture-HOME-relative source, project-relative destination]. Two sources may share one destination dir. */
 export const MIRROR_UNITS = {
   claude: [
+    [".claude/agents", ".claude/agents"],
     [".claude/commands", ".claude/commands"],
     [".claude/skills", ".claude/skills"],
     [".claude/rules", ".claude/rules"],
@@ -159,7 +163,7 @@ export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: st
   const base = scrubEnv(opts.env ?? process.env);
   const m = (flag) => (opts.model ? [flag, opts.model] : []);
   const out = (bin, args, env = base, cleanup = () => {}) => ({ bin, args, cwd: dir, env, input: "", cleanup });
-  if (harness === "claude") return out("claude", ["-p", "--max-turns", String(opts.maxTurns ?? 3), "--output-format", "json", ...m("--model"), prompt]);
+  if (harness === "claude") return out("claude", [...CLAUDE_PROJECT_ONLY, "-p", "--max-turns", String(opts.maxTurns ?? 3), "--output-format", "json", ...m("--model"), prompt]);
   if (harness === "omp") {
     if (!opts.home) throw new Error("mirror: omp needs the fixture home");
     return out("omp", [...(opts.model ? m("--model") : ompModelArgs(base).args), "-p", "--mode", "json", "--no-session", prompt], ompEnv(opts.home, opts.agentDir, base));

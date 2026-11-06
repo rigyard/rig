@@ -217,13 +217,15 @@ describe("mirror", () => {
     t.after(() => (fx.cleanup(), repos.forEach((r) => r.cleanup())));
     const [c, x, u] = repos.map((r) => r.dir);
 
-    assert.deepEqual(mirrorProject(fx.home, "claude", c), [".claude/commands/c.md", ".claude/rules/r.md", ".claude/skills/s/SKILL.md"]);
+    assert.deepEqual(mirrorProject(fx.home, "claude", c), [".claude/agents/a.md", ".claude/commands/c.md", ".claude/rules/r.md", ".claude/skills/s/SKILL.md"]);
     assert.deepEqual(mirrorProject(fx.home, "codex", x), [".agents/skills/as/SKILL.md", ".agents/skills/cs/SKILL.md", "AGENTS.md"]);
     assert.deepEqual(mirrorProject(fx.home, "cursor", u), [".cursor/rules/x.mdc"]);
 
     assert.equal(readFileSync(join(c, ".claude/commands/c.md"), "utf8"), "c\n");
+    assert.equal(readFileSync(join(c, ".claude/agents/a.md"), "utf8"), "a\n");
+    assert.equal(readFileSync(join(c, ".claude/rules/r.md"), "utf8"), "r\n");
     assert.equal(readFileSync(join(x, "AGENTS.md"), "utf8"), "agents\n");
-    for (const absent of [".claude/settings.json", ".claude/agents", "AGENTS.md", ".agents", ".cursor"]) assert.equal(existsSync(join(c, absent)), false, absent);
+    for (const absent of [".claude/settings.json", "AGENTS.md", ".agents", ".cursor"]) assert.equal(existsSync(join(c, absent)), false, absent);
     for (const absent of [".claude", ".cursor", ".codex"]) assert.equal(existsSync(join(x, absent)), false, absent);
     for (const absent of [".claude", "AGENTS.md", ".cursor/hooks.json"]) assert.equal(existsSync(join(u, absent)), false, absent);
     assert.throws(() => mirrorProject(fx.home, "omp", c), /no project mirror for omp/);
@@ -240,7 +242,7 @@ describe("mirror", () => {
     mirrorProject(fx.home, "claude", repo.dir);
     writeFileSync(join(repo.dir, ".claude/settings.local.json"), "{}\n");
     rmSync(fx.path(".claude/commands/c.md"));
-    assert.deepEqual(mirrorProject(fx.home, "claude", repo.dir), [".claude/rules/r.md", ".claude/skills/s/SKILL.md"]);
+    assert.deepEqual(mirrorProject(fx.home, "claude", repo.dir), [".claude/agents/a.md", ".claude/rules/r.md", ".claude/skills/s/SKILL.md"]);
     assert.equal(existsSync(join(repo.dir, ".claude/commands/c.md")), false);
     assert.equal(existsSync(join(repo.dir, ".claude/settings.local.json")), true);
   });
@@ -289,7 +291,7 @@ describe("mirror", () => {
     const dir = "/tmp/rig-seed-x";
 
     const c = harnessArgv("claude", "/rigseed", { dir, env, maxTurns: 2 });
-    assert.deepEqual([c.bin, c.args, c.cwd, c.input], ["claude", ["-p", "--max-turns", "2", "--output-format", "json", "/rigseed"], dir, ""]);
+    assert.deepEqual([c.bin, c.args, c.cwd, c.input], ["claude", ["--setting-sources", "project,local", "-p", "--max-turns", "2", "--output-format", "json", "/rigseed"], dir, ""]);
     assert.deepEqual(c.env, { PATH: "/bin", HOME: "/real", RIG_LIVE_OMP_MODEL: "prov/m" });
 
     const o = harnessArgv("omp", "hi", { dir, env, home: fx.home });
