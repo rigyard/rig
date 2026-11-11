@@ -83,7 +83,7 @@ info  evidence untested 59, helps 0, no-effect 0, hurts 0, safety 0 (no evidence
 0 errors, 0 warnings
 ```
 
-Each line has a level, a topic and a text. `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. `evidence` counts your units per status in the evidence ledger. The number depends on your packs, your harnesses and the files already on disk.
+Each line has a level, a topic and a text. `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. `evidence` counts the units of the repo packs per status in the evidence ledger. The number depends on your packs, your harnesses and the files already on disk.
 
 The last line counts errors and warnings. Doctor exits 1 when it prints an error, else 0.
 

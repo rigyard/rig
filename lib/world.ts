@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { RigError } from "./world/errors.ts";
 import { mergeOverlay } from "./world/merge.ts";
 import { projectDeclaration as declaration } from "./world/project.ts";
-import { expandHome, homeRelative, readBytes, readConfig, readTree } from "./world/read.ts";
+import { expandHome, homeRelative, parseConfig, readBytes, readConfig, readTree } from "./world/read.ts";
 import { check } from "./world/schema.ts";
 import {
   ALLOW, DOMAINS, ENCODE, EVIDENCE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
@@ -412,14 +412,20 @@ export function projectDeclaration(world: World, dir: string): {packs: {name: st
 
 /**
  * The evidence ledger of the repo config root. Optional: a missing file and a blank one hold no rows. Not part of
- * loadWorld, so a broken ledger stops no command except the one that asks. An E_SCHEMA break comes back as its message.
+ * loadWorld, so a broken ledger stops no command except the one that asks. An E_SCHEMA break, or a file that cannot be
+ * read (a directory, no permission), comes back as its message.
  */
 export function readEvidence(root: string): Evidence | {error: string} {
-  const abs = join(root, "evidence.json");
-  if (!existsSync(abs)) return { units: {}, file: "absent" };
-  if (readFileSync(abs, "utf8").trim() === "") return { units: {}, file: "empty" };
   try {
-    return { units: readConfig(abs, "evidence.json", EVIDENCE).units, file: "read" };
+    let text: string;
+    try {
+      text = readFileSync(join(root, "evidence.json"), "utf8");
+    } catch (err) {
+      if (err.code === "ENOENT") return { units: {}, file: "absent" };
+      throw new RigError("E_SCHEMA", `cannot read file: ${err.message}`, { file: "evidence.json" });
+    }
+    if (text.trim() === "") return { units: {}, file: "empty" };
+    return { units: parseConfig(text, "evidence.json", EVIDENCE).units, file: "read" };
   } catch (err) {
     if (err instanceof RigError) return { error: err.message };
     throw err;

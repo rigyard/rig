@@ -2,7 +2,7 @@
 // The check takes a config root and the refs that the listed packs contain. It has no other input, so no state root.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, test } from "node:test";
@@ -111,6 +111,15 @@ describe("evidence ledger", () => {
       assert.equal(lines.length, 1, JSON.stringify(units));
       assert.match(lines[0].text, want);
     }
+  });
+
+  test("evidence.json is a directory: one E_SCHEMA error that names the file, not a thrown EISDIR", () => {
+    const root = mkdtempSync(join(dir, "root-"));
+    mkdirSync(join(root, "evidence.json"));
+    const lines = ledgerLines(root, LISTED);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].level, "error");
+    assert.match(lines[0].text, /^E_SCHEMA evidence\.json: cannot read file: EISDIR/);
   });
 
   test("text that is not JSON is E_SCHEMA", () => {

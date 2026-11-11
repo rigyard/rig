@@ -14,9 +14,20 @@ export function readConfig(abs: string, file: string, spec: object, o: {optional
     if (o.optional) return undefined;
     throw new RigError("E_SCHEMA", "file is missing", { file });
   }
+  let text;
+  try {
+    text = readFileSync(abs, "utf8");
+  } catch (err) {
+    throw new RigError("E_SCHEMA", `not valid JSON: ${err.message}`, { file });
+  }
+  return parseConfig(text, file, spec);
+}
+
+/** Parse and check the text of one JSON config file. */
+export function parseConfig(text: string, file: string, spec: object): any {
   let value;
   try {
-    value = JSON.parse(readFileSync(abs, "utf8"));
+    value = JSON.parse(text);
   } catch (err) {
     throw new RigError("E_SCHEMA", `not valid JSON: ${err.message}`, { file });
   }

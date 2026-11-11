@@ -105,16 +105,26 @@ describe("rig doctor", () => {
 
   describe("evidence ledger", () => {
     const TIDY = "---\ndescription: Tidy the notes.\n---\nTidy the notes.\n";
-    const withLedger = (ledger: unknown, { disable = [] as string[] } = {}) => setup({
+    const TIDY2 = "---\ndescription: Tidy the notes, the new way.\n---\nTidy the notes.\n";
+    const NOTE = "---\ndescription: Take a note.\n---\nTake a note.\n";
+    const withLedger = (ledger: unknown, { disable = [] as string[], replacer = false, overlayPack = false } = {}) => setup({
       home: {
-        "rig/packs/own/pack.json": `${JSON.stringify({ schema: 2, name: "own", license: "MIT" })}\n`,
+        "rig/packs/own/pack.json": `${JSON.stringify({ schema: 2, name: "own", license: "MIT", ...(replacer ? { units: { tidy2: { replaces: "own/tidy" } } } : {}) })}\n`,
         "rig/packs/own/commands/tidy.md": TIDY,
+        ...(replacer ? { "rig/packs/own/commands/tidy2.md": TIDY2 } : {}),
+        ...(overlayPack ? {
+          ".config/rig/rig.json": `${JSON.stringify({ schema: 2, packs: { mine: {} } })}\n`,
+          ".config/rig/packs/mine/pack.json": `${JSON.stringify({ schema: 2, name: "mine", license: "MIT" })}\n`,
+          ".config/rig/packs/mine/commands/note.md": NOTE,
+          ".config/rig/rig.lock.json": `${JSON.stringify({ schema: 2, core: null, packs: { mine: authoredEntry("mine", { "commands/note.md": NOTE }) } }, null, 2)}\n`,
+        } : {}),
         ...(ledger === null ? {} : { "rig/evidence.json": typeof ledger === "string" ? ledger : `${JSON.stringify(ledger)}\n` }),
       },
       edit: (root) => {
         editRig(root, (c: any) => ({ ...c, packs: { ...c.packs, own: {} }, disable }));
         const lock = JSON.parse(readFileSync(join(root, "rig.lock.json"), "utf8"));
-        writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ ...lock, packs: { ...lock.packs, own: authoredEntry("own", { "commands/tidy.md": TIDY }) } }, null, 2)}\n`);
+        const own = { "commands/tidy.md": TIDY, ...(replacer ? { "commands/tidy2.md": TIDY2 } : {}) };
+        writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ ...lock, packs: { ...lock.packs, own: authoredEntry("own", own) } }, null, 2)}\n`);
       },
     });
     const evidence = (stdout: string) => stdout.split("\n").filter((l) => /^(info|error|warn) +evidence /.test(l));
@@ -164,6 +174,46 @@ describe("rig doctor", () => {
       const r = s.rig(["doctor"]);
       assert.equal(r.code, 0, r.stdout + r.stderr);
       assert.match(r.stdout, /^info +evidence +untested \d+, helps 0, no-effect 1, hurts 0, safety 0 \(evidence\.json\)$/m);
+    });
+
+    test("a row for a unit that another unit replaces stays valid, like a disabled one", (t) => {
+      const s = withLedger({ schema: 1, units: { "own/tidy": { status: "no-effect", source: "evals/tidy.md" } } }, { replacer: true });
+      t.after(() => s.fx.cleanup());
+      assert.ok(!/own\/tidy\b/.test(s.rig(["plan"]).stdout.split("\n").filter((l) => l.startsWith("create")).join("\n")), "own/tidy leaves the stack");
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /^info +evidence +untested \d+, helps 0, no-effect 1, hurts 0, safety 0 \(evidence\.json\)$/m);
+    });
+
+    test("a row for a unit of an overlay-only pack: exit 1, E_UNKNOWN_UNIT, because the teammates have no overlay", (t) => {
+      const s = withLedger({ schema: 1, units: { "mine/note": { status: "helps", source: "evals/note.md" } } }, { overlayPack: true });
+      t.after(() => s.fx.cleanup());
+      const plan = s.rig(["plan"]);
+      assert.equal(plan.code, 0, plan.stdout + plan.stderr);
+      assert.match(plan.stdout, /mine\/note/, "the overlay pack is in the stack");
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 1, r.stdout + r.stderr);
+      assert.match(r.stdout, /^error +evidence +E_UNKNOWN_UNIT evidence\.json: units\["mine\/note"\]: /m);
+    });
+
+    test("the count per status holds the units of the repo packs only: an overlay pack adds none", (t) => {
+      const base = withLedger(null);
+      t.after(() => base.fx.cleanup());
+      const withOverlay = withLedger(null, { overlayPack: true });
+      t.after(() => withOverlay.fx.cleanup());
+      const total = untested(base.rig(["doctor"]).stdout);
+      assert.ok(total > 0);
+      assert.equal(untested(withOverlay.rig(["doctor"]).stdout), total);
+    });
+
+    test("evidence.json is a directory: exit 1, E_SCHEMA names the file, and doctor does not crash", (t) => {
+      const s = withLedger(null);
+      t.after(() => s.fx.cleanup());
+      mkdirSync(s.fx.path("rig/evidence.json"));
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 1, r.stdout + r.stderr);
+      assert.match(r.stdout, /^error +evidence +E_SCHEMA evidence\.json: /m);
+      assert.doesNotMatch(r.stderr, /at .*\.ts:\d+/, "no stack trace");
     });
 
     test("a ref that no listed pack contains: exit 1, E_UNKNOWN_UNIT names the ref", (t) => {

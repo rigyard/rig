@@ -39,6 +39,7 @@ before(() => {
   const h1 = run.h1.home;
   run.plan1 = rig(run.root, h1, ["plan"]);
   run.empty = manifest(h1);
+  run.doctor1 = rig(run.root, h1, ["doctor"]);
   run.apply1 = rig(run.root, h1, ["apply"]);
   run.plan2 = rig(run.root, h1, ["plan"]);
   run.m1 = manifest(h1);
@@ -151,6 +152,20 @@ describe("the first seed over the committed config", () => {
     const guide = (f: string) => readFileSync(join(ROOT, "docs/guide", f), "utf8");
     assert.deepEqual(guide("02-plan-and-apply.md").match(/^[1-9]\d* changes, 0 blocks$|^run \S+: \d+ ops applied$/gm)?.map((l) => /(\d+) (changes|ops)/.exec(l)![1]), [n, n, n]);
     assert.deepEqual(guide("01-setup.md").match(/drift +(\d+) changes pending/g)?.map((l) => /(\d+)/.exec(l)![1]), [n]);
+  });
+
+  test("the guide quotes the doctor output of a fresh HOME, and the evidence line wherever the guide shows one", () => {
+    assert.equal(run.doctor1.code, 0, run.doctor1.all);
+    const out = run.doctor1.stdout.trimEnd();
+    const guide = (f: string) => readFileSync(join(ROOT, "docs/guide", f), "utf8");
+    assert.ok(guide("01-setup.md").includes(`${out}\n`), `01-setup.md must quote this doctor output:\n${out}`);
+    const evidence = out.split("\n").find((l: string) => l.startsWith("info  evidence "));
+    assert.ok(evidence, out);
+    for (const f of ["01-setup.md", "05-scope-and-projects.md"]) {
+      const lines = guide(f).split("\n").filter((l) => l.startsWith("info  evidence "));
+      assert.ok(lines.length > 0, `${f} shows no evidence line`);
+      for (const l of lines) assert.equal(l, evidence, f);
+    }
   });
 
   test("A11: the warns equal the committed list", () => {

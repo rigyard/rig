@@ -6,10 +6,10 @@ import { EVIDENCE_STATUSES, readEvidence } from "./world.ts";
 export type EvidenceLine = {level: "error"|"info", topic: "evidence", text: string};
 
 /**
- * The doctor lines for the ledger: an error for each row whose ref no listed pack contains, then the count per status,
+ * The doctor lines for the ledger: an error for each row whose ref no listed repo pack contains, then the count per status,
  * in which a unit with no row is untested. A row that breaks the closed spec gives one error and no counts, because the
  * spec stops at the first break. A missing file and a blank one hold no rows and are no error.
- * @param root  the repo config root @param listed  every `<pack>/<unit>` that a listed pack contains, disabled ones too
+ * @param root  the repo config root @param listed  every `<pack>/<unit>` that a listed repo pack contains, disabled ones too, overlay packs left out
  */
 export function ledgerLines(root: string, listed: Iterable<string>): EvidenceLine[] {
   const ledger = readEvidence(root);
@@ -17,7 +17,7 @@ export function ledgerLines(root: string, listed: Iterable<string>): EvidenceLin
   const known = new Set(listed);
   const out: EvidenceLine[] = [];
   for (const ref of Object.keys(ledger.units)) {
-    if (!known.has(ref)) out.push({ level: "error", topic: "evidence", text: `E_UNKNOWN_UNIT evidence.json: units[${JSON.stringify(ref)}]: no listed pack contains this unit` });
+    if (!known.has(ref)) out.push({ level: "error", topic: "evidence", text: `E_UNKNOWN_UNIT evidence.json: units[${JSON.stringify(ref)}]: no listed repo pack contains this unit` });
   }
   const count = new Map(EVIDENCE_STATUSES.map((s) => [s, 0]));
   for (const ref of known) {

@@ -134,7 +134,11 @@ info  evidence untested 57, helps 1, no-effect 0, hurts 0, safety 1 (evidence.js
 
 With no `evidence.json`, or an empty one, every unit is `untested`, and doctor prints `(no evidence.json)` or `(evidence.json, empty)`. That is not an error.
 
-Doctor exits 1 for a row that breaks the file. A ref that no listed pack contains is `E_UNKNOWN_UNIT`, for example `units["pstack/gone"]: no listed pack contains this unit`. A unit that you removed with `disable` is still listed, so its row stays valid. A unit that a pin move removed upstream is not: delete its row in the same pull request as the pin move. An unknown `status`, a missing `source`, an extra key or a wrong date is `E_SCHEMA`, and the key path names the ref, for example `units["pstack/how"].source: required when status is not untested`. A file with `schema` missing or not `1` is `E_SCHEMA` too.
+Doctor exits 1 for a row that breaks the file. A ref that no listed repo pack contains is `E_UNKNOWN_UNIT`, for example `units["pstack/gone"]: no listed repo pack contains this unit` (`test/evidence.test.ts`, "a ref that no listed pack contains"). A unit that you removed with `disable` or that another unit replaces is still listed, so its row stays valid (`test/cli-wiring.test.ts`, "a row for a unit that rig.json disable removed stays valid" and "a row for a unit that another unit replaces stays valid"). A unit that a pin move removed upstream is not: delete its row in the same pull request as the pin move.
+
+The ledger is a repo file, so it covers the packs of the repo only. A pack that lives in your overlay `~/.config/rig` is not a repo pack. A row for one of its units is `E_UNKNOWN_UNIT`, because a teammate has no such pack, and the count per status leaves those units out (`test/cli-wiring.test.ts`, "a row for a unit of an overlay-only pack" and "the count per status holds the units of the repo packs only").
+
+A file that doctor cannot read, for example a directory named `evidence.json`, is `E_SCHEMA` (`test/cli-wiring.test.ts`, "evidence.json is a directory"). An unknown `status`, a missing `source`, an extra key or a wrong date is `E_SCHEMA`, and the key path names the ref, for example `units["pstack/how"].source: required when status is not untested`. A file with `schema` missing or not `1` is `E_SCHEMA` too.
 
 No other command reads the ledger yet. `rig stats --suggest` does not use it.
 
