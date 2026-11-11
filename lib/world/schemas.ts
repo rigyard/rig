@@ -241,6 +241,8 @@ export const LOCK = schema2(S.rec(
 
 // audit.allow.json
 
+const date = () => S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/, reject: (v) => (Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ? "not a date" : null) });
+
 export const ALLOW = S.rec(
   {
     schema,
@@ -250,11 +252,31 @@ export const ALLOW = S.rec(
       pack: id(),
       path: text(),
       reason: text(),
-      expires: S.str({ pattern: /^\d{4}-\d{2}-\d{2}$/, reject: (v) => (Number.isNaN(Date.parse(`${v}T00:00:00Z`)) ? "not a date" : null) }),
+      expires: date(),
     }, ["id", "check", "pack", "path", "reason", "expires"])),
   },
   ["schema", "acks"],
 );
+
+// evidence.json
+
+export const STATUSES = ["untested", "helps", "no-effect", "hurts", "safety"];
+
+const row = S.rec(
+  { status: S.enum(STATUSES), source: text(), models: S.arr(text(), { unique: true }), date: date() },
+  ["status"],
+);
+
+/** The rule that spans two fields: every status except untested names the run that set it. */
+const ledgerUnits = S.fn((v: unknown, fail: (msg: string, at?: (string | number)[]) => never, sub: (spec: object, v: unknown) => Record<string, { status: string, source?: string }>) => {
+  const out = sub(S.map(row, { key: unitRef() }), v);
+  for (const [ref, r] of Object.entries(out)) {
+    if (r.status !== "untested" && r.source === undefined) fail("required when status is not untested", ["units", ref, "source"]);
+  }
+  return out;
+});
+
+export const EVIDENCE = S.rec({ schema, units: ledgerUnits }, ["schema", "units"]);
 
 // packs/core/domains.json
 

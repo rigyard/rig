@@ -47,7 +47,7 @@ rig has seven commands. Every command takes `--help`.
 |---|---|
 | `rig plan [--repair]` | Composes the stack, renders it per harness, runs the gate, and diffs it against disk and rig state. Writes nothing. `--repair` plans drifted managed entries as writes. |
 | `rig apply [--undo <run-id> \| --repair]` | Runs the plan, then writes it as one journaled transaction. `--undo` restores a run byte for byte. `--repair` writes drifted managed files and blocks back to the render. |
-| `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, the scope packs of the project. |
+| `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, the evidence ledger counts, the scope packs of the project. |
 | `rig stats [--since <dur>] [--harness <h>] [--suggest]` | Token and session metrics read from harness transcripts. `--suggest` adds a proposed diff that you apply yourself. |
 | `rig models` and `rig models set <tier> <model> --harness <h>` | Shows the model table per harness, or swaps the model of one tier and re-renders only the model cells, through the same gate and transaction as `rig apply`. |
 | `rig pack add <repo> --sha <sha> [--root <dir>] [--path <path>] [--exclude <path>] [--port <path>] [--name <name>]` | Vendors one folder of a repo at a full 40-hex commit, minus the excludes, gates it, and prints the ack stanzas the gate needs. `--port` records the upstream sources of a port. With `--port` and no `--path`, it adopts a pack folder that you wrote. |

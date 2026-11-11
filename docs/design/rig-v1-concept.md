@@ -177,15 +177,15 @@ When a pin moves and no port source changed, the CLI alone moves it. The first s
 
 ## Evidence and retirement
 
-Status: proposal, 2026-11-10. Not reviewed yet. L1 is built. L0 and L2 are not. All code facts are at `76fe1ba`.
+Status: proposal, 2026-11-10. Not reviewed yet. L0 and L1 are built. L2 is not. The L1 and L2 code facts are at `76fe1ba`. The L0 code facts are in `lib/evidence.ts` and `lib/world.ts`.
 
 A unit earns its place when it helps on a frontier model, measured against the same model without the unit. pstack and gstack both lack this for most units. pstack measures per task and keeps no record: its Eval playbook has no promotion threshold (`pstack/skills/poteto-mode/playbooks/eval.md:25` at cursor/plugins `de8ee15`). gstack keeps a ledger, but at gstack `f0cd9f8` it holds 65 `untested` parts, 5 `safety` parts and 1 `helps` part (`docs/inventory/evidence.json`). gstack cut `/investigate` after a paired eval: 50.0% of trials passed with the skill and 47.2% without it, 95% CI -5.8 to +11.4. The run's own rule read FIX-METHOD, not a cut (gstack-evals `c86552e`, `wiki/board/2026-11-07-geva-380-r3c-results.md:42`). The cut was a product call on no detectable gain at 43% more cost per pass.
 
-rig adds three levels of evidence. The word "level" avoids a clash with the four layers of config above. Each level is designed to work without the next one. L1 does today. For L0 this is a requirement on its future tests.
+rig adds three levels of evidence. The word "level" avoids a clash with the four layers of config above. Each level is designed to work without the next one. L1 does today. L0 does too: its tests run with no state root (`test/cli-wiring.test.ts`, "a valid ledger prints the count per status").
 
 | Level | Question | Mechanism | Model cost | State |
 |---|---|---|---|---|
-| L0. Ledger | What do we know about each unit? | `evidence.json` beside `rig.json` | none | not built |
+| L0. Ledger | What do we know about each unit? | `evidence.json` beside `rig.json` | none | built |
 | L1. Use | Does any session open the unit? | `rig stats` | none | built (#56) |
 | L2. Effect | Does the unit raise the pass rate, and at what cost? | Paired runs with and without the unit | paid, on demand | not built |
 
@@ -193,24 +193,40 @@ rig adds three levels of evidence. The word "level" avoids a clash with the four
 
 ### L0. Ledger
 
-`evidence.json` sits in the team config repo beside `rig.json`. It maps a unit ref `<pack>/<unit>` to one row:
+`evidence.json` sits in the team config repo beside `rig.json`. The overlay root has none, and doctor ignores one there (`test/cli-wiring.test.ts`, "an evidence.json in the overlay root is ignored"). Like `audit.allow.json` and `rig.json`, the file names its shape with `schema: 1`, and a root with no `schema` is an error. The `units` key maps a unit ref `<pack>/<unit>` to one row:
+
+```json
+{
+  "schema": 1,
+  "units": {
+    "pstack/principle-fix-root-causes": { "status": "helps", "source": "evals/fix-root-causes.md", "models": ["sonnet"], "date": "2026-11-11" },
+    "cursor-team-kit/deslop": { "status": "safety", "source": "docs/why-deslop.md" }
+  }
+}
+```
 
 - `status`: `untested`, `helps`, `no-effect`, `hurts` or `safety`. A unit with no row is `untested`.
 - `source`: a path or URL of the run that set the status. Required for every status except `untested`.
 - `models`: the models that the run measured.
-- `date`: the date of the run.
+- `date`: the date of the run, as `YYYY-MM-DD`.
 
 `safety` marks a guard whose value is the failure it prevents, such as a gate or `deslop`. A guard keeps its place without an effect run.
 
-The ledger is rig data, not upstream data. It lives outside `packs/`, so no tree hash in `rig.lock.json` covers it, and `pack.json` does not change. It follows `audit.allow.json`, an optional repo-root file that rig already reads (`lib/world.ts:343`). It gets its own closed spec in `lib/world/schemas.ts`, next to `ALLOW` (`lib/world/schemas.ts:244`). Every root record there is closed, so a ledger key inside `rig.json` would need a change to the `rig.json` spec, and a separate file needs none. The ledger is a config file, not a sixth noun (Z4). It records facts about units and adds no operation.
+The ledger is rig data, not upstream data. It lives outside `packs/`, so no tree hash in `rig.lock.json` covers it, and `pack.json` does not change. It follows `audit.allow.json`, an optional repo-root file that rig already reads (`lib/world.ts:343`). It gets its own closed spec in `lib/world/schemas.ts`, next to `ALLOW`. Every root record there is closed, so a ledger key inside `rig.json` would need a change to the `rig.json` spec, and a separate file needs none. The ledger is a config file, not a sixth noun (Z4). It records facts about units and adds no operation.
 
-`rig doctor` would check the ledger and print the count per status:
+Only `rig doctor` reads the ledger, through `ledgerLines` in `lib/evidence.ts`. `loadWorld` does not read it, so a broken ledger never stops another command (`test/cli-wiring.test.ts`, "a broken ledger stops no other command"). `rig doctor` checks the ledger and prints one line with the count per status, in the order `untested`, `helps`, `no-effect`, `hurts`, `safety`:
 
-- No `evidence.json`, or an empty one: every unit is `untested`. This is not an error.
-- A row whose ref no listed pack contains: `E_UNKNOWN_UNIT`, as `disable` gives (`lib/stack.ts:83-86`). This also covers a unit that a pin move removed upstream. gstack hit this case when it retired `/investigate` (`ef99eb5a5`). The fix is to delete the row in the same pull request as the pin move.
-- A row with an unknown `status`, or without `source` when `status` is not `untested`: an error that names the ref.
+```text
+info  evidence untested 57, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
+```
 
-A team changes a row by pull request, like any other config. The ledger check would read no metrics store. Its tests must run with no state root, so that they pin that L0 needs no `rig stats` data.
+The parenthesis names the source of the counts: `evidence.json`, `evidence.json, empty`, or `no evidence.json`.
+
+- No `evidence.json`, or an empty one: every unit is `untested`. This is not an error (`test/evidence.test.ts`, "no evidence.json" and "an empty evidence.json"). A file is empty when it holds no text but white space. A file with `{"schema": 1, "units": {}}` has no rows and is not an error either.
+- A row whose ref no listed pack contains: `E_UNKNOWN_UNIT`, as `disable` gives (`lib/stack.ts:83-86`), one error line per row (`test/evidence.test.ts`, "a ref that no listed pack contains"). A unit that `disable` or `replaces` removed from the stack is still listed, so its row stays valid (`test/cli-wiring.test.ts`, "a row for a unit that rig.json disable removed stays valid"). A unit that a pin move removed upstream is not listed. gstack hit this case when it retired `/investigate` (`ef99eb5a5`). The fix is to delete the row in the same pull request as the pin move.
+- A row with an unknown `status`, or without `source` when `status` is not `untested`: `E_SCHEMA` with the key path that names the ref, for example `units["pstack/how"].source` (`test/evidence.test.ts`, "an unknown status" and "a status other than untested with no source"). Any other schema break, such as an extra key in a row or at the root, is `E_SCHEMA` too (`test/evidence.test.ts`, "an extra field in a row is rejected"). The schema check stops at the first break, so a broken file gives one error line and no counts. A core ref in `units` is a schema break, like it is in `disable`.
+
+A team changes a row by pull request, like any other config. The ledger check reads no metrics store: `ledgerLines` takes a config root and a list of refs and nothing else, and the doctor test runs on a HOME with no state root (`test/cli-wiring.test.ts`, "a valid ledger prints the count per status ... and needs no state root").
 
 ### L1. Use
 

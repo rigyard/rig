@@ -1,6 +1,6 @@
-// lib/world.ts — public: loadWorld, projectDeclaration, encode
+// lib/world.ts — public: loadWorld, projectDeclaration, encode, readEvidence
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RigError } from "./world/errors.ts";
@@ -9,12 +9,12 @@ import { projectDeclaration as declaration } from "./world/project.ts";
 import { expandHome, homeRelative, readBytes, readConfig, readTree } from "./world/read.ts";
 import { check } from "./world/schema.ts";
 import {
-  ALLOW, DOMAINS, ENCODE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
+  ALLOW, DOMAINS, ENCODE, EVIDENCE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
 } from "./world/schemas.ts";
 import { modeShapeError } from "./mode.ts";
 import type { DomainTable } from "./mode.ts";
 
-export { SCHEMA_1_MESSAGE } from "./world/schemas.ts";
+export { SCHEMA_1_MESSAGE, STATUSES as EVIDENCE_STATUSES } from "./world/schemas.ts";
 export { ID } from "./world/schema.ts";
 
 export type Effort = "low"|"medium"|"high"|"xhigh"|"max";
@@ -150,6 +150,8 @@ export type PackLock = {
 };
 // schema: audit.allow.json
 export type Allow = {schema: 1, acks: {id: string, check: string, pack: string, path: string, reason: string, expires: string}[]};
+// schema: evidence.json
+export type Evidence = {units: Record<string, {status: string, source?: string, models?: string[], date?: string}>, file: "absent"|"empty"|"read"};
 
 
 /** Everything rig knows before compose. Frozen. Built only by loadWorld. */
@@ -406,6 +408,22 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
 /** The scope packs declared for one project, and whether Claude Code enables their rig-local plugin there. */
 export function projectDeclaration(world: World, dir: string): {packs: {name: string, enabled: boolean, source: "local"|"project"|"user"|null}[]} {
   return declaration(world, dir);
+}
+
+/**
+ * The evidence ledger of the repo config root. Optional: a missing file and a blank one hold no rows. Not part of
+ * loadWorld, so a broken ledger stops no command except the one that asks. An E_SCHEMA break comes back as its message.
+ */
+export function readEvidence(root: string): Evidence | {error: string} {
+  const abs = join(root, "evidence.json");
+  if (!existsSync(abs)) return { units: {}, file: "absent" };
+  if (readFileSync(abs, "utf8").trim() === "") return { units: {}, file: "empty" };
+  try {
+    return { units: readConfig(abs, "evidence.json", EVIDENCE).units, file: "read" };
+  } catch (err) {
+    if (err instanceof RigError) return { error: err.message };
+    throw err;
+  }
 }
 
 /**

@@ -78,14 +78,15 @@ info budget */harness:codex: always-on: 654 characters, 164 tokens
 `rig doctor` reads your machine and your config. It writes nothing and logs nothing. On a fresh HOME with the repo defaults, it prints:
 
 ```text
-info  drift 313 changes pending; rig plan lists them
+info  drift    313 changes pending; rig plan lists them
+info  evidence untested 59, helps 0, no-effect 0, hurts 0, safety 0 (no evidence.json)
 0 errors, 0 warnings
 ```
 
-Each line has a level, a topic and a text. `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. The number depends on your packs, your harnesses and the files already on disk.
+Each line has a level, a topic and a text. `drift` counts the changes that `rig apply` would make. On a fresh HOME every change is a create. `evidence` counts your units per status in the evidence ledger. The number depends on your packs, your harnesses and the files already on disk.
 
 The last line counts errors and warnings. Doctor exits 1 when it prints an error, else 0.
 
-Doctor also reports a broken core seal (`pin`), a pack whose `pack.json` sends telemetry with no opt-out set (`telemetry`), each alias in `rig.json` (`alias`), and, after an apply, drift of managed files and duplicate skills per harness. Run `rig doctor --project <dir>` to see which project packs apply to one project. [Scope and projects](./05-scope-and-projects.md) covers that form.
+Doctor also reports a broken core seal (`pin`), a pack whose `pack.json` sends telemetry with no opt-out set (`telemetry`), each alias in `rig.json` (`alias`), the count of your units per evidence status (`evidence`, see [Record what you know about a unit](./09-make-it-yours.md#record-what-you-know-about-a-unit)), and, after an apply, drift of managed files and duplicate skills per harness. Run `rig doctor --project <dir>` to see which project packs apply to one project. [Scope and projects](./05-scope-and-projects.md) covers that form.
 
 Next: [Plan, apply, undo](./02-plan-and-apply.md).

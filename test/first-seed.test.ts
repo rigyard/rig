@@ -150,7 +150,7 @@ describe("the first seed over the committed config", () => {
     assert.match(run.apply1.stdout, new RegExp(`^run \\S+: ${n} ops applied$`, "m"));
     const guide = (f: string) => readFileSync(join(ROOT, "docs/guide", f), "utf8");
     assert.deepEqual(guide("02-plan-and-apply.md").match(/^[1-9]\d* changes, 0 blocks$|^run \S+: \d+ ops applied$/gm)?.map((l) => /(\d+) (changes|ops)/.exec(l)![1]), [n, n, n]);
-    assert.deepEqual(guide("01-setup.md").match(/drift (\d+) changes pending/g), [`drift ${n} changes pending`]);
+    assert.deepEqual(guide("01-setup.md").match(/drift +(\d+) changes pending/g)?.map((l) => /(\d+)/.exec(l)![1]), [n]);
   });
 
   test("A11: the warns equal the committed list", () => {

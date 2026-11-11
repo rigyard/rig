@@ -24,8 +24,10 @@ export type Unit = {
  * `mode` is absent only on a stack that compose did not build (gateTree, hand-built test stacks).
  * `disabled` holds the ids that rig.json `disable` removed, so the `mode` check can tell a known absence from a rename.
  * `info` holds the compose notes that rig plan prints.
+ * `listed` holds the id of every unit that a listed pack contains, before disable and replaces drop any, so a check can
+ * tell a unit that left the stack from a ref that no pack has (rig doctor, the evidence ledger).
  */
-export type Stack = {units: Unit[], errors: RigError[], mode?: Mode, disabled?: string[], info?: string[]};
+export type Stack = {units: Unit[], errors: RigError[], mode?: Mode, disabled?: string[], info?: string[], listed?: string[]};
 export type RigError = {code: string, message: string, path?: string, harness?: string, absent?: true};
 
 /** Core seal, packs, scope, disable, replace, clash rules, then the mode compile. Pure. */
@@ -129,7 +131,7 @@ export function compose(world: World): Stack {
 
   const compiled = compileMode(units, world.packs, world.domains, world.config.fill ?? {}, (world.config.auto ?? []) as UnitRef[], dropped);
   errors.push(...compiled.errors);
-  return { units, errors, mode: compiled.mode, disabled, info: compiled.info };
+  return { units, errors, mode: compiled.mode, disabled, info: compiled.info, listed: [...ids] };
 }
 
 /** Installed-name namespaces. Skills and commands share one: Claude Code invokes both as /name, Cursor renders commands as skills. */

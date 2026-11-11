@@ -103,6 +103,41 @@ A harness is a target record, `targets/<h>.json`. Section 1, Case C of the [arch
 
 A harness whose format fits no value that the schema knows, for example a new agent file format, needs a new renderer in `lib/targets/`. That is a code change.
 
+## Record what you know about a unit
+
+A unit earns its place when it helps. The evidence ledger is the file where your team writes down what it knows about each unit. rig reads the ledger in one place, `rig doctor`. The ledger changes no install, so a mistake in it never stops `rig plan` or `rig apply`.
+
+The file is `evidence.json`, in the repo config root beside `rig.json`. rig does not read one in the overlay root. The file is optional:
+
+```json
+{
+  "schema": 1,
+  "units": {
+    "pstack/principle-fix-root-causes": { "status": "helps", "source": "evals/fix-root-causes.md", "models": ["sonnet"], "date": "2026-11-11" },
+    "cursor-team-kit/deslop": { "status": "safety", "source": "docs/why-deslop.md" }
+  }
+}
+```
+
+A row has these keys, and no others:
+
+- `status`: `untested`, `helps`, `no-effect`, `hurts` or `safety`. A unit with no row is `untested`. `safety` marks a guard whose value is the failure it prevents.
+- `source`: the path or URL of the run that set the status. It is required for every status except `untested`.
+- `models`: the models that the run measured.
+- `date`: the date of the run, as `YYYY-MM-DD`.
+
+`rig doctor` prints one line with the count per status. A unit with no row counts as `untested`:
+
+```text
+info  evidence untested 57, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
+```
+
+With no `evidence.json`, or an empty one, every unit is `untested`, and doctor prints `(no evidence.json)` or `(evidence.json, empty)`. That is not an error.
+
+Doctor exits 1 for a row that breaks the file. A ref that no listed pack contains is `E_UNKNOWN_UNIT`, for example `units["pstack/gone"]: no listed pack contains this unit`. A unit that you removed with `disable` is still listed, so its row stays valid. A unit that a pin move removed upstream is not: delete its row in the same pull request as the pin move. An unknown `status`, a missing `source`, an extra key or a wrong date is `E_SCHEMA`, and the key path names the ref, for example `units["pstack/how"].source: required when status is not untested`. A file with `schema` missing or not `1` is `E_SCHEMA` too.
+
+No other command reads the ledger yet. `rig stats --suggest` does not use it.
+
 ## Know what stays sealed
 
 The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md`), the alias template and `terms.json`. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).

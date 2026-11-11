@@ -2,6 +2,7 @@
 
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { ledgerLines } from "../evidence.ts";
 import { effective } from "../models.ts";
 import { projectDelivery, readSet } from "../targets.ts";
 import { loadWorld, projectDeclaration } from "../world.ts";
@@ -137,6 +138,7 @@ export async function doctorCmd(a: ParsedArgs, env: NodeJS.ProcessEnv): Promise<
     ...duplicates(world, p.planned.installed),
     ...gateLines(p.findings),
     ...modelLines(world),
+    ...ledgerLines(world.roots.repo, p.stack.listed ?? []),
     ...aliasLines(world),
   ];
   if (typeof a.flags.project === "string") lines.push(...projectLines(world, a.flags.project, projectDelivery(p.stack, world)));

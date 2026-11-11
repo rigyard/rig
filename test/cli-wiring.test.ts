@@ -46,7 +46,7 @@ function repoSpec() {
  * core seal that matches the copied core.
  * @param {{home?: Record<string, any>, sealed?: boolean, edit?: (root: string) => void}} [opts]
  */
-function setup({ home = {}, sealed = true, edit } = {}) {
+function setup({ home = {}, sealed = true, edit }: {home?: Record<string, any>, sealed?: boolean, edit?: (root: string) => void} = {}) {
   const fx = makeFixtureHome({ ...repoSpec(), ...home });
   const root = fx.path("rig");
   const core = sealed ? { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null } : null;
@@ -101,6 +101,110 @@ describe("rig doctor", () => {
     assert.match(r.stdout, /^info +alias +\/pm is an alias of \/tidy/m);
     assert.match(r.stdout, /^0 errors, \d+ warnings$/m);
     assert.deepEqual(changed(before, s.fx.snapshot()), []);
+  });
+
+  describe("evidence ledger", () => {
+    const TIDY = "---\ndescription: Tidy the notes.\n---\nTidy the notes.\n";
+    const withLedger = (ledger: unknown, { disable = [] as string[] } = {}) => setup({
+      home: {
+        "rig/packs/own/pack.json": `${JSON.stringify({ schema: 2, name: "own", license: "MIT" })}\n`,
+        "rig/packs/own/commands/tidy.md": TIDY,
+        ...(ledger === null ? {} : { "rig/evidence.json": typeof ledger === "string" ? ledger : `${JSON.stringify(ledger)}\n` }),
+      },
+      edit: (root) => {
+        editRig(root, (c: any) => ({ ...c, packs: { ...c.packs, own: {} }, disable }));
+        const lock = JSON.parse(readFileSync(join(root, "rig.lock.json"), "utf8"));
+        writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ ...lock, packs: { ...lock.packs, own: authoredEntry("own", { "commands/tidy.md": TIDY }) } }, null, 2)}\n`);
+      },
+    });
+    const evidence = (stdout: string) => stdout.split("\n").filter((l) => /^(info|error|warn) +evidence /.test(l));
+    const untested = (stdout: string) => Number(/^info +evidence +untested (\d+),/m.exec(stdout)?.[1]);
+
+    test("no evidence.json: exit 0, and every unit counts as untested", (t) => {
+      const s = withLedger(null);
+      t.after(() => s.fx.cleanup());
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /^info +evidence +untested \d+, helps 0, no-effect 0, hurts 0, safety 0 \(no evidence\.json\)$/m);
+    });
+
+    test("a valid ledger prints the count per status, moves rows out of untested, writes nothing, and needs no state root", (t) => {
+      const base = withLedger(null);
+      t.after(() => base.fx.cleanup());
+      const total = untested(base.rig(["doctor"]).stdout);
+      const s = withLedger({
+        schema: 1,
+        units: {
+          "own/tidy": { status: "helps", source: "evals/tidy.md", models: ["model-a"], date: "2026-11-10" },
+          "pstack/how": { status: "safety", source: "docs/why-how.md" },
+          "pstack/architect": { status: "no-effect", source: "evals/architect.md" },
+          "cursor-team-kit/deslop": { status: "hurts", source: "evals/deslop.md" },
+        },
+      });
+      t.after(() => s.fx.cleanup());
+      const before = s.fx.snapshot();
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(evidence(r.stdout)[0], new RegExp(`^info +evidence +untested ${total - 4}, helps 1, no-effect 1, hurts 1, safety 1 \\(evidence\\.json\\)$`));
+      assert.deepEqual(changed(before, s.fx.snapshot()), []);
+      assert.ok(![...s.fx.snapshot().keys()].some((k) => k.startsWith(".local/state")), "no state root exists, before or after");
+    });
+
+    test("an empty evidence.json is no error", (t) => {
+      const s = withLedger("");
+      t.after(() => s.fx.cleanup());
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /^info +evidence +untested \d+, helps 0, no-effect 0, hurts 0, safety 0 \(evidence\.json, empty\)$/m);
+    });
+
+    test("a row for a unit that rig.json disable removed stays valid: the ledger is where a retired unit keeps its verdict", (t) => {
+      const s = withLedger({ schema: 1, units: { "own/tidy": { status: "no-effect", source: "evals/tidy.md" } } }, { disable: ["own/tidy"] });
+      t.after(() => s.fx.cleanup());
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /^info +evidence +untested \d+, helps 0, no-effect 1, hurts 0, safety 0 \(evidence\.json\)$/m);
+    });
+
+    test("a ref that no listed pack contains: exit 1, E_UNKNOWN_UNIT names the ref", (t) => {
+      const s = withLedger({ schema: 1, units: { "own/gone": { status: "hurts", source: "evals/gone.md" } } });
+      t.after(() => s.fx.cleanup());
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 1, r.stdout + r.stderr);
+      assert.match(r.stdout, /^error +evidence +E_UNKNOWN_UNIT evidence\.json: units\["own\/gone"\]: /m);
+    });
+
+    test("a bad status and a missing source: exit 1, each error names the ref", (t) => {
+      const cases: [unknown, RegExp][] = [
+        [{ "own/tidy": { status: "great", source: "x" } }, /^error +evidence +E_SCHEMA evidence\.json: units\["own\/tidy"\]\.status: /m],
+        [{ "own/tidy": { status: "helps" } }, /^error +evidence +E_SCHEMA evidence\.json: units\["own\/tidy"\]\.source: required when status is not untested$/m],
+      ];
+      for (const [units, want] of cases) {
+        const s = withLedger({ schema: 1, units });
+        const r = s.rig(["doctor"]);
+        s.fx.cleanup();
+        assert.equal(r.code, 1, r.stdout + r.stderr);
+        assert.match(r.stdout, want);
+      }
+    });
+
+    test("an evidence.json in the overlay root is ignored", (t) => {
+      const s = withLedger(null);
+      t.after(() => s.fx.cleanup());
+      plant(s.fx.path, ".config/rig/evidence.json", "{nope");
+      const r = s.rig(["doctor"]);
+      assert.equal(r.code, 0, r.stdout + r.stderr);
+      assert.match(r.stdout, /\(no evidence\.json\)$/m);
+    });
+
+    test("a broken ledger stops no other command: rig plan, apply, models and stats ignore it", (t) => {
+      const s = withLedger({ schema: 1, units: { "own/gone": { status: "hurts" } }, extra: true });
+      t.after(() => s.fx.cleanup());
+      for (const args of [["plan"], ["apply"], ["models"], ["stats"], ["stats", "--suggest"]]) {
+        const r = s.rig(args);
+        assert.equal(r.code, 0, `${args.join(" ")}: ${r.stdout}${r.stderr}`);
+      }
+    });
   });
 
   test("an unsealed repo root is an error: exit 1, names the core seal", (t) => {
