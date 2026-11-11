@@ -1,0 +1,49 @@
+trials: 90 usable, 0 missing
+
+k/n pass (primary grader)
+fx4b: rule 15/15 | placebo 1/15 | none 8/15
+fx3: rule 15/15 | placebo 6/15 | none 7/15
+pooled: rule 30/30 | placebo 7/30 | none 15/30
+
+rule minus none  (bootstrap B=10000, seed=20261110, stratified by fixture; 95% percentile CI)
+  pooled: +0.500  CI [+0.333, +0.667]
+  fx4b: +0.467  CI [+0.200, +0.733]  Fisher two-sided p=0.0063
+  fx3: +0.533  CI [+0.267, +0.800]  Fisher two-sided p=0.0022
+
+rule minus placebo  (bootstrap B=10000, seed=20261110, stratified by fixture; 95% percentile CI)
+  pooled: +0.767  CI [+0.633, +0.900]
+  fx4b: +0.933  CI [+0.800, +1.000]  Fisher two-sided p=0.0000
+  fx3: +0.600  CI [+0.333, +0.867]  Fisher two-sided p=0.0007
+
+placebo minus none  (bootstrap B=10000, seed=20261110, stratified by fixture; 95% percentile CI)
+  pooled: -0.267  CI [-0.500, -0.033]
+  fx4b: -0.467  CI [-0.733, -0.200]  Fisher two-sided p=0.0142
+  fx3: -0.067  CI [-0.400, +0.267]  Fisher two-sided p=1.0000
+
+DECISION (pooled rule-minus-placebo): CI excludes 0 (positive): 'rule helps' claim allowed
+
+cost per pass ($ total / passes), usable trials
+  pooled: rule $0.144 ($4.31/30) | placebo $0.293 ($2.05/7) | none $0.164 ($2.45/15) | ratio rule/none 0.88, rule/placebo 0.49
+  fx4b: rule $0.159 ($2.39/15) | placebo $1.245 ($1.24/1) | none $0.179 ($1.43/8) | ratio rule/none 0.89, rule/placebo 0.13
+  fx3: rule $0.128 ($1.92/15) | placebo $0.135 ($0.81/6) | none $0.146 ($1.02/7) | ratio rule/none 0.88, rule/placebo 0.95
+
+exposure check (first-turn input tokens vs none median of same fixture)
+  fx4b rule: delta min/med/max 244/250/253, exposure failures 0
+  fx4b placebo: delta min/med/max 238/244/250, exposure failures 0
+  fx4b none: delta min/med/max -4/0/4, exposure failures 0
+  fx3 rule: delta min/med/max 245/248/254, exposure failures 0
+  fx3 placebo: delta min/med/max 239/245/254, exposure failures 0
+  fx3 none: delta min/med/max -4/0/4, exposure failures 0
+
+secondary (descriptive): .grade-4 on fx4b
+  rule: 14/15
+  placebo: 0/15
+  none: 0/15
+
+hygiene
+  grader leak flagged: none
+  other trial dirs seen: none
+  retried (attempt 2): none
+  isError true: none
+  non-success result subtype: none
+  models: claude-sonnet-5-5  apiKeySource: none  hookEvents>0: 0

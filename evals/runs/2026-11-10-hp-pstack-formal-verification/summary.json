@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "run": "2026-11-10-hp-pstack-formal-verification",
+  "date": "2026-11-10",
+  "kind": "experiment",
+  "title": "H-P: does pstack /create-formal-verification-skill help fix implicit-state-machine bugs?",
+  "question": "On one subsystem with three planted state-machine bugs, does the told arm (skill, prompt starts with /create-formal-verification-skill) fix more bugs than the none arm?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "d8e98338182ebc73c34d37f51cbf06dd09b301bf665c2bb9eadd89beba2efef0",
+    "stored_sha256": "793e0c42db35e9792f7e8ad203a7e2806705f054ac69ec6b316d97f401169f87",
+    "redactions": [
+      "absolute path of the local pstack clone in the Source line replaced by <pstack-clone>/"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 2,
+  "usable_trials": 16,
+  "verdict": {
+    "label": "hypothesis-contradicted",
+    "text": "DECISION: H-P CONTRADICTED: told fixes fewer planted bugs (CI upper bound < 0)"
+  },
+  "notes": [
+    "n = 8 per arm, Sonnet, 30 turns; pass means all three bugs fixed and the regression test green.",
+    "The grader scores fixes only; the skill's own product, a verification skill, is not graded.",
+    "2 of 8 told trials ended at the turn limit."
+  ]
+}

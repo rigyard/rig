@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "run": "2026-11-10-rule-bug-fix-callers",
+  "date": "2026-11-10",
+  "kind": "experiment",
+  "title": "Powered three-arm run: rule, placebo, none",
+  "question": "Does a one-sentence bug-fixing rule, delivered only as the work dir CLAUDE.md, change the pass rate of Sonnet on two bug-fix fixtures?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "5ba4c86ece2d28c7978320a626a30050afbddad5ff739d80800d26a577baba20",
+    "stored_sha256": "5ba4c86ece2d28c7978320a626a30050afbddad5ff739d80800d26a577baba20",
+    "redactions": []
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 6,
+  "usable_trials": 90,
+  "verdict": {
+    "label": "claim-allowed",
+    "text": "DECISION (pooled rule-minus-placebo): CI excludes 0 (positive): 'rule helps' claim allowed"
+  },
+  "notes": [
+    "n = 15 per arm per fixture, interleaved, 20 turns, subscription login.",
+    "The preregistered placebo is 12.8% shorter than the rule; see the preregistration."
+  ]
+}

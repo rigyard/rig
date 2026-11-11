@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "run": "2026-11-10-pilot-fx4b",
+  "date": "2026-11-10",
+  "kind": "experiment",
+  "title": "Pilot: one bug-fixing rule on the storefront fixture",
+  "question": "Does the one-sentence bug-fixing rule delivered as CLAUDE.md change the pass rate on fx4b?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "backfill"
+  },
+  "lines": 2,
+  "usable_trials": 10,
+  "verdict": {
+    "label": "descriptive",
+    "text": "pilot only, 5 trials per arm, no claim: rule 5/5, none 3/5"
+  },
+  "notes": [
+    "Excluded from the powered run's analysis by that run's preregistration.",
+    "The pilot fx2, fx3 and fx4 results (no-rule arm only) are not backfilled."
+  ]
+}

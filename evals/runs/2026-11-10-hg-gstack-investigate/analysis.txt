@@ -1,0 +1,37 @@
+hypothesis HG: 32 usable trials, 0 missing
+
+exposure (told arm): exposedFinal = skillCall OR skillRead OR markerSeen OR first-turn token excess >= threshold; delivery gate needs >= 6 of 8 exposedFinal in every told cell
+  fx3: exposedFinal 8/8 | initHasSkill 8 | skillCall 0 | skillRead 8 | marker 0 | firstTurnTokens>=none median+950: 8
+  fx3 none-arm contamination: exposedFinal 0/8, initHasSkill 0
+  fx4b: exposedFinal 8/8 | initHasSkill 8 | skillCall 0 | skillRead 8 | marker 0 | firstTurnTokens>=none median+950: 8
+  fx4b none-arm contamination: exposedFinal 0/8, initHasSkill 0
+DELIVERY GATE: passed
+
+H-G primary: pass rate (all graders tests green)
+  fx3: told 8/8 | none 8/8
+  fx4b: told 0/8 | none 5/8
+  pooled: told 8/16 | none 13/16
+  told minus none pooled: -0.313 CI [-0.438, -0.125] (stratified bootstrap B=10000, seed 20261110)
+  fx3: +0.000 CI [+0.000, +0.000] Fisher p=1.0000
+  fx4b: -0.625 CI [-0.875, -0.250] Fisher p=0.0256
+  ceiling fixtures (none >= 7/8 passes): fx3
+
+H-G primary: cost per pass = total costUsd of all usable trials in the arm / passes in the arm
+  told $0.635 ($5.08/8) | none $0.299 ($3.89/13) | ratio told/none 2.1227292557343778
+  fx3: told $0.291 (8 passes) | none $0.209 (8 passes) | ratio 1.39
+  fx4b: told $NaN (0 passes) | none $0.443 (5 passes) | ratio NaN
+  mean cost per trial: told $0.317 | none $0.243 | mean turns told 12.8 none 11.9
+  NOTE: the told arm lacks gstack's shared preamble, so this ratio is a lower bound on the cost of the real skill.
+
+sensitivity (per-protocol: told trials with exposure only): pooled -0.313 CI [-0.438, -0.125], told n=16
+
+DECISION: H-G SUPPORTED (not contradicted at n=8; ceiling in fx3). This is absence of a detected benefit, not evidence of zero effect.
+
+hygiene
+  grader leak flagged: none
+  other trial dirs seen: none
+  retried (attempt 2): none
+  isError true: none
+  non-success result subtype: none
+  permission denials (sum, mean per trial) told 0, 0.00 | none 30, 1.88  (a told-arm excess means the allowlist, not the skill, may explain a gap)
+  models: claude-opus-5-5  apiKeySource: none

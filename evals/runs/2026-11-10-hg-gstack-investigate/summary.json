@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "run": "2026-11-10-hg-gstack-investigate",
+  "date": "2026-11-10",
+  "kind": "experiment",
+  "title": "H-G: does gstack /investigate help Opus on bug-fix tasks?",
+  "question": "On bug-fix fixtures, does the told arm (investigate skill, prompt starts with /investigate) pass more often than the none arm, and at what cost per pass?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "8c4d5c1897a0c7646f6d36ab340b1c2c7da7a53f2582a4b496508f1e2928053a",
+    "stored_sha256": "8c4d5c1897a0c7646f6d36ab340b1c2c7da7a53f2582a4b496508f1e2928053a",
+    "redactions": []
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 4,
+  "usable_trials": 32,
+  "verdict": {
+    "label": "hypothesis-supported",
+    "text": "DECISION: H-G SUPPORTED (not contradicted at n=8; ceiling in fx3). This is absence of a detected benefit, not evidence of zero effect."
+  },
+  "notes": [
+    "n = 8 per arm per fixture, Opus, 30 turns.",
+    "The skill copy is standalone (shared preamble, telemetry and learnings removed), so the cost ratio is a lower bound.",
+    "fx3 is at ceiling (none 8/8), so the verdict rests on fx4b.",
+    "The verdict wording is the preregistered 'not contradicted at n = 8'; the told arm passed less on fx4b (0/8 vs 5/8)."
+  ]
+}

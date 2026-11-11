@@ -1,0 +1,12 @@
+Pilot, fixture fx4b (storefront), no preregistration. Rendered by the backfill from the 10 trial records; no analyzer ran for this pilot.
+Arm rule: the one-sentence bug-fixing rule as the work dir CLAUDE.md. Arm none: no CLAUDE.md. Model sonnet, 20 turns.
+
+k/n pass (primary grader, 4 tests)
+  rule  5/5  mean cost $0.170  mean turns 16.8
+  none  3/5  mean cost $0.098  mean turns 10.6
+
+Grader validation (variants, from the scratch run):
+  fx4b nochange: pass=false FAIL behavior: the last unit is sold once when two carts check out together | FAIL behavior: concurrent reserves never oversell | FAIL root: concurrent point awards are all counted | ok root: failed checkouts leave stock unchanged and checkout does not hang
+  fx4b symptom: pass=false ok behavior: the last unit is sold once when two carts check out together | ok behavior: concurrent reserves never oversell | FAIL root: concurrent point awards are all counted | ok root: failed checkouts leave stock unchanged and checkout does not hang
+  fx4b root: pass=true ok behavior: the last unit is sold once when two carts check out together | ok behavior: concurrent reserves never oversell | ok root: concurrent point awards are all counted | ok root: failed checkouts leave stock unchanged and checkout does not hang
+  fx4b alt1: pass=true ok behavior: the last unit is sold once when two carts check out together | ok behavior: concurrent reserves never oversell | ok root: concurrent point awards are all counted | ok root: failed checkouts leave stock unchanged and checkout does not hang

@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-judge-prose",
+  "date": "2026-11-11",
+  "kind": "judge",
+  "title": "Judge: compliant versus violating prose pairs",
+  "question": "How well do the pico and mini judge tiers rank the compliant text above the violating text in matched pairs (AUC, pair accuracy)?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "backfill"
+  },
+  "lines": 12,
+  "usable_trials": null,
+  "verdict": {
+    "label": "descriptive",
+    "text": "AUC per tier and subset; no preregistered decision rule"
+  },
+  "notes": [
+    "The date is the recording date; the source files carry no run date.",
+    "R1 is no filler or hedging, R2 is short declarative sentences, R3 is concrete words; EN and PL are the language subsets."
+  ]
+}

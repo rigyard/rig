@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "run": "2026-11-10-judge-basal",
+  "date": "2026-11-10",
+  "kind": "judge",
+  "title": "Judge: code cases and a prose subset",
+  "question": "How well do the pico and mini judge tiers separate good from bad cases (AUC): code cases of root-cause fixes versus symptom patches, plus a prose subset?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "backfill"
+  },
+  "lines": 6,
+  "usable_trials": null,
+  "verdict": {
+    "label": "descriptive",
+    "text": "AUC per tier and subset; no preregistered decision rule"
+  },
+  "notes": [
+    "The date is 2026-11-10, the day the 42-case set ran, as docs/design/rig-v1-concept.md records. The source files carry no run date. The first backfill dated this run 2026-11-11 and was corrected before the run reached main.",
+    "pair_acc is not computed for this case set.",
+    "The case set has a code subset and a prose subset; all is both."
+  ]
+}

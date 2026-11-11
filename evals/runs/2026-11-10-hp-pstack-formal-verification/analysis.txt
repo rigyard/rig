@@ -1,0 +1,29 @@
+hypothesis HP: 16 usable trials, 0 missing
+
+exposure (told arm): exposedFinal = skillCall OR skillRead OR markerSeen OR first-turn token excess >= threshold; delivery gate needs >= 6 of 8 exposedFinal in every told cell
+  ord: exposedFinal 8/8 | initHasSkill 8 | skillCall 0 | skillRead 1 | marker 0 | firstTurnTokens>=none median+703: 8
+  ord none-arm contamination: exposedFinal 0/8, initHasSkill 0
+DELIVERY GATE: passed
+
+H-P primary: bugs fixed (0-3) and full pass (3 bugs + regression test)
+  told: mean bugs 0.500 | dist 0/1/2/3 = 6/0/2/0 | full pass 0/8 | regression ok 8/8
+  none: mean bugs 3.000 | dist 0/1/2/3 = 0/0/0/8 | full pass 8/8 | regression ok 8/8
+  mean bugs, told minus none: -2.500 CI [-3.000, -1.750] (bootstrap B=10000, seed 20261110)
+  full-pass rate, told minus none: -1.000 CI [-1.000, -1.000] Fisher p=0.0002
+
+descriptive (no claims)
+  told: error_max_turns 2/8 | timedOut 0 | product code changed 3/8 | generated project skill 0 | TLA+ files 3 | java used 8 | curl used 5 | mean turns 26.5 | mean cost $0.471
+  none: error_max_turns 0/8 | timedOut 0 | product code changed 8/8 | generated project skill 0 | TLA+ files 0 | java used 0 | curl used 0 | mean turns 8.9 | mean cost $0.153
+  mean bugs among runs that finished inside the turn limit: told n=6 0.333 | none n=8 3.000 | diff -2.667 CI [-3.000, -2.000] (selected sample, descriptive)
+  per-protocol (exposed told only): -2.500 CI [-3.000, -1.750], told n=8
+
+DECISION: H-P CONTRADICTED: told fixes fewer planted bugs (CI upper bound < 0)
+
+hygiene
+  grader leak flagged: none
+  other trial dirs seen: none
+  retried (attempt 2): none
+  isError true: ord-told-2,ord-told-7
+  non-success result subtype: ord-told-2:error_max_turns,ord-told-7:error_max_turns
+  permission denials (sum, mean per trial) told 73, 9.13 | none 14, 1.75  (a told-arm excess means the allowlist, not the skill, may explain a gap)
+  models: claude-sonnet-5-5  apiKeySource: none

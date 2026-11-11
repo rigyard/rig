@@ -1,0 +1,16 @@
+Judge experiment prose-pairs. Rendered by the backfill from the analyzer's results file; the analyzer is a script in the scratch directory.
+Cases sha256 b7d53f41ce60442c8307c929b50b564e3d3324478eb2eca08da9491090b0773a. Tiers are named by model only.
+
+tier  subset  n   pairs  auc    ci95            pair_acc
+pico  all     48  24     0.854  [0.740, 0.944]  0.792
+pico  R1      16  8      0.984  [0.905, 1.000]  1.000
+pico  R2      16  8      0.453  [0.150, 0.766]  0.375
+pico  R3      16  8      1.000  [1.000, 1.000]  1.000
+pico  EN      36  18     0.864  [0.746, 0.960]  0.833
+pico  PL      12  6      0.806  [0.500, 1.000]  0.667
+mini  all     48  24     0.738  [0.584, 0.873]  0.875
+mini  R1      16  8      0.969  [0.850, 1.000]  0.875
+mini  R2      16  8      0.688  [0.365, 0.953]  0.750
+mini  R3      16  8      0.922  [0.744, 1.000]  1.000
+mini  EN      36  18     0.772  [0.617, 0.910]  0.889
+mini  PL      12  6      0.667  [0.296, 1.000]  0.833
