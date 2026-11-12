@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-rule-bug-fix-callers-rig-history",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "Does the bug-fix rule generalize to real rig bugs? Rule, placebo-v2 and none",
+  "question": "Does a one-sentence bug-fix rule, delivered only as the work dir CLAUDE.md, still raise the pass rate of Sonnet on bugs from rig's own history, against a neutral placebo?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "34ed857e70547782eab8c78397b5f8702bde6361186ef10a78ef26e7b9074210",
+    "stored_sha256": "b6035197ccc94a0031ba7bb719b6391aafa9a97028ee94d0c8c3cfc439ba7654",
+    "redactions": [
+      "absolute path of the scratch work root replaced by <work-root>",
+      "home-relative path in a quoted fixture prompt replaced by <home>/.omp/"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 15,
+  "usable_trials": 138,
+  "verdict": {
+    "label": "no-claim",
+    "text": "DECISION (primary pool, rule minus placebo): CI includes 0: no claim that the rule generalizes"
+  },
+  "notes": [
+    "Design: three new fixtures built from rig's own history (rig commits d3dc4ce, ab8d5ec and 069847a, fixture ids rig-d3dc4ce, rig-ab8d5ec and rig-069847a) at n = 12 per arm, plus the replication fixtures fx4b and fx3 at n = 5 per arm. 138 trials, 25 turns. The primary pool is d3 and st. ab is a ceiling fixture (none arm 12/12) and is excluded from it.",
+    "The placebo text changed from the placebo of 2026-11-10-rule-bug-fix-callers. The earlier placebo plausibly steered fixes toward local edits. The new one is a reply-tone house rule. It is a different treatment, so its arm is named placebo-v2 and it has its own trend groups. Do not compare it with the earlier placebo arm.",
+    "Effort: the runner passed no effort flag, so the cells record effort default, as the earlier runs do. The effort is whatever the model alias sets by default.",
+    "The rule and none cells of fx4b and fx3 carry the fixture hashes that the earlier runs recorded, so they continue the groups of 2026-11-10-rule-bug-fix-callers. The preregistration and the run's own summary record other hashes for these two trees, made with another ordering of the same file hashes. Recomputed from the run's frozen file list with the paths sorted by the shell, the trees hash to the earlier values. The preregistration says they cannot be re-derived. They can.",
+    "The hashes of the three new fixtures are the run's own: sha256 of the lines of file hash and relative path, ordered by path in byte order, without .git. Recomputing them from the frozen file list gives the same values.",
+    "103 trials hit the weekly usage limit and were discarded as infra failures. The runner had written them as fails without a model call. They are not in any cell. They were rerun in queue order after the limit reset. See deviations.md. 138 usable trials, 0 missing.",
+    "Descriptive only, not promotable: the replication fixtures pooled rule 9/10, placebo-v2 0/10, none 3/10. On the new fixtures there is no rule effect (d3 9/12 against 10/12 for none, st 10/12 against 10/12). The design detects a pooled difference of about 0.25 or more, so a null is not evidence of no effect.",
+    "Eleven trials ran git log or git show. They are listed in analysis.txt under hygiene and stay in the cells.",
+    "signoff.md and deviations.md are stored as the run wrote them. The sign-off timestamp in signoff.md was corrected by the run after a wrong hand-typed first draft.",
+    "Durations, costs and tokens come from the result event of each trial. The duration of the trial file equals the result event for all 138 trials."
+  ]
+}

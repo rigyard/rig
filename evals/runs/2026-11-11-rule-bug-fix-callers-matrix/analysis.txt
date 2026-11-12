@@ -1,0 +1,68 @@
+
+=== claude-opus-default
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 5/5 | none 3/5
+  fx3: rule 5/5 | none 5/5
+  pooled: rule 10/10 | none 8/10
+  rule minus none: +0.20  95% CI [+0.00, +0.40] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (tokens): rule exposed 10/10, none clean 10/10
+  duration median 53s, max 68s; tool calls median 14
+
+=== claude-sonnet-medium
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 4/5 | none 1/5
+  fx3: rule 5/5 | none 1/5
+  pooled: rule 9/10 | none 2/10
+  rule minus none: +0.70  95% CI [+0.40, +1.00] (stratified bootstrap, B=10000, seed=20261111)
+  decision: rule helps
+  exposure (tokens): rule exposed 10/10, none clean 10/10
+  duration median 27s, max 47s; tool calls median 12
+
+=== codex-luna-high
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 0/5 | none 0/5
+  fx3: rule 4/5 | none 0/5
+  pooled: rule 4/10 | none 0/10
+  rule minus none: +0.40  95% CI [+0.20, +0.50] (stratified bootstrap, B=10000, seed=20261111)
+  decision: rule helps
+  exposure (rollout text): rule exposed 10/10, none clean 10/10
+  duration median 70s, max 130s; tool calls median 10
+
+=== codex-luna-medium
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 0/5 | none 0/5
+  fx3: rule 2/5 | none 0/5
+  pooled: rule 2/10 | none 0/10
+  rule minus none: +0.20  95% CI [+0.00, +0.40] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (rollout text): rule exposed 10/10, none clean 10/10
+  duration median 53s, max 82s; tool calls median 9
+
+=== codex-sol-medium
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 1
+  fx4b: rule 5/5 | none 0/5
+  fx3: rule 5/5 | none 5/5
+  pooled: rule 10/10 | none 5/10
+  rule minus none: +0.50  95% CI [+0.50, +0.50] (stratified bootstrap, B=10000, seed=20261111)
+  decision: rule helps
+  exposure (rollout text): rule exposed 10/10, none clean 10/10
+  duration median 82s, max 114s; tool calls median 10
+
+=== codex-terra-medium
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 0/5 | none 0/5
+  fx3: rule 5/5 | none 5/5
+  pooled: rule 5/10 | none 5/10
+  rule minus none: +0.00  95% CI [+0.00, +0.00] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (rollout text): rule exposed 10/10, none clean 10/10
+  duration median 49s, max 65s; tool calls median 8
+
+=== cross-config table (descriptive; no between-config test is preregistered)
+claude-opus-default      none 8/10   rule 10/10  diff +0.20 CI [+0.00,+0.40]  no claim
+claude-sonnet-medium     none 2/10   rule 9/10   diff +0.70 CI [+0.40,+1.00]  rule helps
+codex-luna-high          none 0/10   rule 4/10   diff +0.40 CI [+0.20,+0.50]  rule helps
+codex-luna-medium        none 0/10   rule 2/10   diff +0.20 CI [+0.00,+0.40]  no claim
+codex-sol-medium         none 5/10   rule 10/10  diff +0.50 CI [+0.50,+0.50]  rule helps
+codex-terra-medium       none 5/10   rule 5/10   diff +0.00 CI [+0.00,+0.00]  no claim

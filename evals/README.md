@@ -16,6 +16,7 @@ evals/
     prereg.md                   the preregistration, when the run had one
     prereg-amendment-<n>.md     an amendment of the preregistration, written before any trial
     signoff.md                  an approval that the run recorded before its first trial, when it had one
+    deviations.md               the run's own list of deviations from its preregistration, when it kept one
 ```
 
 `scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan.
@@ -58,6 +59,8 @@ Cell lines:
 The seven fields from `total_cost_usd` to `mean_cache_write_tokens` come together: a cell has all of them or none. Each is a number, or `null` when the harness does not report it. A cell of a run that was committed before these fields existed has none of them and gets a metrics line instead (see below). The totals are over all turns of a trial. Tokens are counted, not priced, so a change of price does not move them.
 
 Where the numbers come from, for the `claude-code` harness. Each trial writes a stream of events, and the last one is the `result` event. `duration_ms` of that event, divided by 1000, is the trial's duration in seconds. `total_cost_usd` is the cost. `usage.input_tokens`, `usage.output_tokens`, `usage.cache_read_input_tokens` and `usage.cache_creation_input_tokens` are the four token fields, in that order, and `num_turns` is the turn count. The per-trial JSON files of a run keep `costUsd`, `turns` and `durationMs`, which equal the result event. They do not keep the tokens. A harness that does not report a number writes `null`.
+
+A harness that reports no cost writes both `total_cost_usd` and `mean_cost_usd` as `null`. The trend prints `-` for such a cell and compares no cost.
 
 A **metrics** line has `kind` `metrics`, the `run` and the full key of the cell it backfills (`unit`, `arm`, `harness`, `model`, `effort`, `fixture`), and the seven metric fields, all required. It has no date. It is for cells that were committed before the metric fields existed, and for nothing else. A new cell line carries the fields inline and gets no metrics line. The reader joins a metrics line to its cell. The line must come after its cell, must name an existing cell, must name a cell that has no inline fields, and may appear once per cell.
 
@@ -120,6 +123,9 @@ Limits you should know:
 | `fx3` | member directory: names with accents sort after Z | 4 |
 | `ord` | order pipeline: three planted bugs in an implicit order state machine | 4 |
 | `job-hub` | job hub: five planted bugs in implicit state machines, found by audit. The outcome is a score of 0 to 5 | 5 bugs |
+| `rig-d3dc4ce` | rig at the commit before the fix of PR 45: `rig doctor` counts skills in orphaned plugin cache versions as duplicates | 51 |
+| `rig-ab8d5ec` | rig at the commit before the fix of PR 53: `rig doctor` prints a drift error and the line that managed files match | 21 |
+| `rig-069847a` | rig at the commit before the fix of PR 47: `rig plan` blocks on an owned entry that changed kind. The grader drops the unit test of a helper that the prompt cannot name | 3 |
 
 The sha256 values are in `history.jsonl`. The fixtures and graders live outside this repo.
 
@@ -162,6 +168,8 @@ Runs recorded with the metric fields inline:
 | `2026-11-11-hp-formal-verification-audit` | H-A, 8 trials per arm | preregistered with one amendment. The outcome is bugs found, so `k` counts trials with all five bugs and `mean_score` carries the mean out of `score_max` 5 |
 | `2026-11-11-gstack-investigate-full` | H-G repeated with the full shipped skill | preregistered, one path redacted in the preregistration and in the analysis. The skill arm is `told-full`, a different group from the stripped `told` arm. The `none` arm is a same-day rerun and shares its group with the earlier `none` arm |
 | `2026-11-11-rig-default-vs-vanilla` | rig default install against vanilla, set A | preregistered, signed off, analyzer output verbatim. The sonnet cells ran at effort `medium`, so the `none` arm there is not comparable to the default-effort `none` arm of `2026-11-10-rule-bug-fix-callers`. The summary notes say so |
+| `2026-11-11-rule-bug-fix-callers-rig-history` | rule, `placebo-v2` and none on three bugs from rig's own history (fixture ids `rig-<commit>`) plus fx4b and fx3, Sonnet | preregistered, signed off, analyzer output verbatim, one path and one home-relative path redacted. The verdict is `no-claim`. `placebo-v2` is a new placebo text, so it is a different group from the `placebo` arm of `2026-11-10-rule-bug-fix-callers` |
+| `2026-11-11-rule-bug-fix-callers-matrix` | rule against none on fx3 and fx4b across Claude Code and codex, six configurations | preregistered, analyzer output verbatim, three paths redacted. Codex reports no cost, so its cells carry `null` and a `0` placeholder. agy was not run and has no cells |
 
 ## What pins each guarantee
 

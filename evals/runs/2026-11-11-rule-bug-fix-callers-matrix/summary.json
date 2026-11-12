@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-rule-bug-fix-callers-matrix",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "One bug-fix rule across harnesses and models: Claude and codex",
+  "question": "Does a one-sentence bug-fixing rule, delivered only as the project instruction file of the work dir, change the pass rate of each configuration on two bug-fix fixtures, and does the effect differ across harnesses and models?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "5f2e5aa5885a9cc9d7a658deb40b153f0baf94749e070108fe14b63f4ee5cd3a",
+    "stored_sha256": "fe818aac248aaac99506e16a9142cf74caf761aa968220c600f9f2c366e46d26",
+    "redactions": [
+      "absolute path of the private work folder replaced by <work-parent>",
+      "absolute path of the system temp folder replaced by <tmp>",
+      "home-relative path of the agy state folder replaced by <home>/.gemini"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 24,
+  "usable_trials": 120,
+  "verdict": {
+    "label": "claim-allowed",
+    "text": "Per configuration, rule minus none, pooled over fx3 and fx4b: claude-opus-default no claim, claude-sonnet-medium rule helps, codex-luna-high rule helps, codex-luna-medium no claim, codex-sol-medium rule helps, codex-terra-medium no claim"
+  },
+  "notes": [
+    "Six configurations: claude-code 2.1.322 with claude-opus-5-5 at default effort and claude-sonnet-5-5 at effort medium, and codex 0.167.0 with gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna at medium and gpt-6-luna at high. Arms rule and none, fixtures fx3 and fx4b, n = 5 per cell, 120 usable trials. The opus cells passed no effort flag and record default.",
+    "agy was not run, so there are no agy cells. The two agy configurations (flash medium and flash high) need a permission-bypass flag that the session permission system denied. The user's approval to run agy is still pending in the settings. The planned 160 trials became 120.",
+    "Codex reports no cost, so its cells write total_cost_usd and mean_cost_usd as null.",
+    "Codex tokens come from the token_count events of the rollout. mean_input_tokens is input_tokens minus cached_input_tokens, because codex counts cached tokens inside its input total. mean_cache_write_tokens is the reported cache_write_input_tokens, 0 in every trial. mean_turns of a codex cell is 1, because codex exec reports one turn per trial.",
+    "Duration is the wall time that the runner measured per trial (durationMs of the trial file). It is up to 1 s above the duration_ms of the Claude result event and up to 4.8 s above the duration_ms of the codex task_complete event.",
+    "The decisions are the per-configuration rule of the preregistration. The preregistration calls them exploratory, because the configurations are a family and no between-config test is preregistered. The intervals of codex-sol-medium and codex-terra-medium are degenerate ([+0.50, +0.50] and [+0.00, +0.00]), because every cell of both fixtures is all pass or all fail.",
+    "The fx3 and fx4b cells carry the fixture hashes that earlier runs recorded. The run's own summary records other hashes for the same two trees, made with another ordering of the same file hashes. Recomputed from the run's frozen file list with the paths sorted by the shell, the trees hash to the earlier values.",
+    "One Claude trial (claude-opus-default, fx3, rule, trial 1) was cut off by the usage limit and graded pass on partial work. It was moved to quarantine and rerun. The cell uses the rerun. See deviations.md.",
+    "One codex trial (codex-sol-medium, fx3, none, trial 2) listed the path of another trial's work dir. It is flagged in analysis.txt and stays in the cell.",
+    "deviations.md is stored as the run wrote it."
+  ]
+}

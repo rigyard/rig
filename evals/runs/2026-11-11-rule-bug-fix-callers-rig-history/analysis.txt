@@ -1,0 +1,131 @@
+trials: 138 usable, 0 missing
+
+k/n pass (hidden-test grader), per fixture
+new  d3: rule 9/12 | placebo 9/12 | none 10/12
+new  ab: rule 12/12 | placebo 12/12 | none 12/12
+new  st: rule 10/12 | placebo 9/12 | none 10/12
+repl 4b: rule 4/5 | placebo 0/5 | none 3/5
+repl 3: rule 5/5 | placebo 0/5 | none 0/5
+
+ceiling rule: none >= 90% => reported, excluded from the primary pool. Ceiling fixtures: ab. Primary pool: d3,st
+
+[PRIMARY: new fixtures, ceiling-excluded: d3+st] rule minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.042  CI [-0.250, +0.167]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxst: +0.000  CI [-0.333, +0.333]  Fisher two-sided p=1.0000
+
+[PRIMARY: new fixtures, ceiling-excluded: d3+st] rule minus placebo  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.042  CI [-0.208, +0.292]
+  fxd3: +0.000  CI [-0.333, +0.333]  Fisher two-sided p=1.0000
+  fxst: +0.083  CI [-0.250, +0.417]  Fisher two-sided p=1.0000
+
+[PRIMARY: new fixtures, ceiling-excluded: d3+st] placebo minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.083  CI [-0.292, +0.125]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxst: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+
+[descriptive: all new fixtures: d3+ab+st] rule minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.028  CI [-0.167, +0.111]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: +0.000  CI [-0.333, +0.250]  Fisher two-sided p=1.0000
+
+[descriptive: all new fixtures: d3+ab+st] rule minus placebo  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.028  CI [-0.139, +0.194]
+  fxd3: +0.000  CI [-0.333, +0.333]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: +0.083  CI [-0.250, +0.417]  Fisher two-sided p=1.0000
+
+[descriptive: all new fixtures: d3+ab+st] placebo minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.056  CI [-0.194, +0.083]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+
+[descriptive: replication fixtures: 4b+3] rule minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.600  CI [+0.300, +0.900]
+  fx4b: +0.200  CI [-0.400, +0.800]  Fisher two-sided p=1.0000
+  fx3: +1.000  CI [+1.000, +1.000]  Fisher two-sided p=0.0079
+
+[descriptive: replication fixtures: 4b+3] rule minus placebo  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.900  CI [+0.700, +1.000]
+  fx4b: +0.800  CI [+0.400, +1.000]  Fisher two-sided p=0.0476
+  fx3: +1.000  CI [+1.000, +1.000]  Fisher two-sided p=0.0079
+
+[descriptive: replication fixtures: 4b+3] placebo minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.300  CI [-0.500, -0.100]
+  fx4b: -0.600  CI [-1.000, -0.200]  Fisher two-sided p=0.1667
+  fx3: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+
+[descriptive: all five: d3+ab+st+4b+3] rule minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.109  CI [-0.022, +0.239]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: +0.000  CI [-0.250, +0.333]  Fisher two-sided p=1.0000
+  fx4b: +0.200  CI [-0.400, +0.800]  Fisher two-sided p=1.0000
+  fx3: +1.000  CI [+1.000, +1.000]  Fisher two-sided p=0.0079
+
+[descriptive: all five: d3+ab+st+4b+3] rule minus placebo  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: +0.217  CI [+0.087, +0.348]
+  fxd3: +0.000  CI [-0.333, +0.333]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: +0.083  CI [-0.250, +0.417]  Fisher two-sided p=1.0000
+  fx4b: +0.800  CI [+0.400, +1.000]  Fisher two-sided p=0.0476
+  fx3: +1.000  CI [+1.000, +1.000]  Fisher two-sided p=0.0079
+
+[descriptive: all five: d3+ab+st+4b+3] placebo minus none  (bootstrap B=10000, seed=20261111, stratified by fixture; 95% percentile CI)
+  pooled: -0.109  CI [-0.239, +0.022]
+  fxd3: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fxab: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+  fxst: -0.083  CI [-0.417, +0.250]  Fisher two-sided p=1.0000
+  fx4b: -0.600  CI [-1.000, -0.200]  Fisher two-sided p=0.1667
+  fx3: +0.000  CI [+0.000, +0.000]  Fisher two-sided p=1.0000
+
+DECISION (primary pool, rule minus placebo): CI includes 0: no claim that the rule generalizes
+
+cost per pass ($ total / passes), usable trials
+  primary pool: rule $0.291 ($5.53/19) | placebo $0.257 ($4.63/18) | none $0.243 ($4.86/20) | ratio rule/none 1.20, rule/placebo 1.13
+  fxd3: rule $0.254 ($2.28/9) | placebo $0.191 ($1.72/9) | none $0.199 ($1.99/10) | ratio rule/none 1.28, rule/placebo 1.33
+  fxab: rule $0.164 ($1.97/12) | placebo $0.085 ($1.02/12) | none $0.095 ($1.14/12) | ratio rule/none 1.73, rule/placebo 1.93
+  fxst: rule $0.325 ($3.25/10) | placebo $0.323 ($2.91/9) | none $0.287 ($2.87/10) | ratio rule/none 1.13, rule/placebo 1.00
+  fx4b: rule $0.172 ($0.69/4) | placebo $NaN ($0.38/0) | none $0.157 ($0.47/3) | ratio rule/none 1.09, rule/placebo NaN
+  fx3: rule $0.124 ($0.62/5) | placebo $NaN ($0.22/0) | none $NaN ($0.26/0) | ratio rule/none NaN, rule/placebo NaN
+
+turn limit (descriptive): trials ending error_max_turns, and pass rate among the others
+  fxd3: rule maxturns 0/12, pass among rest 9/12 | placebo maxturns 0/12, pass among rest 9/12 | none maxturns 0/12, pass among rest 10/12
+  fxab: rule maxturns 0/12, pass among rest 12/12 | placebo maxturns 0/12, pass among rest 12/12 | none maxturns 0/12, pass among rest 12/12
+  fxst: rule maxturns 0/12, pass among rest 10/12 | placebo maxturns 0/12, pass among rest 9/12 | none maxturns 0/12, pass among rest 10/12
+  fx4b: rule maxturns 0/5, pass among rest 4/5 | placebo maxturns 0/5, pass among rest 0/5 | none maxturns 0/5, pass among rest 3/5
+  fx3: rule maxturns 0/5, pass among rest 5/5 | placebo maxturns 0/5, pass among rest 0/5 | none maxturns 0/5, pass among rest 0/5
+
+exposure check (first-turn input tokens vs none median of same fixture)
+  fxd3 rule: delta min/med/max 210/213/219, exposure failures 0
+  fxd3 placebo: delta min/med/max 214/220/223, exposure failures 0
+  fxd3 none: delta min/med/max -2/0/4, exposure failures 0
+  fxab rule: delta min/med/max 210/216/222, exposure failures 0
+  fxab placebo: delta min/med/max 214/217/223, exposure failures 0
+  fxab none: delta min/med/max -2/0/4, exposure failures 0
+  fxst rule: delta min/med/max 205/211/220, exposure failures 0
+  fxst placebo: delta min/med/max 209/218/221, exposure failures 0
+  fxst none: delta min/med/max -2/0/2, exposure failures 0
+  fx4b rule: delta min/med/max 211/214/217, exposure failures 0
+  fx4b placebo: delta min/med/max 215/218/224, exposure failures 0
+  fx4b none: delta min/med/max -2/0/2, exposure failures 0
+  fx3 rule: delta min/med/max 213/216/219, exposure failures 0
+  fx3 placebo: delta min/med/max 214/217/220, exposure failures 0
+  fx3 none: delta min/med/max -2/0/4, exposure failures 0
+
+secondary (descriptive): .grade-4 on fx4b
+  rule: 4/5
+  placebo: 0/5
+  none: 0/5
+
+hygiene
+  grader leak flagged: none
+  history commands (git log/show, cd ..): ab-rule-12,d3-rule-7,st-none-2,st-placebo-6,st-rule-1,st-rule-10,st-rule-2,st-rule-3,st-rule-6,st-rule-7,st-rule-9
+  other trial dirs seen: none
+  retried (attempt 2): none
+  isError true: none
+  non-success result subtype: none
+  models: claude-sonnet-5-5  apiKeySource: none  hookEvents>0: 0
+  exposure failures: none

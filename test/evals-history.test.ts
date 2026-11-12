@@ -85,6 +85,11 @@ describe("history.jsonl schema", () => {
     assert.ok(lines.some((l) => l.kind === "cell") && lines.some((l) => l.kind === "judge"));
   });
 
+  test("a cell from a harness that reports no cost carries null cost fields", () => {
+    assert.deepEqual(validateLine({ ...sampleCell, mean_cost_usd: null }), []);
+    assert.notDeepEqual(validateLine({ ...sampleCell, mean_cost_usd: -1 }), []);
+  });
+
   test("the validator accepts the sample lines", () => {
     assert.deepEqual(validateLine(sampleCell), []);
     assert.deepEqual(validateLine(sampleJudge), []);
@@ -264,7 +269,7 @@ describe("time and token metrics in the committed history", () => {
 
   test("total_cost_usd equals n times mean_cost_usd where a cost is reported, up to the rounding of the mean", () => {
     for (const c of cellsWithMetrics(lines)) {
-      if (c.total_cost_usd === null || c.total_cost_usd === undefined) continue;
+      if (c.total_cost_usd === null || c.total_cost_usd === undefined || c.mean_cost_usd === null) continue;
       assert.ok(Math.abs(c.total_cost_usd - c.mean_cost_usd * c.n) <= 0.000001 * c.n, `${c.run} ${c.arm} ${c.fixture}`);
     }
   });

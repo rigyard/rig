@@ -29,7 +29,7 @@ export type Cell = Partial<MetricValues> & {
   grader_sha256: string;
   k: number;
   n: number;
-  mean_cost_usd: number;
+  mean_cost_usd: number | null;
   mean_turns: number;
   mean_score?: number;
   score_max?: number;
@@ -129,7 +129,7 @@ const CELL: Record<keyof Cell, Check> = {
   grader_sha256: match(SHA),
   k: count(0),
   n: count(1),
-  mean_cost_usd: real(0, 1000),
+  mean_cost_usd: orNull(real(0, 1000)),
   mean_turns: real(0, 100000),
   mean_score: real(0, 1e6),
   score_max: count(1),

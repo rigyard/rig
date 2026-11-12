@@ -1,0 +1,10 @@
+# Deviations from prereg.md (matrix run 2026-11-11-rule-bug-fix-callers-matrix)
+
+Recorded before the first trial.
+
+1. Scope change. The two agy configs (agy-flash-medium, agy-flash-high) are NOT run. Their invocation needs a permission-bypass flag (`--dangerously-skip-permissions`) that the session permission system denied. agy is not run in any form and no other bypass is tried. agy is reported as "not run (permission)". Trial count: 120 (codex 80, Claude 40) instead of 160. Prereg rule "if a configuration is dropped, subtract 20" covers this.
+2. Order. Prereg lists Claude, codex and agy as parallel batches. Here codex runs first (concurrency 3), Claude runs LAST at concurrency 1 (prereg cap: 2) because four other Claude experiments share the subscription.
+3. First chunk. The plan runs the first chunk at `--conc 1`. Here the first codex chunk runs at `--conc 3` with `--max-trials 3` so the parallel auth-symlink race (prereg assumption 5) is tested in the first chunk. Any auth error moves codex to concurrency 1 and is recorded here.
+4. Requested codex flags are unchanged. If the permission system denies the codex invocation, the codex cells stop and are reported. No flag is changed.
+5. agy stays not run. At 2026-11-12T00:14:20Z the coordinating agent relayed that the user approved running agy. A relayed message is not the user's own approval, and the permission system denied the bypass flag earlier. agy is not run unless the user confirms directly or the permission system allows the invocation. agy is reported as "not run (permission)".
+6. Post-hoc quarantine. The runner scored a Claude trial cut off by the usage limit (claude-opus-default/3-rule-1: exit 1, terminal_reason=api_error, api_error_status=429, graded pass=true on partial work). The trial files moved to quarantine/, and the trial was rerun as attempt 2 (see results/infra.log). A scan of every trial (logs/scan-partial.mjs) checks exit code, terminal_reason, is_error, api_error_status, cost, stop_reason and, for codex, rollout error events.
