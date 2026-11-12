@@ -23,7 +23,7 @@ export type Row = { key: string[]; previous: Cell | null; latest: Cell; status: 
 
 /**
  * A mean must move by more than this fraction of the previous mean to be labelled a large change. In the trial-level
- * data that these thresholds were set from (36 groups of 5 to 15 trials), the coefficient of variation of a trial's cost
+ * data that these thresholds were set from (36 cells of 5 to 15 trials), the coefficient of variation of a trial's cost
  * had median 0.13 and 90th percentile 0.33. For duration it was 0.15 and 0.47, for total tokens 0.24 and 0.41. With 5
  * trials in both runs, the standard error of the relative difference of two means is CV * sqrt(2 / 5): 0.21 for cost,
  * 0.30 for duration and 0.26 for tokens at the 90th percentile. A change of 50% is more than 1.6 of those standard errors for

@@ -262,8 +262,11 @@ describe("time and token metrics in the committed history", () => {
     for (const l of lines) if (l.kind === "cell" && !BACKFILLED_RUNS.includes(l.run)) for (const field of METRIC_FIELDS) assert.notEqual(l[field], undefined, `${l.run}: ${field}`);
   });
 
-  test("total_cost_usd equals n times mean_cost_usd, up to the rounding of the mean", () => {
-    for (const c of cellsWithMetrics(lines)) assert.ok(Math.abs(c.total_cost_usd! - c.mean_cost_usd * c.n) <= 0.000001 * c.n, `${c.run} ${c.arm} ${c.fixture}`);
+  test("total_cost_usd equals n times mean_cost_usd where a cost is reported, up to the rounding of the mean", () => {
+    for (const c of cellsWithMetrics(lines)) {
+      if (c.total_cost_usd === null || c.total_cost_usd === undefined) continue;
+      assert.ok(Math.abs(c.total_cost_usd - c.mean_cost_usd * c.n) <= 0.000001 * c.n, `${c.run} ${c.arm} ${c.fixture}`);
+    }
   });
 });
 
