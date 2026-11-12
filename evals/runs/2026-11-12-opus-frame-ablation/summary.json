@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "run": "2026-11-12-opus-frame-ablation",
+  "date": "2026-11-12",
+  "kind": "experiment",
+  "title": "Does one clause of rig's always-loaded frame cost Opus passes on bug-fix tasks?",
+  "question": "On Opus, does Claude Code with rig's default install and the clause \"and the smallest change that meets it\" removed from the frame pass hidden-test graders more often than with the unchanged install?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "29b743cd117b05b0e58d4733f7645f1140b90ab7b95a0fc8eb3bc4867e43d4d8",
+    "stored_sha256": "29b743cd117b05b0e58d4733f7645f1140b90ab7b95a0fc8eb3bc4867e43d4d8",
+    "redactions": []
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 9,
+  "usable_trials": 54,
+  "verdict": {
+    "label": "no-claim",
+    "text": "no claim: the CI of rig-ablated minus rig spans 0 (a null is not evidence that the sentence is harmless)"
+  },
+  "notes": [
+    "Candidate sentence: rules/rig-frame.md line 5, item 1, \"State the user's goal in your words and the smallest change that meets it.\" The clause \"and the smallest change that meets it\" is removed in arm rig-ablated. Arms rig and rig-ablated differ in that clause only (a median of 6 to 12 first-turn tokens).",
+    "Arm names: the run's own files call the baseline arm vanilla. The history uses none for the baseline, as 2026-11-11-rig-default-vs-vanilla does, so vanilla in analysis.txt is none in history.jsonl. Arms rig and rig-ablated keep their names.",
+    "Unit: rig/frame-ablation@2dbce75. The install is the rig default install at 2dbce75, as in 2026-11-11-rig-default-vs-vanilla, but the unit has its own name so that these cells never share a trend group with that run. The fx4b cells ran at 30 max turns and the 2026-11-11 run used 40, so they are not comparable. The three SWE-rebench cells have new fixtures and form their own groups anyway. Fixture ids of the SWE tasks are swerebench-<instance id>, with a hyphen where the run's own files have a colon, because the schema allows no colon in a fixture id.",
+    "Design: three tasks, n = 6 per arm per task, 54 trials, Opus at default effort. Only 2 SWE-rebench tasks qualified in calibration (1 of 2 on vanilla Opus), so the design has fx4b plus 2 SWE tasks (tox-dev__tox-3683, joke2k__django-environ-592), not the 5 tasks that the plan aimed for. The two selected tasks may be easier than 1 of 2 suggests, and both calibration trials of tox-3683 ended at the turn limit.",
+    "Calibration: 16 SWE-rebench tasks, arm vanilla, 2 trials per task, 30 max turns, 32 trials. 11 tasks sat at 2 of 2, 3 at 0 of 2 and 2 at 1 of 2. It is stored as calibration.txt in this directory only. It has no history lines: its cells have no fixture or grader hashes in the run's summary, and the two qualifying tasks would share a history key with the ablation cells of arm none.",
+    "Every SWE prompt carries the line \"The repo's tests run with `./run-tests [pytest args]` from the repo root.\" in all arms. The run added it after a discarded 4-run pilot, before any ablation trial. The line does not appear in the fx4b prompt.",
+    "Decision: rig-ablated minus rig is +0.111 pooled, 95% CI [-0.167, +0.389], so the preregistered rule allows no claim. Pooled passes are none 13/18, rig 9/18 and rig-ablated 11/18. On fx4b the arms are none 6/6, rig 0/6 and rig-ablated 3/6. Rig minus none is -0.222 pooled, CI [-0.444, 0.000], secondary.",
+    "fx4b alone: rig-ablated minus rig is +0.500, CI [+0.167, +0.833]. The preregistration did not make fx4b a primary result alone, so this is descriptive and not promotable.",
+    "Mechanism on fx4b is post hoc, from the trial diffs: rig changed 1 or 2 files in 6 of 6 trials, none changed 4 files in 6 of 6, and rig-ablated changed 4 or 5 files in 3 of 6 and 2 files in 3 of 6. The 3 rig-ablated passes are the trials with 4 or 5 files changed.",
+    "The hub, the bug-fix playbook, the laziness skill and the frame file were opened in 0 of 54 trials (0 of 18 per arm). The frame reached the model through the first-turn context in 6 of 6 rig trials and 6 of 6 rig-ablated trials on each task (exposure section of analysis.txt).",
+    "Frame size: the median first-turn input of rig minus none is +1,117 tokens on fx4b, +1,134 on tox-3683 and +1,132 on django-environ-592. It was computed from the first assistant event of each trial's event stream, which is not committed. analysis.txt prints only the none median and the rig minus rig-ablated difference. The clause is about 10 of these tokens.",
+    "Leak flags: 4 of 54 trials, listed as a sensitivity in analysis.txt. The sensitivity result is rig-ablated minus rig +0.096, CI [-0.154, +0.346].",
+    "The frame path rewrite ~/.claude/ to .claude/ differs from a real user install, as in 2026-11-11-rig-default-vs-vanilla.",
+    "Trials cut by max turns: 1 of 18 none, 1 of 18 rig and 3 of 18 rig-ablated (routing section of analysis.txt). They are graded as they stand, as the preregistration says."
+  ]
+}

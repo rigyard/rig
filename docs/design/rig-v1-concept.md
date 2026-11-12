@@ -290,6 +290,25 @@ The same runner then tested two public claims, each preregistered with 8 trials 
 - gstack: "Opus 5.5 does `/investigate` better without it." The test used a standalone copy of `/investigate` from gstack `b406820`, with its gstack bins, learnings and scope lock removed and its debugging text verbatim. On Opus 5.5, told passed 8 of 16 and none 13 of 16 (difference -0.31, 95% CI -0.44 to -0.13). On the race fixture, told passed 0 of 8 and none 5 of 8 (Fisher p 0.026). Every told run fixed only the reported site and named the second site without fixing it. The other fixture was at ceiling in both arms. Cost per pass told was 2.1 times none. The claim held on these fixtures, and the skill did worse than no skill.
 - pstack: "use `/create-formal-verification-skill` to model these state machines". The test asked a narrower question: does the skill fix more planted lifecycle bugs in one session? On a fixture with three planted transition bugs, Sonnet with the skill fixed a mean of 0.5 bugs (0 of 8 full passes). Without it, Sonnet fixed all 3 in 8 of 8 runs. Five of the 8 told runs never edited product code. Four of them built a TLA+ model or a checker instead. The permission allowlist blocked each attempt to write the project skill, which is the skill's main deliverable. So this result says that the skill is the wrong tool for a fix task. It does not test the claim that a model finds states that tests miss, which needs an audit task graded on bugs found.
 
+#### Findings from the first runs of rig's install
+
+Four findings from `evals/runs/` on 2026-11-11 and 2026-11-12. Each run's `summary.json` holds the numbers and the limits.
+
+**One clause of the frame on Opus.** The frame is the one file that the model always reads. `2026-11-12-opus-frame-ablation` removed one clause from it: "and the smallest change that meets it" (`rules/rig-frame.md:5`). The earlier run `2026-11-11-rig-default-vs-vanilla` had shown Opus with rig at 1 of 6 on fx4b against 5 of 6 without it.
+
+- Pooled over fx4b and two SWE-rebench tasks, 18 trials per arm, the baseline passed 13, rig 9 and rig-ablated 11.
+- The preregistered contrast, rig-ablated minus rig, was +0.11 (95% CI -0.17 to +0.39). The rule allows no claim.
+- On fx4b alone the arms passed 6 of 6, 0 of 6 and 3 of 6. Rig-ablated minus rig was +0.50 (CI +0.17 to +0.83). The preregistration did not make fx4b a primary result alone, so this number is descriptive.
+- Post hoc, from the diffs: rig changed one or two files in 6 of 6 fx4b trials. The baseline changed four in 6 of 6. Rig-ablated changed four or five in 3 of 6, and those three passed.
+
+The hypothesis stays open: "smallest change" in the always-loaded frame pushes Opus to under-fix a multi-site bug. Removing the clause recovers half of the fx4b gap. The other half is unexplained. The rest of the frame adds about 1,100 first-turn tokens, and this run does not test them. The two SWE tasks show no detectable rig effect (each per-task interval spans 0), and only 2 of 16 calibration tasks qualified, so the pooled number leans on fx4b.
+
+**Baselines drift between runs.** Sonnet with no unit passed fx3 7 of 15, 7 of 10, 0 of 5, 1 of 5 and 0 of 6 in five runs. Two of those ran at effort `medium` and three at the default. Compare arms inside one run. A trend across runs needs the same effort, tool allowlist and turn limit, and a check of the group before any reading.
+
+**Exposure is the weak point.** Without `/craft` typed first, the model opened the hub in 0 of 24 rig trials (`2026-11-11-rig-default-vs-vanilla`) and in 0 of 54 trials here. With `/craft` typed first, it opened the hub in 21 of 24 trials and the bug-fix playbook in 14 of 24 (the same run). A unit that lives behind the hub reaches the model when the hub is read. Of rig's files, the frame is the one that is always loaded.
+
+**The bug-fix rule shows no claim on real bugs.** The rule helped on synthetic multi-site fixtures. On real bugs from rig's own history it showed no claim (`2026-11-11-rule-bug-fix-callers-rig-history`). On the two bugs below ceiling, the rule passed 9 of 12 and 10 of 12, against 10 of 12 and 10 of 12 for no rule. The design could detect a pooled difference of about 0.25 or more.
+
 ### Retire
 
 The `upk:retire` step has no fill in `rig.json` today, and no unit in the seed does retirement work. This section proposes what fills it. A team fills `upk:retire` with a skill or playbook that runs one review:

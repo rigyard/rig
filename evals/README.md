@@ -17,6 +17,7 @@ evals/
     prereg-amendment-<n>.md     an amendment of the preregistration, written before any trial
     signoff.md                  an approval that the run recorded before its first trial, when it had one
     deviations.md               the run's own list of deviations from its preregistration, when it kept one
+    calibration.txt             the calibration table that chose the tasks, when the run kept one and it has no history lines
 ```
 
 `scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan.
@@ -126,6 +127,8 @@ Limits you should know:
 | `rig-d3dc4ce` | rig at the commit before the fix of PR 45: `rig doctor` counts skills in orphaned plugin cache versions as duplicates | 51 |
 | `rig-ab8d5ec` | rig at the commit before the fix of PR 53: `rig doctor` prints a drift error and the line that managed files match | 21 |
 | `rig-069847a` | rig at the commit before the fix of PR 47: `rig plan` blocks on an owned entry that changed kind. The grader drops the unit test of a helper that the prompt cannot name | 3 |
+| `swerebench-tox-dev__tox-3683` | SWE-rebench task: a real bug fix in tox, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | hidden tests |
+| `swerebench-joke2k__django-environ-592` | SWE-rebench task: a real bug fix in django-environ, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | hidden tests |
 
 The sha256 values are in `history.jsonl`. The fixtures and graders live outside this repo.
 
@@ -170,6 +173,7 @@ Runs recorded with the metric fields inline:
 | `2026-11-11-rig-default-vs-vanilla` | rig default install against vanilla, set A | preregistered, signed off, analyzer output verbatim. The sonnet cells ran at effort `medium`, so the `none` arm there is not comparable to the default-effort `none` arm of `2026-11-10-rule-bug-fix-callers`. The summary notes say so |
 | `2026-11-11-rule-bug-fix-callers-rig-history` | rule, `placebo-v2` and none on three bugs from rig's own history (fixture ids `rig-<commit>`) plus fx4b and fx3, Sonnet | preregistered, signed off, analyzer output verbatim, one path and one home-relative path redacted. The verdict is `no-claim`. `placebo-v2` is a new placebo text, so it is a different group from the `placebo` arm of `2026-11-10-rule-bug-fix-callers` |
 | `2026-11-11-rule-bug-fix-callers-matrix` | rule against none on fx3 and fx4b across Claude Code and codex, six configurations | preregistered, analyzer output verbatim, three paths redacted. Codex reports no cost, so its cells carry `null` and a `0` placeholder. agy was not run and has no cells |
+| `2026-11-12-opus-frame-ablation` | Opus, rig default install against the same install with the clause "and the smallest change that meets it" removed from the frame, on fx4b and two SWE-rebench tasks (fixture ids `swerebench-<instance>`) | preregistered, analyzer output verbatim, no redaction. The verdict is `no-claim`. The run calls its baseline arm `vanilla`, the history calls it `none`. The unit is `rig/frame-ablation@2dbce75`, not `rig/default@2dbce75`, because the fx4b cells ran at 30 max turns and the 2026-11-11 run used 40. The 16-task calibration is kept as `calibration.txt` and has no history lines |
 
 ## What pins each guarantee
 
