@@ -1,0 +1,24 @@
+
+=== cursor-grok47-high
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 1/5 | none 0/5
+  fx3: rule 5/5 | none 5/5
+  pooled: rule 6/10 | none 5/10
+  rule minus none: +0.10  95% CI [+0.00, +0.30] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (chat store text): rule exposed 10/10, none clean 10/10
+  duration median 486s, max 876s; tool calls median 31
+
+=== cursor-grok47-medium
+usable 20, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 1/5 | none 0/5
+  fx3: rule 5/5 | none 5/5
+  pooled: rule 6/10 | none 5/10
+  rule minus none: +0.10  95% CI [+0.00, +0.30] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (chat store text): rule exposed 10/10, none clean 10/10
+  duration median 314s, max 699s; tool calls median 33
+
+=== cross-config table (descriptive; no between-config test is preregistered)
+cursor-grok47-high       none 5/10   rule 6/10   diff +0.10 CI [+0.00,+0.30]  no claim
+cursor-grok47-medium     none 5/10   rule 6/10   diff +0.10 CI [+0.00,+0.30]  no claim

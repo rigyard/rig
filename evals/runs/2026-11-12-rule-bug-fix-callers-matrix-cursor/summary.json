@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "run": "2026-11-12-rule-bug-fix-callers-matrix-cursor",
+  "date": "2026-11-12",
+  "kind": "experiment",
+  "title": "One bug-fix rule on Cursor with Grok 4.7: the cursor cells of the harness matrix",
+  "question": "Does a one-sentence bug-fixing rule, delivered only as the project instruction file of the work dir, change the pass rate of Cursor with Grok 4.7 at medium and at high effort on two bug-fix fixtures?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "5f2e5aa5885a9cc9d7a658deb40b153f0baf94749e070108fe14b63f4ee5cd3a",
+    "stored_sha256": "fe818aac248aaac99506e16a9142cf74caf761aa968220c600f9f2c366e46d26",
+    "redactions": [
+      "absolute path of the private work folder replaced by <work-parent>",
+      "absolute path of the system temp folder replaced by <tmp>",
+      "home-relative path of the agy state folder replaced by <home>/.gemini"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 8,
+  "usable_trials": 40,
+  "verdict": {
+    "label": "no-claim",
+    "text": "Per configuration, rule minus none, pooled over fx3 and fx4b: cursor-grok47-high no claim, cursor-grok47-medium no claim"
+  },
+  "notes": [
+    "These are the cursor cells of the same matrix as 2026-11-11-rule-bug-fix-callers-matrix. The run uses the same unit, fixtures, graders, arms and analyzer, and the same prereg.md (same original and stored sha256). The fixture and grader hashes are the ones that run records. The Claude and codex cells stay in that run.",
+    "Cursor was added after the preregistration, at the user's request (deviation 8 in deviations.md). The preregistration does not name it. Two configurations: Cursor CLI 2026.11.11-b912975 with grok-4.7 at effort medium and at effort high, arms rule and none, fixtures fx3 and fx4b, n = 5 per cell, 40 usable trials. The decision rule and the analyzer are the preregistered ones, applied per configuration.",
+    "Model id: the runner passes grok-4.7-<effort>. The Cursor CLI hides these ids from its model list but accepts them. The history stores model grok-4.7 and the effort separately, as the codex cells of the matrix do. The init event of every trial reported the requested model and effort.",
+    "Timeout: a trial may run 900 s, against 300 s for the claude and codex cells, so the durations of these cells are not comparable with those cells. Three first attempts (cursor-grok47-high, fx4b: rule 1, rule 5 and none 1) timed out at 900 s. They were treated as missing trials, not graded, and rerun once. The cells use the reruns. See deviations.md.",
+    "Shell permissions: the shell allowlist is node, git, ls, cat, grep and find, the same six commands as the Claude cells. No sandbox flag was set. A piped or && command is rejected unless every part is allowed, so some tool calls were rejected.",
+    "Cost: Cursor reports no cost, so total_cost_usd and mean_cost_usd are null. Tokens come from the result event of each trial. mean_input_tokens is the reported inputTokens, which the runner kept as a separate field from the cache tokens. mean_cache_read_tokens and mean_cache_write_tokens come from the cacheReadTokens and cacheWriteTokens of the same event, and cache writes were 0 in every trial. The event also has a separate reasoningTokens field, which no cell field uses. mean_turns counts assistant messages, not model calls.",
+    "Duration is the wall time that the runner measured per trial (durationMs of the trial file).",
+    "Rule exposure: the rule was in the first user message as an always-applied workspace rule in 20 of 20 rule trials, and in none of the 20 none trials. The check reads the chat store of the trial, and the analyzer prints it as chat store text.",
+    "Results: both configurations pass fx3 in all 10 trials, so the arms cannot differ there. On fx4b none passes 0 of 5 and rule 1 of 5 at each effort. Pooled, none 5 of 10 and rule 6 of 10, difference +0.10 with CI [+0.00, +0.30], so the preregistered rule allows no claim. The configurations are a family and the preregistration calls the decisions exploratory.",
+    "On fx4b alone, 1 of 10 rule trials and 0 of 10 none trials pass across both efforts. One trial is too few to separate a small effect from none.",
+    "Mean duration in seconds, none then rule. Medium: fx3 209 and 251, fx4b 486 and 401. High: fx3 220 and 288, fx4b 676 and 596.",
+    "The agy cells of this matrix are not recorded. 27 of 40 agy trials ended in status ERROR: 16 with a server 503 \"no capacity\" and 11 at the 890 s print timeout. They were quarantined, which left too few usable trials (deviation 9).",
+    "Cursor was run with a Cursor team account that the user approved for these evals. Each trial used a fake HOME that held only a link to the login keychain, so no personal rule, skill or MCP configuration reached the trial. Cursor adds its own built-in rules and skills to every trial in both arms.",
+    "deviations.md is stored as the run wrote it, with all nine items. Items 1 to 7 and 9 concern the claude, codex and agy cells of the matrix. Item 8 is the cursor harness."
+  ]
+}
