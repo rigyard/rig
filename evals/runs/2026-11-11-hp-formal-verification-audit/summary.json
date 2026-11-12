@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-hp-formal-verification-audit",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "H-A: does pstack /create-formal-verification-skill help find implicit-state-machine bugs?",
+  "question": "On one fixture with five planted state-machine bugs, does the told arm (skill, prompt starts with /create-formal-verification-skill) find more of them than the none arm?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "6a213270e6f7e579943cda7a7f7713914028b7fdf1f854ed1d5b83751105f80a",
+    "stored_sha256": "6a213270e6f7e579943cda7a7f7713914028b7fdf1f854ed1d5b83751105f80a",
+    "redactions": [],
+    "amendments": [
+      {
+        "file": "prereg-amendment-1.md",
+        "original_sha256": "b35f03b369d13c972ec004c1db3e26f41cfbc53f16461c6e03df8d7eb0c3b02e",
+        "stored_sha256": "b35f03b369d13c972ec004c1db3e26f41cfbc53f16461c6e03df8d7eb0c3b02e",
+        "redactions": []
+      }
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 2,
+  "usable_trials": 16,
+  "verdict": {
+    "label": "no-claim",
+    "text": "DECISION: H-A NOT SUPPORTED: no detected difference at this n"
+  },
+  "notes": [
+    "n = 8 per arm, Sonnet, 40 turns. A bug counts as found only with the right location and a confirmed replayable repro.",
+    "The outcome is bugs found, not pass or fail. k counts trials that found all five bugs (told 1 of 8, none 1 of 8). mean_score is the mean number of bugs found, with score_max 5 (told 3.75, none 4.00).",
+    "prereg-amendment-1.md changed the permission setup before any trial. Under it, writes below .claude were denied.",
+    "The told arm never produced a TLA+ model, a TLC run or the skill's own deliverable.",
+    "One fixture and one model. The none arm is near ceiling (mean 4.0 of 5)."
+  ]
+}

@@ -1,0 +1,38 @@
+hypothesis H-A: 16 usable trials, 0 missing
+
+exposure (told arm): exposedFinal = skillCall OR skillRead OR markerSeen OR first-turn token excess >= 703 over the none median (18361)
+  told: exposedFinal 8/8 | initHasSkill 8 | skillCall 0 | skillRead 1 | marker 0 | tokens 8
+  none contamination: exposedFinal or skill in init 0/8
+DELIVERY GATE: passed
+USABLE-TRIAL RULE (>= 6 per arm): met
+
+H-A primary: planted bugs found (0-5), a finding counts only with the right location and a confirmed repro
+  told: mean 3.75 | dist 0..5 = 0/0/0/3/4/1
+  none: mean 4.00 | dist 0..5 = 0/0/0/1/6/1
+  per bug  told: B1 5/8 B2 8/8 B3 3/8 B4 8/8 B5 6/8
+  per bug  none: B1 4/8 B2 8/8 B3 6/8 B4 8/8 B5 6/8
+  mean bugs found, told minus none: -0.250 CI [-0.750, +0.375] (percentile bootstrap B=10000, seed 20261111)
+
+secondary (no decision weight)
+  unproven findings: told 0.50 | none 0.88 | diff -0.375 CI [-1.125, +0.375]
+  decoy-located findings: told 0.00 | none 0.00 | diff +0.000 CI [+0.000, +0.000]
+  total findings: told 4.25 | none 5.00 | diff -0.750 CI [-1.625, +0.000]
+  lenient tags (repro fires a planted tag, any location): told 3.75 | none 4.25 | diff -0.500 CI [-1.000, +0.000]
+  cost per true finding, told: $0.08 (sum cost / sum bugs; CI [0.06, 0.10], resamples with 0 bugs are dropped) | mean cost per trial $0.29
+  cost per true finding, none: $0.05 (sum cost / sum bugs; CI [0.04, 0.05], resamples with 0 bugs are dropped) | mean cost per trial $0.19
+
+descriptive (no claims)
+  told: error_max_turns 0/8 | error_max_budget_usd 0/8 | timedOut 0/8 | wrote findings 8/8 | src changed 0/8 | generated .claude files 0/8 | TLA+ files 0/8 | java 1/8 | curl 0/8 | mean turns 19.13 | mean min 1.79
+  none: error_max_turns 0/8 | error_max_budget_usd 0/8 | timedOut 0/8 | wrote findings 8/8 | src changed 0/8 | generated .claude files 0/8 | TLA+ files 0/8 | java 0/8 | curl 0/8 | mean turns 17.38 | mean min 1.02
+  per-protocol (exposed told only): -0.250 CI [-0.750, +0.375], told n=8
+  runs that finished inside the limits: told n=8 mean 3.75 | none n=8 mean 4.00 (selected sample, descriptive)
+
+hygiene
+  told: leakedGrader 0/8 | homeClaudeTouched 0/8 | other trial dirs seen 0/8 | permission denials mean 4.25 | gradeError 0/8 | retried 0/8
+  none: leakedGrader 0/8 | homeClaudeTouched 0/8 | other trial dirs seen 0/8 | permission denials mean 3.75 | gradeError 0/8 | retried 0/8
+  models: claude-sonnet-5-5 | permissionModes: acceptEdits | apiKeySource: none
+  trials with leakedGrader or other-dir access (read by hand; rule in the prereg): none
+  none trials that touched the home .claude folder: none
+
+DECISION (rule written before data: supported if the CI lower bound of the mean-bugs difference is above 0)
+DECISION: H-A NOT SUPPORTED: no detected difference at this n

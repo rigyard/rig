@@ -10,7 +10,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
 import {
-  historyGitProblem, isAppendOnly, parseHistory, scanPrivacy, usableTrialsProblem, validateLine, validateSummary, type Cell, type Judge,
+  cellsWithMetrics, historyGitProblem, isAppendOnly, METRIC_FIELDS, parseHistory, scanPrivacy, usableTrialsProblem, validateLine, validateSummary,
+  type Cell, type Judge, type Metrics,
 } from "../scripts/evals-history.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -27,6 +28,16 @@ const sampleJudge: Judge = {
   schema: 1, kind: "judge", run: "2026-11-01-sample-judge", date: "2026-11-01", judge_set: "set", model: "pico", subset: "all", n: 48, pairs: 24,
   auc: 0.85, auc_ci95: [0.74, 0.94], pair_acc: 0.79, cases_sha256: SHA,
 };
+
+const sampleMetricValues = {
+  total_cost_usd: 2.4, mean_duration_s: 41.5, median_duration_s: 39.2, mean_input_tokens: 12.5, mean_output_tokens: 3100.2,
+  mean_cache_read_tokens: 150000.4, mean_cache_write_tokens: 9000,
+};
+const sampleMetrics: Metrics = {
+  schema: 1, kind: "metrics", run: sampleCell.run, unit: sampleCell.unit, arm: sampleCell.arm, harness: sampleCell.harness, model: sampleCell.model,
+  effort: sampleCell.effort, fixture: sampleCell.fixture, ...sampleMetricValues,
+};
+const jsonl = (...lines: unknown[]): string => `${lines.map((l) => JSON.stringify(l)).join("\n")}\n`;
 
 const files = (dir: string): string[] =>
   readdirSync(dir, { recursive: true, encoding: "utf8" })
@@ -93,18 +104,99 @@ describe("history.jsonl schema", () => {
       [{ ...sampleCell, schema: 2 }, /bad value for schema/],
       [{ ...sampleJudge, auc_ci95: [0.9, 0.7] }, /bad value for auc_ci95/],
       [{ ...sampleJudge, pairs: 5 }, /pairs must be n \/ 2/],
-      [{ kind: "other" }, /kind must be cell or judge/],
-      ["text", /kind must be cell or judge/],
+      [{ kind: "other" }, /kind must be cell, judge or metrics/],
+      ["text", /kind must be cell, judge or metrics/],
     ];
     for (const [value, expected] of bad) assert.match(validateLine(value).join("; "), expected);
     const { harness, ...withoutHarness } = sampleCell;
     assert.match(validateLine(withoutHarness).join("; "), /missing field harness/);
   });
 
+  test("a cell may carry the time and token fields inline, all or none, and null means the harness did not report them", () => {
+    assert.deepEqual(validateLine({ ...sampleCell, ...sampleMetricValues }), []);
+    const unreported = Object.fromEntries(METRIC_FIELDS.map((f) => [f, null]));
+    assert.deepEqual(validateLine({ ...sampleCell, ...unreported }), []);
+    const { mean_duration_s, ...partial } = { ...sampleCell, ...sampleMetricValues };
+    assert.match(validateLine(partial).join("; "), /metric fields come together: missing mean_duration_s/);
+    assert.match(validateLine({ ...sampleCell, ...sampleMetricValues, mean_output_tokens: -1 }).join("; "), /bad value for mean_output_tokens/);
+    assert.match(validateLine({ ...sampleCell, ...sampleMetricValues, total_cost_usd: "1" }).join("; "), /bad value for total_cost_usd/);
+  });
+
+  test("a cell whose outcome is a score carries mean_score and score_max together", () => {
+    assert.deepEqual(validateLine({ ...sampleCell, mean_score: 3.75, score_max: 5 }), []);
+    assert.match(validateLine({ ...sampleCell, mean_score: 3.75 }).join("; "), /mean_score and score_max come together/);
+    assert.match(validateLine({ ...sampleCell, score_max: 5 }).join("; "), /mean_score and score_max come together/);
+    assert.match(validateLine({ ...sampleCell, mean_score: 6, score_max: 5 }).join("; "), /mean_score is larger than score_max/);
+    assert.match(validateLine({ ...sampleCell, mean_score: -1, score_max: 5 }).join("; "), /bad value for mean_score/);
+    assert.match(validateLine({ ...sampleCell, mean_score: 1, score_max: 0 }).join("; "), /bad value for score_max/);
+  });
+
+  test("a metrics line names the full cell key and carries every metric field", () => {
+    assert.deepEqual(validateLine(sampleMetrics), []);
+    const { fixture, ...withoutFixture } = sampleMetrics;
+    assert.match(validateLine(withoutFixture).join("; "), /missing field fixture/);
+    assert.match(validateLine({ ...sampleMetrics, k: 1 }).join("; "), /unknown field k/);
+    assert.match(validateLine({ ...sampleMetrics, mean_turns: 1 }).join("; "), /unknown field mean_turns/);
+    assert.match(validateLine({ ...sampleMetrics, date: "2026-11-01" }).join("; "), /unknown field date/);
+    assert.match(validateLine({ ...sampleMetrics, note: "x" }).join("; "), /unknown field note/);
+    const { total_cost_usd, ...noTotal } = sampleMetrics;
+    assert.match(validateLine(noTotal).join("; "), /missing field total_cost_usd/);
+    assert.match(validateLine({ ...sampleMetrics, run: "x" }).join("; "), /bad value for run/);
+    assert.deepEqual(validateLine({ ...sampleMetrics, mean_input_tokens: null }), []);
+  });
+
+  test("a metrics line backfills an earlier cell line and joins it", () => {
+    const lines = parseHistory(jsonl(sampleCell, sampleMetrics));
+    assert.equal(lines.length, 2);
+    const [merged] = cellsWithMetrics(lines);
+    assert.equal(merged!.k, 4);
+    for (const [field, value] of Object.entries(sampleMetricValues)) assert.equal(merged![field as keyof typeof sampleMetricValues], value, field);
+    assert.equal(lines[0]!.kind === "cell" && lines[0].mean_duration_s, undefined, "joining does not mutate the cell line");
+  });
+
+  test("a metrics line is rejected without an earlier cell, for a second line of the same cell, or for a cell that carries the fields inline", () => {
+    assert.throws(() => parseHistory(jsonl(sampleMetrics)), /history line 1: metrics line has no earlier cell line/);
+    assert.throws(() => parseHistory(jsonl(sampleMetrics, sampleCell)), /history line 1: metrics line has no earlier cell line/);
+    assert.throws(() => parseHistory(jsonl(sampleCell, { ...sampleMetrics, arm: "none" })), /history line 2: metrics line has no earlier cell line/);
+    assert.throws(() => parseHistory(jsonl(sampleCell, sampleMetrics, sampleMetrics)), /history line 3: duplicate/);
+    assert.throws(() => parseHistory(jsonl({ ...sampleCell, ...sampleMetricValues }, sampleMetrics)), /history line 2: cell already carries the metric fields inline/);
+  });
+
+  test("cells that no metrics line touches pass through unchanged", () => {
+    const inline = { ...sampleCell, arm: "none", ...sampleMetricValues };
+    const lines = parseHistory(jsonl(sampleCell, inline, sampleMetrics));
+    const merged = cellsWithMetrics(lines);
+    assert.equal(merged.length, 2);
+    assert.deepEqual(merged[1], inline);
+  });
+
   test("parseHistory names the line of a bad or duplicate entry", () => {
     const one = JSON.stringify(sampleCell);
     assert.throws(() => parseHistory(`${one}\nnot json\n`), /history line 2: not valid JSON/);
     assert.throws(() => parseHistory(`${one}\n${one}\n`), /history line 2: duplicate/);
+  });
+});
+
+describe("summary.json schema", () => {
+  const sha = "a".repeat(64);
+  const summary = {
+    schema: 1, run: "2026-11-01-sample", date: "2026-11-01", kind: "experiment", title: "t", question: "q",
+    prereg: { file: "prereg.md", original_sha256: sha, stored_sha256: sha, redactions: [] },
+    analysis: { file: "analysis.txt", origin: "analyzer" }, lines: 1, usable_trials: 8, verdict: { label: "no-claim", text: "v" }, notes: [],
+  };
+  const amendment = { file: "prereg-amendment-1.md", original_sha256: sha, stored_sha256: sha, redactions: [] };
+
+  test("accepts a preregistration with amendments and an analysis with redactions", () => {
+    assert.deepEqual(validateSummary(summary), []);
+    assert.deepEqual(validateSummary({ ...summary, prereg: { ...summary.prereg, amendments: [amendment] } }), []);
+    assert.deepEqual(validateSummary({ ...summary, analysis: { ...summary.analysis, redactions: ["a path replaced by <home>"] } }), []);
+  });
+
+  test("rejects an empty or misnamed amendment list and an empty redaction list", () => {
+    assert.match(validateSummary({ ...summary, prereg: { ...summary.prereg, amendments: [] } }).join("; "), /bad value for prereg/);
+    assert.match(validateSummary({ ...summary, prereg: { ...summary.prereg, amendments: [{ ...amendment, file: "other.md" }] } }).join("; "), /bad value for prereg/);
+    assert.match(validateSummary({ ...summary, prereg: { ...summary.prereg, amendments: [{ ...amendment, extra: 1 }] } }).join("; "), /bad value for prereg/);
+    assert.match(validateSummary({ ...summary, analysis: { ...summary.analysis, redactions: [] } }).join("; "), /bad value for analysis/);
   });
 });
 
@@ -123,12 +215,17 @@ describe("run directories", () => {
       const summary = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
       assert.deepEqual(validateSummary(summary), []);
       assert.equal(summary.run, run);
-      const own = lines.filter((l) => l.run === run);
-      assert.equal(summary.lines, own.length);
+      const own = lines.filter((l): l is Cell | Judge => l.run === run && l.kind !== "metrics");
+      assert.equal(summary.lines, own.length, "lines counts cell and judge lines, not metrics lines");
       assert.equal(usableTrialsProblem(summary, own), null);
       assert.ok(own.every((l) => l.date === summary.date));
       assert.equal(summary.kind, own[0]!.kind === "cell" ? "experiment" : "judge");
       assert.ok(existsSync(join(dir, summary.analysis.file)));
+      for (const amendment of summary.prereg?.amendments ?? []) {
+        const stored = createHash("sha256").update(readFileSync(join(dir, amendment.file))).digest("hex");
+        assert.equal(stored, amendment.stored_sha256);
+        assert.equal(amendment.original_sha256 === amendment.stored_sha256, amendment.redactions.length === 0);
+      }
       if (summary.prereg === null) assert.equal(existsSync(join(dir, "prereg.md")), false);
       else {
         const stored = createHash("sha256").update(readFileSync(join(dir, "prereg.md"))).digest("hex");
@@ -137,6 +234,37 @@ describe("run directories", () => {
       }
     });
   }
+});
+
+describe("time and token metrics in the committed history", () => {
+  const lines = parseHistory(readFileSync(HISTORY, "utf8"));
+  const BACKFILLED_RUNS = [
+    "2026-11-10-pilot-fx4b",
+    "2026-11-10-rule-bug-fix-callers",
+    "2026-11-10-hg-gstack-investigate",
+    "2026-11-10-hp-pstack-formal-verification",
+  ];
+
+  test("every cell has time and token metrics, inline or through a metrics line", () => {
+    const cells = cellsWithMetrics(lines);
+    assert.ok(cells.length > 0);
+    for (const c of cells) for (const field of METRIC_FIELDS) assert.notEqual(c[field], undefined, `${c.run} ${c.unit} ${c.arm} ${c.fixture}: ${field}`);
+  });
+
+  test("metrics lines backfill only the runs committed before the fields existed, one per cell of those runs", () => {
+    const metrics = lines.filter((l): l is Metrics => l.kind === "metrics");
+    assert.deepEqual([...new Set(metrics.map((m) => m.run))].sort(), [...BACKFILLED_RUNS].sort());
+    const legacyCells = lines.filter((l) => l.kind === "cell" && BACKFILLED_RUNS.includes(l.run));
+    assert.equal(metrics.length, legacyCells.length);
+  });
+
+  test("a cell of every other run carries the metric fields inline", () => {
+    for (const l of lines) if (l.kind === "cell" && !BACKFILLED_RUNS.includes(l.run)) for (const field of METRIC_FIELDS) assert.notEqual(l[field], undefined, `${l.run}: ${field}`);
+  });
+
+  test("total_cost_usd equals n times mean_cost_usd, up to the rounding of the mean", () => {
+    for (const c of cellsWithMetrics(lines)) assert.ok(Math.abs(c.total_cost_usd! - c.mean_cost_usd * c.n) <= 0.000001 * c.n, `${c.run} ${c.arm} ${c.fixture}`);
+  });
 });
 
 describe("usable_trials", () => {

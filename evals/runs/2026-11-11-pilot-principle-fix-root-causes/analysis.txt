@@ -1,0 +1,48 @@
+trials: 40 usable, 0 missing
+
+k/n pass (primary grader)
+fx4b: with 3/10 | without 4/10
+fx3: with 8/10 | without 7/10
+pooled: with 11/20 | without 11/20
+
+with minus without  (stratified bootstrap B=10000, seed=20261111; 95% percentile CI)
+  pooled: +0.000  CI [-0.300, +0.300]
+  fx4b: -0.100  CI [-0.500, +0.300]  Fisher two-sided p=1.0000
+  fx3: +0.100  CI [-0.300, +0.500]  Fisher two-sided p=1.0000
+
+exposure and mask integrity
+  with trials that read pstack/principle-fix-root-causes/SKILL.md (any path, tool result ok): 1/20 = 5%  (in work dir: 1, in real home: 0)
+  without trials that read it (mask leak): 0/20; that named it in any tool call: 0
+  opened hub.md: with 13/20, without 16/20; opened bug-fix playbook: with 4, without 6
+
+DECISION for pstack/principle-fix-root-causes: untested  (exposure 5% < 90%: the with arm mostly never opened the unit; underpowered: CI [-0.300, +0.300] not inside +-0.25)
+
+evidence.json row (ledger format of the concept doc):
+{
+  "pstack/principle-fix-root-causes": {
+    "status": "untested"
+  }
+}
+  (an untested row needs no source; keep the reasons above in the report)
+
+sensitivity (descriptive, no claim)
+  drop leaked without trials: pooled +0.000 CI [-0.300, +0.300] (n with 20, without 20)
+  per protocol (with trials that read the unit only): pooled +0.450 CI [+0.250, +0.650] (n with 1, without 20)
+  exposed with trials: 1/1  unexposed with trials: 10/19
+  secondary grader on fx4b (5 tests): with 1/10, without 0/10
+
+cost per pass ($ total / passes), usable trials; medians of turns and seconds
+  pooled: with $0.291 ($3.20/11, turns 15, 35s) | without $0.302 ($3.33/11, turns 16, 37s) | ratio with/without 0.96
+  fx4b: with $0.604 ($1.81/3, turns 15, 41s) | without $0.490 ($1.96/4, turns 18, 41s) | ratio with/without 1.23
+  fx3: with $0.174 ($1.39/8, turns 15, 32s) | without $0.195 ($1.37/7, turns 14, 30s) | ratio with/without 0.89
+
+hygiene
+  grader or scratch paths seen in transcript: 0
+  sibling work dirs seen: 0
+  any tool call touching the real home .claude: 2 3-without-8,4b-with-9
+  hub.md never opened (the prompt may not have reached the mode skill): 11 3-with-2,3-with-3,3-with-8,3-with-9,3-without-2,3-without-4,3-without-6,4b-with-10,4b-with-6,4b-with-7,4b-without-3
+  timed out: 0
+  hit max turns: 0
+  hook events present: 0
+  models in init: ["claude-sonnet-5-5"]; apiKeySource: ["none"]
+  init skills (minus the unit) identical across all trials and arms: true

@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-pilot-principle-fix-root-causes",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "Pilot: does the pstack principle fix-root-causes change Sonnet's pass rate on bug-fix tasks?",
+  "question": "Does one pstack principle, delivered through the compiled craft mode skill, change the pass rate of Sonnet on two bug-fix tasks graded by hidden tests?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "47e523aab9877ced8e837e264eee949c8ab34abed6740549a09d80c96d778caa",
+    "stored_sha256": "47e523aab9877ced8e837e264eee949c8ab34abed6740549a09d80c96d778caa",
+    "redactions": []
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 4,
+  "usable_trials": 40,
+  "verdict": {
+    "label": "no-claim",
+    "text": "DECISION for pstack/principle-fix-root-causes: untested  (exposure 5% < 90%: the with arm mostly never opened the unit; underpowered: CI [-0.300, +0.300] not inside +-0.25)"
+  },
+  "notes": [
+    "n = 10 per arm per fixture, Sonnet at default effort, delivered through /craft, at most 2 concurrent runs. The with arm has the unit installed, the none arm has it disabled.",
+    "The with arm read the unit in 1 of 20 trials, so the run measures the unit on offer, not its content.",
+    "fixture_sha256 is the value that earlier runs of the same fixtures use. The pilot's own manifests list the same file hashes in a different sort order, so their hashes differ.",
+    "The pilot's primary grader is the same file as in the 2026-11-10 runs (grader_sha256 is equal)."
+  ]
+}

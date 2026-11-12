@@ -1,0 +1,70 @@
+fixture set: 4b,3
+trials: 72 usable, 0 missing
+
+=== model opus ===
+k/n pass (primary grader)
+  fx3: vanilla 6/6 | rig 6/6 | rig-told 6/6
+  fx4b: vanilla 5/6 | rig 1/6 | rig-told 0/6
+  pooled: vanilla 11/12 | rig 7/12 | rig-told 6/12
+PRIMARY rig minus vanilla: pooled -0.333 CI [-0.500, -0.083]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: -0.667 Fisher p=0.0801
+secondary rig-told minus rig: pooled -0.083 CI [-0.250, +0.000]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: -0.167 Fisher p=1.0000
+secondary rig-told minus vanilla: pooled -0.417 CI [-0.500, -0.250]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: -0.833 Fisher p=0.0152
+leak trials: 7 of 36
+sensitivity (leak trials dropped) rig minus vanilla: pooled -0.333 CI [-0.500, -0.083]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: -0.667 Fisher p=0.0801
+DECISION opus: ceiling (vanilla pooled 0.92 >= 0.9): uninformative, no claim
+cost per pass ($ total / passes), usable trials
+  vanilla: $0.257 (mean cost $0.236, median turns 13.5, median wall 45s)
+  rig: $0.401 (mean cost $0.234, median turns 11.5, median wall 41s)
+  rig-told: $0.888 (mean cost $0.444, median turns 22.5, median wall 62s)
+  ratio rig/vanilla 1.56, rig-told/vanilla 3.45
+exposure (first-turn input tokens vs vanilla median of the same fixture)
+  fx3: vanilla dirty 0/6; rig loaded 6/6; rig-told loaded 6/6
+  fx4b: vanilla dirty 0/6; rig loaded 6/6; rig-told loaded 6/6
+  rig: hub opened 0/12, playbook 0/12, spawned a subagent 0/12, poteto-agent 0/12
+  rig-told: hub opened 12/12, playbook 11/12, spawned a subagent 1/12, poteto-agent 0/12
+  vanilla: init skills 19, agents with poteto-agent 0, craft opened 0
+  hygiene: infra-retried 0, error results 0, non-success 0, timed out 0, grader leak 0, other dirs 0
+
+=== model sonnet ===
+k/n pass (primary grader)
+  fx3: vanilla 0/6 | rig 6/6 | rig-told 6/6
+  fx4b: vanilla 0/6 | rig 0/6 | rig-told 2/6
+  pooled: vanilla 0/12 | rig 6/12 | rig-told 8/12
+PRIMARY rig minus vanilla: pooled +0.500 CI [+0.500, +0.500]
+  fx3: +1.000 Fisher p=0.0022
+  fx4b: +0.000 Fisher p=1.0000
+secondary rig-told minus rig: pooled +0.167 CI [+0.000, +0.333]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: +0.333 Fisher p=0.4545
+secondary rig-told minus vanilla: pooled +0.667 CI [+0.500, +0.833]
+  fx3: +1.000 Fisher p=0.0022
+  fx4b: +0.333 Fisher p=0.4545
+leak trials: 1 of 36
+sensitivity (leak trials dropped) rig minus vanilla: pooled +0.500 CI [+0.500, +0.500]
+  fx3: +1.000 Fisher p=0.0022
+  fx4b: +0.000 Fisher p=1.0000
+DECISION sonnet: rig helps
+cost per pass ($ total / passes), usable trials
+  vanilla: $NaN (mean cost $0.061, median turns 8, median wall 18s)
+  rig: $0.219 (mean cost $0.110, median turns 14, median wall 27s)
+  rig-told: $0.271 (mean cost $0.181, median turns 17.5, median wall 35s)
+  ratio rig/vanilla NaN, rig-told/vanilla NaN
+exposure (first-turn input tokens vs vanilla median of the same fixture)
+  fx3: vanilla dirty 0/6; rig loaded 6/6; rig-told loaded 6/6
+  fx4b: vanilla dirty 0/6; rig loaded 6/6; rig-told loaded 6/6
+  rig: hub opened 0/12, playbook 0/12, spawned a subagent 0/12, poteto-agent 0/12
+  rig-told: hub opened 9/12, playbook 3/12, spawned a subagent 0/12, poteto-agent 0/12
+  vanilla: init skills 19, agents with poteto-agent 0, craft opened 0
+  hygiene: infra-retried 0, error results 0, non-success 0, timed out 0, grader leak 0, other dirs 0
+
+SUMMARY
+  opus: ceiling (vanilla pooled 0.92 >= 0.9): uninformative, no claim
+  sonnet: rig helps

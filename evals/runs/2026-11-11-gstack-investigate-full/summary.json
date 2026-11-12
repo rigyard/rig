@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-gstack-investigate-full",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "H-G full: does the shipped gstack /investigate skill help Opus on bug-fix tasks?",
+  "question": "With the full shipped skill in place of the stripped copy of the 2026-11-10 H-G run, does the told arm pass more often than the none arm on the same two fixtures?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "8f3e8617083cbb0ea47fe68f2646817291198db9bd4018535190f00caaa57e90",
+    "stored_sha256": "0a3724f0566f68614216e2a9d42977c162c653fc2c21dca3b8dac6c3ca23a30f",
+    "redactions": [
+      "home-relative path of the gstack state folder replaced by <home>/.gstack",
+      "home-relative path of the Claude config file replaced by <home>/.claude.json"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer",
+    "redactions": [
+      "home-relative path of the gstack state folder replaced by <home>/.gstack"
+    ]
+  },
+  "lines": 4,
+  "usable_trials": 31,
+  "verdict": {
+    "label": "hypothesis-supported",
+    "text": "DECISION: H-G SUPPORTED (not contradicted at n=8; ceiling in fx3). This is absence of a detected benefit, not evidence of zero effect."
+  },
+  "notes": [
+    "n = 8 per arm per fixture, Opus, 30 turns. 31 usable trials of 32. The trial fx3-told-8 is missing: the usage limit ended the run cap.",
+    "The told-full arm is a different treatment from the told arm of 2026-11-10-hg-gstack-investigate, which used a stripped copy. The two are separate groups. The none arm is a same-day rerun of that run's none arm and shares its group.",
+    "Descriptive comparison from the analyzer: told-full 9/15 against stripped told 8/16 pooled. Fresh none 14/16 against earlier none 13/16.",
+    "The told arm costs about 1.9 times the none arm per trial (0.516 against 0.275 USD)."
+  ]
+}

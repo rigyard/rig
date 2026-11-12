@@ -5,7 +5,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type Cell = {
+/** Time, token and cost fields of a cell. Seconds, tokens and USD. null means the harness did not report the value. */
+export const METRIC_FIELDS = [
+  "total_cost_usd", "mean_duration_s", "median_duration_s", "mean_input_tokens", "mean_output_tokens", "mean_cache_read_tokens", "mean_cache_write_tokens",
+] as const;
+export type MetricField = (typeof METRIC_FIELDS)[number];
+export type MetricValues = Record<MetricField, number | null>;
+
+export type Cell = Partial<MetricValues> & {
   schema: 1;
   kind: "cell";
   run: string;
@@ -24,7 +31,22 @@ export type Cell = {
   n: number;
   mean_cost_usd: number;
   mean_turns: number;
+  mean_score?: number;
+  score_max?: number;
   note?: string;
+};
+
+/** Backfills the metric fields of an earlier cell line. It names the run and the cell key, and carries only the metric fields. */
+export type Metrics = MetricValues & {
+  schema: 1;
+  kind: "metrics";
+  run: string;
+  unit: string;
+  arm: string;
+  harness: string;
+  model: string;
+  effort: string;
+  fixture: string;
 };
 
 export type Judge = {
@@ -44,7 +66,7 @@ export type Judge = {
   note?: string;
 };
 
-export type Line = Cell | Judge;
+export type Line = Cell | Judge | Metrics;
 
 export type Summary = {
   schema: 1;
@@ -53,8 +75,14 @@ export type Summary = {
   kind: "experiment" | "judge";
   title: string;
   question: string;
-  prereg: { file: string; original_sha256: string; stored_sha256: string; redactions: string[] } | null;
-  analysis: { file: string; origin: "analyzer" | "backfill" };
+  prereg: {
+    file: string;
+    original_sha256: string;
+    stored_sha256: string;
+    redactions: string[];
+    amendments?: { file: string; original_sha256: string; stored_sha256: string; redactions: string[] }[];
+  } | null;
+  analysis: { file: string; origin: "analyzer" | "backfill"; redactions?: string[] };
   lines: number;
   usable_trials: number | null;
   verdict: { label: string; text: string };
@@ -82,6 +110,9 @@ const isDate: Check = (v) => {
 };
 const interval: Check = (v) => Array.isArray(v) && v.length === 2 && real(0, 1)(v[0]) && real(0, 1)(v[1]) && v[0] <= v[1];
 
+const metric: Check = orNull(real(0, 1e9));
+const METRIC_CHECKS = Object.fromEntries(METRIC_FIELDS.map((field) => [field, metric])) as Record<MetricField, Check>;
+
 const COMMON = { schema: (v: unknown) => v === 1, run: match(RUN), date: isDate };
 const CELL: Record<keyof Cell, Check> = {
   ...COMMON,
@@ -100,7 +131,22 @@ const CELL: Record<keyof Cell, Check> = {
   n: count(1),
   mean_cost_usd: real(0, 1000),
   mean_turns: real(0, 100000),
+  mean_score: real(0, 1e6),
+  score_max: count(1),
+  ...METRIC_CHECKS,
   note: text,
+};
+const METRICS: Record<keyof Metrics, Check> = {
+  schema: COMMON.schema,
+  run: COMMON.run,
+  kind: (v) => v === "metrics",
+  unit: match(UNIT),
+  arm: match(WORD),
+  harness: match(WORD),
+  model: match(WORD),
+  effort: match(WORD),
+  fixture: match(WORD),
+  ...METRIC_CHECKS,
 };
 const JUDGE: Record<keyof Judge, Check> = {
   ...COMMON,
@@ -117,14 +163,16 @@ const JUDGE: Record<keyof Judge, Check> = {
   note: text,
 };
 const OPTIONAL = new Set(["note"]);
+const CELL_OPTIONAL = new Set(["note", "mean_score", "score_max", ...METRIC_FIELDS]);
+const NONE = new Set<string>();
 
-function checkFields(value: unknown, spec: Record<string, Check>): string[] {
+function checkFields(value: unknown, spec: Record<string, Check>, optional: Set<string> = OPTIONAL): string[] {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return ["not a JSON object"];
   const record = value as Record<string, unknown>;
   const errors: string[] = [];
   for (const [field, check] of Object.entries(spec)) {
     if (!(field in record)) {
-      if (!OPTIONAL.has(field)) errors.push(`missing field ${field}`);
+      if (!optional.has(field)) errors.push(`missing field ${field}`);
     } else if (!check(record[field])) errors.push(`bad value for ${field}`);
   }
   for (const field of Object.keys(record)) if (!(field in spec)) errors.push(`unknown field ${field}`);
@@ -134,15 +182,28 @@ function checkFields(value: unknown, spec: Record<string, Check>): string[] {
 /** Problems with one parsed history line. An empty list means the line is valid. */
 export function validateLine(value: unknown): string[] {
   const kind = typeof value === "object" && value !== null ? (value as { kind?: unknown }).kind : undefined;
-  if (kind !== "cell" && kind !== "judge") return ["kind must be cell or judge"];
-  const errors = checkFields(value, kind === "cell" ? CELL : JUDGE);
+  if (kind !== "cell" && kind !== "judge" && kind !== "metrics") return ["kind must be cell, judge or metrics"];
+  const errors = checkFields(value, kind === "cell" ? CELL : kind === "judge" ? JUDGE : METRICS, kind === "cell" ? CELL_OPTIONAL : kind === "judge" ? OPTIONAL : NONE);
   if (errors.length) return errors;
   const line = value as Line;
-  if (!line.run.startsWith(`${line.date}-`)) errors.push("run must start with the date");
-  if (line.kind === "cell" && line.k > line.n) errors.push("k is larger than n");
+  if (line.kind !== "metrics" && !line.run.startsWith(`${line.date}-`)) errors.push("run must start with the date");
+  if (line.kind === "cell") {
+    if (line.k > line.n) errors.push("k is larger than n");
+    const missing = METRIC_FIELDS.filter((field) => !(field in line));
+    if (missing.length > 0 && missing.length < METRIC_FIELDS.length) errors.push(`metric fields come together: missing ${missing.join(", ")}`);
+    if (("mean_score" in line) !== ("score_max" in line)) errors.push("mean_score and score_max come together");
+    else if (line.mean_score !== undefined && line.score_max !== undefined && line.mean_score > line.score_max) errors.push("mean_score is larger than score_max");
+  }
   if (line.kind === "judge" && line.pairs !== null && line.pairs * 2 !== line.n) errors.push("pairs must be n / 2");
   return errors;
 }
+
+const PREREG_FILE = { original_sha256: match(SHA), stored_sha256: match(SHA), redactions: (r: unknown) => Array.isArray(r) && r.every(text) };
+const PREREG: Record<string, Check> = {
+  file: match(/^prereg\.md$/),
+  ...PREREG_FILE,
+  amendments: (a) => Array.isArray(a) && a.length > 0 && a.every((x) => checkFields(x, { file: match(/^prereg-amendment-\d+\.md$/), ...PREREG_FILE }).length === 0),
+};
 
 const SUMMARY: Record<keyof Summary, Check> = {
   schema: COMMON.schema,
@@ -151,9 +212,9 @@ const SUMMARY: Record<keyof Summary, Check> = {
   kind: (v) => v === "experiment" || v === "judge",
   title: text,
   question: text,
-  prereg: orNull((v) =>
-    checkFields(v, { file: match(/^prereg\.md$/), original_sha256: match(SHA), stored_sha256: match(SHA), redactions: (r) => Array.isArray(r) && r.every(text) }).length === 0),
-  analysis: (v) => checkFields(v, { file: match(/^analysis\.txt$/), origin: (o) => o === "analyzer" || o === "backfill" }).length === 0,
+  prereg: orNull((v) => checkFields(v, PREREG, new Set(["amendments"])).length === 0),
+  analysis: (v) =>
+    checkFields(v, { file: match(/^analysis\.txt$/), origin: (o) => o === "analyzer" || o === "backfill", redactions: (r) => Array.isArray(r) && r.length > 0 && r.every(text) }, new Set(["redactions"])).length === 0,
   lines: count(1),
   usable_trials: orNull(count(1)),
   verdict: (v) => checkFields(v, { label: (l) => VERDICT_LABELS.includes(l as string), text }).length === 0,
@@ -168,19 +229,25 @@ export function validateSummary(value: unknown): string[] {
   return errors;
 }
 
+/** The identity of the cell that a cell line or a metrics line names. */
+export function cellKey(line: Cell | Metrics): string {
+  return ["cell", line.run, line.unit, line.arm, line.harness, line.model, line.effort, line.fixture].join("|");
+}
+
 /** The identity of one history line. Two lines with the same key are a duplicate. */
 export function lineKey(line: Line): string {
-  const parts =
-    line.kind === "cell"
-      ? [line.unit, line.arm, line.harness, line.model, line.effort, line.fixture]
-      : [line.judge_set, line.model, line.subset];
-  return [line.kind, line.run, ...parts].join("|");
+  if (line.kind === "cell") return cellKey(line);
+  if (line.kind === "metrics") return `metrics|${cellKey(line).slice("cell|".length)}`;
+  return [line.kind, line.run, line.judge_set, line.model, line.subset].join("|");
 }
+
+const hasMetrics = (cell: Cell): boolean => METRIC_FIELDS.some((field) => field in cell);
 
 /** Parse history.jsonl. Throws with the line number of the first line that is not valid JSON or fails the schema. */
 export function parseHistory(content: string): Line[] {
   const lines: Line[] = [];
   const seen = new Set<string>();
+  const cells = new Map<string, Cell>();
   content.split("\n").forEach((raw, index) => {
     if (raw === "") return;
     const where = `history line ${index + 1}`;
@@ -196,9 +263,26 @@ export function parseHistory(content: string): Line[] {
     const key = lineKey(line);
     if (seen.has(key)) throw new Error(`${where}: duplicate of an earlier line (${key})`);
     seen.add(key);
+    if (line.kind === "cell") cells.set(key, line);
+    if (line.kind === "metrics") {
+      const target = cells.get(cellKey(line));
+      if (!target) throw new Error(`${where}: metrics line has no earlier cell line (${cellKey(line)})`);
+      if (hasMetrics(target)) throw new Error(`${where}: cell already carries the metric fields inline (${cellKey(line)})`);
+    }
     lines.push(line);
   });
   return lines;
+}
+
+/** The cell lines, each with its metric fields: inline, or taken from the metrics line that names it. The input is not changed. */
+export function cellsWithMetrics(lines: Line[]): Cell[] {
+  const backfill = new Map<string, Metrics>();
+  for (const line of lines) if (line.kind === "metrics") backfill.set(cellKey(line), line);
+  return lines.flatMap((line) => {
+    if (line.kind !== "cell") return [];
+    const extra = backfill.get(cellKey(line));
+    return [extra ? { ...line, ...Object.fromEntries(METRIC_FIELDS.map((field) => [field, extra[field]])) } : line];
+  });
 }
 
 export function readHistory(path: string): Line[] {

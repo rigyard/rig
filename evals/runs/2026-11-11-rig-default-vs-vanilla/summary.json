@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "run": "2026-11-11-rig-default-vs-vanilla",
+  "date": "2026-11-11",
+  "kind": "experiment",
+  "title": "Does rig's default install help Opus and Sonnet on bug-fix tasks?",
+  "question": "On the same model and the same task, does Claude Code configured by rig (default config at rig main 2dbce75) pass hidden-test graders more often than Claude Code with no project config?",
+  "prereg": {
+    "file": "prereg.md",
+    "original_sha256": "999e921364a988dbe2cf65659716382026333709ef8fd23f77d2c6aacb0062c3",
+    "stored_sha256": "e952acef5c8969bbabc33c93ae6295d2da99800ba02015c73cf6b7b5955158b0",
+    "redactions": [
+      "absolute path of the work root replaced by <work-root>",
+      "absolute path of the system temp folder replaced by <tmp>"
+    ]
+  },
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 12,
+  "usable_trials": 72,
+  "verdict": {
+    "label": "claim-allowed",
+    "text": "opus: ceiling (vanilla pooled 0.92 >= 0.9): uninformative, no claim. sonnet: rig helps"
+  },
+  "notes": [
+    "Synthetic set A only: fixtures fx3 and fx4b, arms none (vanilla), rig and told (rig plus /craft typed first), n = 6 per cell, 72 trials. Opus ran at default effort and Sonnet at effort medium. Set B was not run.",
+    "Open flag: the sonnet vanilla arm (0/12 here) is not comparable to the sonnet none arm of 2026-11-10-rule-bug-fix-callers (15/30). Effort differs (medium here, default there) and so does the tool allowlist (node, git, ls, cat, grep and find only here).",
+    "The sonnet effect comes entirely from fx3 (vanilla 0/6, rig 6/6). On fx4b sonnet is 0/6 against 0/6, so the pooled bootstrap interval [+0.500, +0.500] is degenerate.",
+    "Descriptive only, not promotable: opus rig minus vanilla -0.333, CI [-0.500, -0.083] (fx4b: rig 1/6, vanilla 5/6).",
+    "The /craft prefix was not expanded by the harness in -p mode (craftInjected 0/72). The agent opened the hub itself in 21 of 24 told trials.",
+    "The frame path rewrite ~/.claude/ -> .claude/ differs from a real user install.",
+    "signoff.md is the orchestrator sign-off of the path rewrite, the set A only decision and the concurrency limit, recorded before the first trial."
+  ]
+}
