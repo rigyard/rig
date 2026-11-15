@@ -83,6 +83,7 @@ type Step = {op: Op, o: Observed, staged: ReturnType<typeof stageHome> | null};
  *  3. pre-images into backups/<run>/ and a temp file next to each target                  (staged)
  *  4. one fsyncAll over the backups and the temp files
  *  5. per op in plan order: before-sig re-check, then rename, or unlink for a remove     (<n renames done>)
+ *     that also prunes the dirs the unlink leaves empty and queues the nearest surviving dir for the sync
  *  6. one fsyncAll over the dirs whose entries changed, then installed.json (atomic)      (installed)
  *  7. the commit line
  * On an error the run removes the temp files it did not rename, records done ops in installed.json, appends an
@@ -151,8 +152,8 @@ export function execute(world, ctx, t: {run: string, cmd: string, ops: object[],
           installHome(b.staged, ctx);
           b.staged = null;
         } else {
-          dirs.add(path.dirname(b.o.abs));
-          writeHome(b.o.tilde, null, undefined, ctx, { sync: false });
+          const { dir } = writeHome(b.o.tilde, null, undefined, ctx, { sync: false, prune: true });
+          dirs.add(dir!);
         }
         pending = null;
         mutations++;

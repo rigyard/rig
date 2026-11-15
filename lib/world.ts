@@ -1,4 +1,4 @@
-// lib/world.ts — public: loadWorld, projectDeclaration, encode, readEvidence
+// lib/world.ts — public: loadWorld, projectDeclaration, declaredDirs, encode, readEvidence
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -6,13 +6,15 @@ import { fileURLToPath } from "node:url";
 import { RigError } from "./world/errors.ts";
 import { mergeOverlay } from "./world/merge.ts";
 import { projectDeclaration as declaration } from "./world/project.ts";
-import { expandHome, homeRelative, parseConfig, readBytes, readConfig, readTree } from "./world/read.ts";
+import { declaredDirs, expandHome, homeRelative, parseConfig, readBytes, readConfig, readTree } from "./world/read.ts";
 import { check } from "./world/schema.ts";
 import {
   ALLOW, DOMAINS, ENCODE, EVIDENCE, LOCK, PACK, RIG, RIG_OVERLAY, ROLES, ROLES_OVERLAY, TARGET, TERMS, TIERS_FILE, TIERS_OVERLAY,
 } from "./world/schemas.ts";
 import { modeShapeError } from "./mode.ts";
 import type { DomainTable } from "./mode.ts";
+
+export { declaredDirs };
 
 export { SCHEMA_1_MESSAGE, STATUSES as EVIDENCE_STATUSES } from "./world/schemas.ts";
 export { ID } from "./world/schema.ts";
@@ -157,8 +159,8 @@ export type Evidence = {units: Record<string, {status: string, source?: string, 
 /** Everything rig knows before compose. Frozen. Built only by loadWorld. */
 export type World = {
   env: {home: string, state: string, data: string};
-  /** the lib/fs.ts write context, built once here: never_write globs and read-set dirs of the loaded targets */
-  ctx: {home: string, state: string, data: string, neverWrite: string[], readSets: string[]};
+  /** the lib/fs.ts write context, built once here: never_write globs, read-set dirs and declared dirs of the loaded targets */
+  ctx: {home: string, state: string, data: string, neverWrite: string[], readSets: string[], keepDirs: string[]};
   /** the clock for ack expiry; RIG_NOW (ISO time) sets it in tests */
   now: Date;
   /** absolute config roots; overlay null when absent */
@@ -278,11 +280,13 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
     targets.set(h, t);
   });
 
-  // The fs write context gets every read-set dir and never_write glob. No harness may read the state root or
-  // the data root (backups would load as units).
+  // The fs write context gets every read-set dir, never_write glob and declared dir (keepDirs, which pruning keeps).
+  // No harness may read the state root or the data root (backups would load as units).
   const readSets = [];
   const neverWrite = [];
+  const keepDirs = [];
   for (const t of targets.values()) {
+    for (const d of declaredDirs(t)) if (!keepDirs.includes(d)) keepDirs.push(d);
     const dirs = [...t.reads.skills.map((d) => d.path), ...Object.values(t.units ?? {}).map((u) => u?.dir).filter(Boolean)]
       .filter((d) => d.startsWith("~/") || isAbsolute(d));
     for (const g of t.reads.never_write) if (!neverWrite.includes(g)) neverWrite.push(g);
@@ -387,7 +391,7 @@ export function loadWorld(env: NodeJS.ProcessEnv): World {
 
   return deepFreeze({
     env: { home, state, data },
-    ctx: { home, state, data, neverWrite, readSets },
+    ctx: { home, state, data, neverWrite, readSets, keepDirs },
     now,
     roots: { repo: repoRoot, overlay: hasOverlay ? overlayRoot : null },
     config,

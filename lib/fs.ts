@@ -2,8 +2,9 @@
 // The only module that imports the write functions of node:fs.
 //
 // writeHome, writeState, appendState and log take a context as their last argument, so no logic
-// reads os.homedir():  ctx = {home, state, neverWrite?: string[], readSets?: string[]}
-// home and state are absolute paths; neverWrite holds globs and readSets holds dirs, both "~/"-relative or absolute.
+// reads os.homedir():  ctx = {home, state, neverWrite?: string[], readSets?: string[], keepDirs?: string[]}
+// home and state are absolute paths; neverWrite holds globs, readSets and keepDirs hold dirs (keepDirs: the dirs that
+// pruning keeps with their ancestors), all "~/"-relative or absolute.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -203,19 +204,57 @@ function modeOf(abs, dflt) {
 }
 
 /**
+ * After an unlink, rmdir the dirs it left empty, from the dir of the file upwards. Best effort: the walk stops, and
+ * never throws, at the first dir that cannot go (not empty, a symlink, not a dir, or any lstat or rmdir error such as
+ * EACCES). It also stops at a dir that matches never_write, equals or holds a ctx.keepDirs entry (a dir that a target
+ * declares), or is HOME, a child of HOME or a grandchild of HOME (by the path as given, so ~/.claude/skills survives
+ * when ~/.claude is a link).
+ * @returns the deepest dir that is still there: its entries changed
+ */
+function pruneEmptyDirs(abs: string, rel: string, ctx): string {
+  const rh = realHome(ctx);
+  const lexHome = path.resolve(ctx.home);
+  let dir = path.dirname(abs);
+  let lexRel = path.dirname(rel);
+  for (let depth = lexRel.split(path.sep).length; depth > 2; depth--, dir = path.dirname(dir), lexRel = path.dirname(lexRel)) {
+    const ignored = (ctx.neverWrite ?? []).some((g) => {
+      const ga = expand(ctx.home, g);
+      const gr = path.join(rh, path.relative(lexHome, ga));
+      return globMatch(ga, path.join(lexHome, lexRel)) || globMatch(gr, path.join(rh, lexRel)) || globMatch(gr, dir);
+    });
+    const kept = (ctx.keepDirs ?? []).some((k) => {
+      const ka = expand(ctx.home, k);
+      const kr = path.join(rh, path.relative(lexHome, ka));
+      return inside(path.join(lexHome, lexRel), ka) || inside(path.join(rh, lexRel), kr) || inside(dir, kr);
+    });
+    if (ignored || kept) break;
+    try {
+      if (!fs.lstatSync(dir).isDirectory()) break;
+      fs.rmdirSync(dir);
+    } catch {
+      break;
+    }
+  }
+  return dir;
+}
+
+/**
  * Atomic write into HOME, or a contained unlink when bytes is null. Mode kept: an omitted mode keeps the
  * current file's mode (0644 for a new file). opts.check: run the containment checks only and write nothing,
  * so plan, recovery and undo can refuse a path before the first write. opts.sync false: no fsync, and the caller
- * syncs the dir with fsyncAll. Allowed importer: lib/state.ts (and lib/state/*).
+ * syncs the dir with fsyncAll. opts.prune: after the unlink, also remove the dirs it leaves empty (see pruneEmptyDirs
+ * for what it keeps); the result's dir is then the deepest dir still there, and the caller syncs that one.
+ * Allowed importer: lib/state.ts (and lib/state/*).
  * @param p absolute or "~/"-relative
  */
-export function writeHome(p: string, bytes: Uint8Array | null, mode: number | undefined, ctx: object, opts: {check?: boolean, sync?: boolean} = {}): {abs: string, tilde: string, rel: string} {
+export function writeHome(p: string, bytes: Uint8Array | null, mode: number | undefined, ctx: object, opts: {check?: boolean, sync?: boolean, prune?: boolean} = {}): {abs: string, tilde: string, rel: string, dir?: string} {
   const r = resolveHome(p, ctx);
   if (opts.check) return r;
   if (bytes === null) {
     fs.rmSync(r.abs, { force: true });
-    if (opts.sync !== false) fsyncDir(path.dirname(r.abs));
-    return r;
+    const dir = opts.prune ? pruneEmptyDirs(r.abs, r.rel, ctx) : path.dirname(r.abs);
+    if (opts.sync !== false) fsyncDir(dir);
+    return { ...r, dir };
   }
   atomicWrite(r.abs, bytes, mode ?? modeOf(r.abs, 0o644), false, opts.sync !== false);
   return r;

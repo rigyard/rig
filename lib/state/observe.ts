@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { writeHome } from "../fs.ts";
+import { declaredDirs } from "../world.ts";
 
 export const hex = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
 export const sha = (bytes) => `sha256:${hex(bytes)}`;
@@ -26,15 +27,17 @@ export function cellsDigest(values) {
 export const blockDigest = (bytes) => sha(bytes);
 export const jsonDigest = (value) => sha(Buffer.from(canonical(value)));
 
-/** The fs context for one world. never_write and read-set dirs come from the target records. */
+/** The fs context for one world. never_write, read-set and declared dirs come from the target records. */
 export function fsCtx(world) {
   const neverWrite = [];
   const readSets = [];
+  const keepDirs = [];
   for (const t of world.targets?.values?.() ?? []) {
+    for (const d of declaredDirs(t)) if (!keepDirs.includes(d)) keepDirs.push(d);
     neverWrite.push(...(t.reads?.never_write ?? []));
     for (const d of t.reads?.skills ?? []) readSets.push(d.path);
   }
-  return { home: world.env.home, state: world.env.state, neverWrite, readSets };
+  return { home: world.env.home, state: world.env.state, neverWrite, readSets, keepDirs };
 }
 
 /**

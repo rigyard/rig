@@ -1,7 +1,7 @@
 // The read side of world: JSON files, pack trees, home paths. Nothing here writes.
 
 import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, posix } from "node:path";
 import { RigError } from "./errors.ts";
 import { check } from "./schema.ts";
 
@@ -56,6 +56,28 @@ export function readTree(dir: string): Map<string, {bytes: Uint8Array, mode: num
 
 /** `~/x` -> `<home>/x`. Other paths pass through. @param {string} p @param {string} home */
 export const expandHome = (p, home) => (p === "~" ? home : p.startsWith("~/") ? join(home, p.slice(2)) : p);
+
+/**
+ * Every dir a target record declares: its root, unit dirs, read-set dirs and the dir of each file path it names.
+ * Pruning an emptied dir never removes one of these, nor an ancestor of one. Only "~/" and absolute paths count.
+ */
+export function declaredDirs(t): string[] {
+  const dirs = [
+    t.root,
+    t.transcripts?.root,
+    ...(t.reads?.skills ?? []).map((s) => s?.path),
+    ...Object.values(t.units ?? {}).map((u: any) => u?.dir),
+  ];
+  const files = [
+    t.instructions?.path,
+    t.plugin_manifest?.path,
+    t.skill_registry?.path,
+    ...(t.model_surfaces ?? []).map((s) => s?.path),
+    ...Object.values(t.hooks ?? {}).map((h: any) => h?.file),
+  ];
+  const all = [...dirs, ...files.map((f) => (typeof f === "string" ? posix.dirname(f) : undefined))];
+  return [...new Set(all.filter((d): d is string => typeof d === "string" && (d.startsWith("~/") || isAbsolute(d))))];
+}
 
 /** `<home>/x` -> `~/x`, so keys never carry the user name. @param {string} abs @param {string} home */
 export const homeRelative = (abs, home) => (abs === home ? "~" : abs.startsWith(`${home}/`) ? `~/${abs.slice(home.length + 1)}` : abs);

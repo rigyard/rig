@@ -249,6 +249,11 @@ describe("state root and read-sets", () => {
       assert.ok(w.ctx.readSets.includes("~/.claude/skills") && w.ctx.readSets.includes("~/.cursor/plugins/local/rig/skills"));
       assert.ok(w.ctx.neverWrite.includes("~/.claude/plugins/**") && w.ctx.neverWrite.includes("~/.cursor/hooks.json"));
       assert.equal(new Set(w.ctx.readSets).size, w.ctx.readSets.length);
+      for (const d of ["~/.claude", "~/.cursor/plugins/local/rig/skills", "~/.cursor/plugins/local/rig/.cursor-plugin", "~/.cursor/agents", "~/.omp/agent/skills", "~/.gemini/config/rules"]) {
+        assert.ok(w.ctx.keepDirs.includes(d), d);
+      }
+      assert.ok(!w.ctx.keepDirs.some((d) => d.includes("*")));
+      assert.equal(new Set(w.ctx.keepDirs).size, w.ctx.keepDirs.length);
       writeState("probe.txt", Buffer.from("ok\n"), w.ctx);
       assert.equal(readFileSync(join(w.ctx.state, "probe.txt"), "utf8"), "ok\n");
     }));

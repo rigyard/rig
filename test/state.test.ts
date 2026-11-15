@@ -7,6 +7,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fsyncAll, writeHome, writeState } from "../lib/fs.ts";
 import { apply, plan, undo } from "../lib/state.ts";
+import { fsCtx } from "../lib/state/observe.ts";
 import {
   asObj, converge, ctxOf, desiredV, fakePatch, installedMismatch, intentStates, journalLines, journals, litter, makeWorld, prng,
   readInstalledFile, runChild, runOf, seedUserFiles, snapshot, STATE_REL, tmpDir,
@@ -261,6 +262,81 @@ describe("fs containment", () => {
     assert.deepEqual(fs.readdirSync(path.join(home, ".cursor/skills-cursor")), []);
   });
 
+  test("pruning after an unlink stops at a dir that matches never_write, and a plain unlink prunes nothing", () => {
+    const home = fresh();
+    const ctx = { ...ctxOf(makeWorld(home)), neverWrite: ["~/.claude/skills/*"] };
+    write(home, ".claude/skills/x/a/b.md", "b\n");
+    writeHome("~/.claude/skills/x/a/b.md", null, undefined, ctx);
+    assert.deepEqual(fs.readdirSync(path.join(home, ".claude/skills/x/a")), []);
+    write(home, ".claude/skills/x/a/b.md", "b\n");
+    const r = writeHome("~/.claude/skills/x/a/b.md", null, undefined, ctx, { prune: true });
+    assert.equal(fs.existsSync(path.join(home, ".claude/skills/x/a")), false);
+    assert.equal(fs.existsSync(path.join(home, ".claude/skills/x")), true);
+    assert.equal(r.dir, path.join(home, ".claude/skills/x"));
+  });
+
+  describe("pruning keeps the dirs that a target declares, and their ancestors", () => {
+    const REPO = fileURLToPath(new URL("..", import.meta.url));
+    const realCtx = (home: string, ...names: string[]) => {
+      const targets = new Map(names.map((n) => [n, JSON.parse(fs.readFileSync(path.join(REPO, `targets/${n}.json`), "utf8"))]));
+      return fsCtx({ ...makeWorld(home), targets });
+    };
+    const there = (home: string, rel: string) => fs.existsSync(path.join(home, rel));
+
+    test("a harness skills dir at depth 3 survives the removal of its last file (omp)", () => {
+      const home = fresh();
+      write(home, ".omp/agent/skills/x/SKILL.md", "x\n");
+      writeHome("~/.omp/agent/skills/x/SKILL.md", null, undefined, realCtx(home, "omp"), { prune: true });
+      assert.equal(there(home, ".omp/agent/skills/x"), false);
+      assert.deepEqual(fs.readdirSync(path.join(home, ".omp/agent/skills")), []);
+    });
+
+    test("without keepDirs the same removal takes that dir", () => {
+      const home = fresh();
+      write(home, ".omp/agent/skills/x/SKILL.md", "x\n");
+      const { keepDirs, ...bare } = realCtx(home, "omp");
+      writeHome("~/.omp/agent/skills/x/SKILL.md", null, undefined, bare, { prune: true });
+      assert.equal(there(home, ".omp/agent/skills"), false);
+    });
+
+    test("an ancestor of a declared dir survives (cursor local plugin dir)", () => {
+      const home = fresh();
+      write(home, ".cursor/plugins/local/rig/other/a.md", "a\n");
+      const r = writeHome("~/.cursor/plugins/local/rig/other/a.md", null, undefined, realCtx(home, "cursor"), { prune: true });
+      assert.equal(there(home, ".cursor/plugins/local/rig/other"), false);
+      assert.deepEqual(fs.readdirSync(path.join(home, ".cursor/plugins/local/rig")), []);
+      assert.equal(r.dir, path.join(home, ".cursor/plugins/local/rig"));
+    });
+
+    test("the last file under the cursor rig plugin keeps ~/.cursor/plugins/local and ~/.cursor/plugins", () => {
+      const home = fresh();
+      write(home, ".cursor/plugins/local/rig/skills/x/SKILL.md", "x\n");
+      writeHome("~/.cursor/plugins/local/rig/skills/x/SKILL.md", null, undefined, realCtx(home, "cursor"), { prune: true });
+      assert.equal(there(home, ".cursor/plugins/local/rig/skills/x"), false);
+      assert.equal(there(home, ".cursor/plugins/local/rig/skills"), true);
+      assert.equal(there(home, ".cursor/plugins/local"), true);
+    });
+
+    test("the antigravity agents and rules dirs at depth 3 survive", () => {
+      const home = fresh();
+      for (const d of ["agents", "rules"]) {
+        write(home, `.gemini/config/${d}/x/a.md`, "a\n");
+        writeHome(`~/.gemini/config/${d}/x/a.md`, null, undefined, realCtx(home, "antigravity"), { prune: true });
+        assert.equal(there(home, `.gemini/config/${d}`), true, d);
+      }
+    });
+
+    test("a HOME that is a symlink compares the same way: the declared dir survives", () => {
+      const real = fresh();
+      const home = path.join(fresh(), "link");
+      fs.symlinkSync(real, home);
+      write(real, ".omp/agent/skills/x/SKILL.md", "x\n");
+      writeHome("~/.omp/agent/skills/x/SKILL.md", null, undefined, realCtx(home, "omp"), { prune: true });
+      assert.equal(there(real, ".omp/agent/skills/x"), false);
+      assert.equal(there(real, ".omp/agent/skills"), true);
+    });
+  });
+
   test("the state root must resolve inside HOME (E_STATE_ROOT)", () => {
     const home = fresh();
     const outside = fresh("rig-outside-");
@@ -465,6 +541,116 @@ describe("plan and apply", () => {
     assert.equal(intent.after_sha, null);
   });
 
+  describe("a removal leaves no empty dir behind", () => {
+    const leaf = ".claude/skills/x/references/sources/a.md";
+    const withFiles = (d, home: string, files: Record<string, string>) => {
+      for (const [rel, text] of Object.entries(files)) {
+        const p = path.join(home, rel);
+        d.entries.set(p, { kind: "owned", path: p, bytes: Buffer.from(text), mode: 0o644, unit: "pack/extra" });
+      }
+      return d;
+    };
+    const isDir = (home: string, rel: string) => fs.existsSync(path.join(home, rel)) && fs.lstatSync(path.join(home, rel)).isDirectory();
+
+    test("the last file of a dir takes the empty dirs above it, up to a grandchild of HOME", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      assert.equal(converge(desiredV(home, 0), world).result.error, undefined);
+      for (const rel of [".claude/skills/x/references/sources", ".claude/skills/x/references", ".claude/skills/x"]) {
+        assert.equal(fs.existsSync(path.join(home, rel)), false, rel);
+      }
+      assert.equal(isDir(home, ".claude/skills"), true);
+      assert.equal(isDir(home, ".claude"), true);
+    });
+
+    test("a dir below depth 3 goes and a grandchild of HOME stays, empty", () => {
+      const { home, world } = seeded(1);
+      assert.equal(isDir(home, ".new/deep/dir"), true);
+      assert.equal(converge(desiredV(home, 2), world).result.error, undefined);
+      assert.equal(fs.existsSync(path.join(home, ".new/deep/dir")), false);
+      assert.equal(isDir(home, ".new/deep"), true);
+      assert.deepEqual(fs.readdirSync(path.join(home, ".new/deep")), []);
+      assert.equal(isDir(home, ".new"), true);
+    });
+
+    test("a dir that still holds a user file stays, and its empty child goes", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      write(home, ".claude/skills/x/references/note.txt", "mine\n");
+      assert.equal(converge(desiredV(home, 0), world).result.error, undefined);
+      assert.equal(fs.existsSync(path.join(home, ".claude/skills/x/references/sources")), false);
+      assert.equal(fs.readFileSync(path.join(home, ".claude/skills/x/references/note.txt"), "utf8"), "mine\n");
+    });
+
+    test("a symlink left in the dir keeps it, and its target is not followed", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      write(home, "elsewhere/keep.txt", "kept\n");
+      fs.symlinkSync(path.join(home, "elsewhere"), path.join(home, ".claude/skills/x/references/link"));
+      assert.equal(converge(desiredV(home, 0), world).result.error, undefined);
+      assert.equal(fs.existsSync(path.join(home, ".claude/skills/x/references/sources")), false);
+      assert.equal(fs.lstatSync(path.join(home, ".claude/skills/x/references/link")).isSymbolicLink(), true);
+      assert.equal(fs.readFileSync(path.join(home, "elsewhere/keep.txt"), "utf8"), "kept\n");
+    });
+
+    test("a harness dir that is a symlink survives, and the empty dirs below it go", () => {
+      const home = fresh();
+      fs.mkdirSync(path.join(home, "dotfiles/claude"), { recursive: true });
+      fs.symlinkSync(path.join(home, "dotfiles/claude"), path.join(home, ".claude"));
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      assert.equal(converge(desiredV(home, 0), world).result.error, undefined);
+      assert.equal(fs.lstatSync(path.join(home, ".claude")).isSymbolicLink(), true);
+      assert.equal(isDir(home, "dotfiles/claude/skills"), true);
+      assert.equal(fs.existsSync(path.join(home, "dotfiles/claude/skills/x")), false);
+    });
+
+    test("an rmdir that the OS refuses stops the prune, and the run still commits", { skip: process.getuid?.() === 0 }, () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      const locked = path.join(home, ".claude/skills/x");
+      fs.chmodSync(locked, 0o555);
+      try {
+        const { result } = converge(desiredV(home, 0), world);
+        assert.equal(result.error, undefined);
+        assert.equal(fs.existsSync(path.join(home, leaf)), false);
+        assert.equal(isDir(home, ".claude/skills/x/references"), true);
+        assert.equal(fs.existsSync(path.join(home, ".claude/skills/x/references/sources")), false);
+        assert.ok(journalLines(world, result.run).some((l) => l.type === "commit"));
+      } finally {
+        fs.chmodSync(locked, 0o755);
+      }
+    });
+
+    test("undo of the removal restores the file byte-exact with its dirs", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world);
+      const before = snap(home);
+      const run = converge(desiredV(home, 0), world).result.run;
+      assert.equal(fs.existsSync(path.join(home, ".claude/skills/x")), false);
+      const u = undo(run, world);
+      assert.deepEqual(u.conflicts, []);
+      assert.deepEqual(snap(home), before);
+      assert.equal(fs.readFileSync(path.join(home, leaf), "utf8"), "a\n");
+    });
+
+    test("undo of a create takes the dirs that the create made", () => {
+      const home = fresh();
+      const world = makeWorld(home);
+      converge(desiredV(home, 0), world);
+      const run = converge(withFiles(desiredV(home, 0), home, { [leaf]: "a\n" }), world).result.run;
+      assert.equal(isDir(home, ".claude/skills/x/references/sources"), true);
+      assert.deepEqual(undo(run, world).conflicts, []);
+      assert.equal(fs.existsSync(path.join(home, ".claude/skills/x")), false);
+      assert.equal(isDir(home, ".claude/skills"), true);
+    });
+  });
+
   test("a file changed between plan and write stops the run with E_CHANGED_UNDER", () => {
     const { home, world } = seeded(0);
     const p = plan(desiredV(home, 1), OK, world, OPTS);
@@ -554,7 +740,12 @@ describe("plan and apply", () => {
     assert.ok(syncedBefore(path.join(state, "journal"), first), "the journal is durable before the first rename");
     const installed = at((e) => e.call === "rename" && e.to === path.join(state, "installed.json"), last);
     assert.ok(installed > last);
-    for (const d of new Set(homeWrites.map((w) => path.dirname(w.target)))) {
+    const surviving = (f: string) => {
+      let d = path.dirname(f);
+      while (!fs.existsSync(d)) d = path.dirname(d);
+      return d;
+    };
+    for (const d of new Set(homeWrites.map((w) => surviving(w.target)))) {
       const synced = at((e) => e.call === "fsync" && e.path === d, last);
       assert.ok(synced > last && synced < installed, `${d} is durable after the last rename, before installed.json`);
     }
