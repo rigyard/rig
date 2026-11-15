@@ -301,7 +301,15 @@ Four findings from `evals/runs/` on 2026-11-11 and 2026-11-12. Each run's `summa
 - On fx4b alone the arms passed 6 of 6, 0 of 6 and 3 of 6. Rig-ablated minus rig was +0.50 (CI +0.17 to +0.83). The preregistration did not make fx4b a primary result alone, so this number is descriptive.
 - Post hoc, from the diffs: rig changed one or two files in 6 of 6 fx4b trials. The baseline changed four in 6 of 6. Rig-ablated changed four or five in 3 of 6, and those three passed.
 
-The hypothesis stays open: "smallest change" in the always-loaded frame pushes Opus to under-fix a multi-site bug. Removing the clause recovers half of the fx4b gap. The other half is unexplained. The rest of the frame adds about 1,100 first-turn tokens, and this run does not test them. The two SWE tasks show no detectable rig effect (each per-task interval spans 0), and only 2 of 16 calibration tasks qualified, so the pooled number leans on fx4b.
+The run left open the hypothesis that "smallest change" in the always-loaded frame pushes Opus to under-fix a multi-site bug. Removing the clause recovered half of the fx4b gap. The rest of the frame adds about 1,100 first-turn tokens, and this run does not test them. The two SWE tasks show no detectable rig effect (each per-task interval spans 0), and only 2 of 16 calibration tasks qualified, so the pooled number leans on fx4b.
+
+**The cause is deliberate deferral, and one frame sentence fixes it.** Smoke runs on 2026-11-12 and 2026-11-13 read the failing fx4b transcripts. In each one the agent found the other sites, named them in the reply and left them out to keep the change narrow. So the clause wording is not the cause. The frame now adds one sentence to invariant 1: fix every site of the same fault, unless the change is risky, outside the module family of the fault, or changes behavior the user relies on. These are smoke counts on Opus 5.5 with `/craft`, not a preregistered result:
+
+- fx4b: rig 0 of 4, rig with the frame sentence 4 of 4, rig with a playbook sentence 3 of 4, both sentences 2 of 2.
+- fx5, a multi-site escaping fixture: rig 1 of 2, rig with both sentences 2 of 2, vanilla 0 of 2.
+- Upstream pstack without rig fails the same way: its bug-fix playbook passed fx4b in 5 of 9 runs, and 9 of 9 with one sentence added. That sentence went upstream as cursor/plugins#1237. When it lands, `rig-port` brings it into the pstack pack.
+
+Open: a preregistered run of the frame sentence on more multi-site tasks, and a check that it does not widen single-site fixes.
 
 **Baselines drift between runs.** Sonnet with no unit passed fx3 7 of 15, 7 of 10, 0 of 5, 1 of 5 and 0 of 6 in five runs. Two of those ran at effort `medium` and three at the default. Compare arms inside one run. A trend across runs needs the same effort, tool allowlist and turn limit, and a check of the group before any reading.
 
