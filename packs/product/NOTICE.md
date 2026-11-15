@@ -7,7 +7,7 @@ The product pack is a port of material from gstack. gstack is MIT licensed. The 
 - Source: https://github.com/garrytan/gstack
 - Commit: b244e6d11a6466650c5147cd7dc023859968c4b5
 - License: `licenses/MIT-gstack.txt`, an unmodified copy of the gstack `LICENSE` file at that commit.
-- Pinned at: b4068209809315ab1578c78e33e73512b29749ca. `rig pin check` found the port sources (`LICENSE`, `office-hours/SKILL.md`, `office-hours/sections`) unchanged since the port commit, so the port carries over with no edit.
+- Pinned at: 0326b144af36676d599dcf63a9fad9a870d22ed6. Since the port commit, upstream changed two port sources. `office-hours/sections/second-opinion.md` now asks Codex for a `VERDICT:` last line, and `office-hours/sections/visual-design.md` adds a secret path segment to the board URL. The port replaces the Codex second opinion with a same-model subagent and does not port the visual design section, so neither change reaches the port text.
 
 Derived and modified:
 

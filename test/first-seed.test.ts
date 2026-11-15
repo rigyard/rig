@@ -191,7 +191,7 @@ describe("the first seed over the committed config", () => {
     }
     const hubLines = readFileSync(join(skills, "hub.md"), "utf8").split("\n");
     const quoted = [...eng.matchAll(/^- `(eng:[a-z]+)`\..*\n  Replaces the hub trigger: "(.*)"$/gm)].map((m) => [m[1], hubLines.indexOf(`- ${m[2]}`) + 1]);
-    assert.deepEqual(quoted, [["eng:ground", 20], ["eng:design", 23], ["eng:review", 30], ["eng:ship", 29]]);
+    assert.deepEqual(quoted, [["eng:design", 22], ["eng:review", 29], ["eng:ship", 28]]);
     assert.match(eng, /^- \[bug-fix\]\(\.\.\/playbooks\/bug-fix\.md\)\. Pack `pstack`\.$/m);
     const prod = readFileSync(join(skills, "references/product.md"), "utf8");
     assert.match(prod, /^- `prod:discover`\. Before: none\. Slot: \[office-hours\]\(\.\.\/\.\.\/office-hours\/SKILL\.md\)\. After: none\.$/m);
