@@ -303,8 +303,15 @@ export function usableTrialsProblem(summary: Pick<Summary, "usable_trials">, lin
 }
 
 
+const GIT_ENV = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_NOSYSTEM: "1",
+  GIT_TERMINAL_PROMPT: "0",
+};
+
 function git(root: string, args: string[]): string | null {
-  const run = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const run = spawnSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: GIT_ENV });
   return run.status === 0 ? run.stdout : null;
 }
 

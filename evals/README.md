@@ -10,6 +10,8 @@ This directory holds results only. It holds no transcripts, no diffs and no fixt
 evals/
   README.md
   history.jsonl                 one line per cell, append-only
+  suites/
+    <slug>.json                 declarative evaluation suite specification
   runs/<YYYY-MM-DD>-<slug>/
     summary.json                what the run asked, how it ended, the verdict
     analysis.txt                the analyzer output
@@ -20,10 +22,11 @@ evals/
     calibration.txt             the calibration table that chose the tasks, when the run kept one and it has no history lines
 ```
 
-`scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan.
+`scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan. `scripts/eval-runner.ts` runs automated evaluation suites.
 
 ```
 node scripts/evals-trend.ts
+node scripts/eval-runner.ts evals/suites/bug-fix-callers.json --dry-run
 ```
 
 ## history.jsonl
@@ -115,6 +118,29 @@ Limits you should know:
 - A change of harness version, of tool allowlist or of effort moves cost and duration without a change in the unit. The group holds effort and model fixed. The tool allowlist and the harness version are not in the group.
 - Judge lines are counted, not trended.
 - Exit code is `0`. It is `2` when `history.jsonl` fails the schema.
+
+## Evaluation runner and suites
+
+`scripts/eval-runner.ts` executes declarative eval suites from `evals/suites/<slug>.json`.
+
+Each suite specifies:
+- `slug` and `title`: run identifier and description.
+- `unit`: the unit under test (e.g. `rule:bug-fix-callers`).
+- `arms`: test arms (e.g. `rule`, `none`, `placebo`).
+- `matrix`: combination of harness, model, and effort settings.
+- `fixtures`: list of fixtures with their expected sha256.
+- `trials_per_cell`: number of repetitions per cell.
+- `analysis`: statistical test rules (Fisher exact test alpha, min effect delta).
+
+CLI flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--dry-run` | Prints execution plan without running trials |
+| `--mock` | Runs suite with simulated trial outcomes (for offline verification) |
+| `--out <dir>` | Writes run outputs (`summary.json`, `analysis.txt`, `trials.jsonl`) to a custom directory |
+| `--record` | Records run into `evals/runs/<date>-<slug>/` and appends cells to `evals/history.jsonl` |
+| `--promote` | Updates `evidence.json` with the run's verdict and confidence bounds |
 
 ## Fixtures
 

@@ -7,6 +7,7 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, delimiter, dirname, isAbsolute, join, relative, sep } from "node:path";
+import { gitEnv } from "../../lib/lock/git.ts";
 import { assertOutsideHomeDotDirs } from "./fixture-home.ts";
 import { ompModelArgs, realHome, runHarness } from "./live.ts";
 
@@ -68,7 +69,12 @@ function resolveReal(p) {
     tail.unshift(basename(head));
     head = dirname(head);
   }
-  return join(realpathSync(head), ...tail);
+  try {
+    return join(realpathSync(head), ...tail);
+  } catch (err: any) {
+    if (err && (err.code === "EPERM" || err.code === "EACCES")) return join(head, ...tail);
+    throw err;
+  }
 }
 
 /**
@@ -135,7 +141,7 @@ export function scratchRepo(): {dir: string, cleanup: () => void} {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "rig-seed-")));
   try {
     assertOutsideRealHome(dir);
-    const r = spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8" });
+    const r = spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8", env: gitEnv() });
     if (r.status !== 0) throw new Error(`mirror: git init failed: ${r.stderr}`);
   } catch (err) {
     rmSync(dir, { recursive: true, force: true });
@@ -164,7 +170,7 @@ export function ompEnv(home: string, agentDir: string = join(home, ".omp", "agen
  * @param opts
  *        dir: the scratch project (cwd); home: the fixture HOME (omp)
  */
-export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string, cleanup: () => void} {
+export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor"|"antigravity", prompt: string, opts: {dir: string, home?: string, agentDir?: string, maxTurns?: number, model?: string, pluginDir?: string, env?: NodeJS.ProcessEnv}): {bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, input: string, cleanup: () => void} {
   const { dir } = opts;
   const base = scrubEnv(opts.env ?? process.env);
   const m = (flag) => (opts.model ? [flag, opts.model] : []);
@@ -182,6 +188,9 @@ export function harnessArgv(harness: "claude"|"omp"|"codex"|"cursor", prompt: st
   if (harness === "cursor") {
     const plugin = opts.pluginDir ? ["--plugin-dir", opts.pluginDir] : [];
     return out("cursor-agent", ["-p", "--mode", "ask", "--trust", "--workspace", dir, "--output-format", "json", ...m("--model"), ...plugin, prompt]);
+  }
+  if (harness === "antigravity") {
+    return out("agy", ["-p", prompt, "--output-format", "json", ...m("--model")]);
   }
   throw new Error(`mirror: unknown harness ${harness}`);
 }
@@ -214,11 +223,23 @@ const jsonLines = (stdout) =>
  * The final assistant reply of one run, or null when the harness gave none or reported an error.
  * Only the reply counts: omp echoes an expanded command in its user message, so stdout alone proves nothing.
  */
-export function replyOf(harness: "claude"|"omp"|"codex"|"cursor", r: {code: number | null, stdout: string, json: unknown}) {
+export function replyOf(harness: "claude"|"omp"|"codex"|"cursor"|"antigravity", r: {code: number | null, stdout: string, json: unknown}) {
   if (r.code !== 0) return null;
   if (harness === "claude" || harness === "cursor") {
     const j = /** @type {any} */ (r.json);
     return j && j.type === "result" && j.is_error === false && typeof j.result === "string" ? j.result : null;
+  }
+  if (harness === "antigravity") {
+    const j = r.json as any;
+    if (j) {
+      if (typeof j.response === "string") return j.response;
+      if (typeof j.result === "string") return j.result;
+      if (typeof j.text === "string") return j.text;
+    }
+    const events = jsonLines(r.stdout);
+    const last = events.filter((e) => e.type === "text" || e.type === "message" || e.role === "assistant").at(-1);
+    if (last && typeof (last.content ?? last.text) === "string") return last.content ?? last.text;
+    return typeof r.stdout === "string" ? r.stdout.trim() : null;
   }
   const events = jsonLines(r.stdout);
   if (harness === "omp") {
@@ -237,7 +258,7 @@ export function replyOf(harness: "claude"|"omp"|"codex"|"cursor", r: {code: numb
 /**
  * Run one real harness headless and return its reply. The binary must not be a stub.
  */
-export async function runSeed(harness: "claude"|"omp"|"codex"|"cursor", prompt: string, opts: Parameters<typeof harnessArgv>[2] & {timeoutMs?: number}) {
+export async function runSeed(harness: "claude"|"omp"|"codex"|"cursor"|"antigravity", prompt: string, opts: Parameters<typeof harnessArgv>[2] & {timeoutMs?: number}) {
   const a = harnessArgv(harness, prompt, opts);
   try {
     const r = await runHarness({ ...a, bin: realBin(a.bin, a.env.PATH), timeoutMs: opts.timeoutMs ?? 180_000 });

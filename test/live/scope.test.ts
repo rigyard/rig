@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { describe } from "node:test";
 import { treeHash } from "../../lib/tree.ts";
+import { gitEnv } from "../../lib/lock/git.ts";
 import { liveTest, runHarness } from "../helpers/live.ts";
 import { harnessArgv, realBin, replyOf, scratchRepo, sentinel } from "../helpers/mirror.ts";
 import { filesUnder, MARKET, setup } from "../scope.helpers.ts";
@@ -37,7 +38,7 @@ async function claude(dir: string, prompt: string, pluginDir?: string) {
 
 /** git status and the tree hash of a repo dir, without .git. */
 function repoState(dir: string) {
-  const status = spawnSync("git", ["status", "--porcelain", "--ignored"], { cwd: dir, encoding: "utf8" }).stdout;
+  const status = spawnSync("git", ["status", "--porcelain", "--ignored"], { cwd: dir, encoding: "utf8", env: gitEnv() }).stdout;
   return { status, tree: treeHash(filesUnder(dir).filter((f) => !f.path.startsWith(".git/")), { core: true }) };
 }
 

@@ -1,0 +1,28 @@
+{
+  "name": "bug-fix-callers",
+  "title": "One bug-fix rule across harnesses and models",
+  "question": "Does a one-sentence bug-fixing rule change the pass rate of configurations on bug-fix fixtures?",
+  "unit": "rule:bug-fix-callers",
+  "arms": [
+    { "name": "none", "description": "Baseline without the rule" },
+    { "name": "rule", "description": "Rule delivered as project instruction file" }
+  ],
+  "fixtures": [
+    {
+      "id": "fx3",
+      "prompt": "Fix the bug in the repository so tests pass."
+    },
+    {
+      "id": "fx4b",
+      "prompt": "We sold the last limited-edition mug twice: two customers checked out at the same moment and both orders went through. Please fix it."
+    }
+  ],
+  "matrix": [
+    { "harness": "claude", "model": "sonnet", "effort": "medium" },
+    { "harness": "codex", "model": "gpt-6.1-sol", "effort": "medium" },
+    { "harness": "omp", "model": "google-antigravity/gemini-3.8-flash", "effort": "medium" },
+    { "harness": "antigravity", "model": "flash", "effort": "medium" }
+  ],
+  "trials_per_cell": 5,
+  "max_turns": 30
+}

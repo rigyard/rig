@@ -46,7 +46,7 @@ const files = (dir: string): string[] =>
     .sort();
 
 const git = (args: string[]): string | null => {
-  const run = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
+  const run = spawnSync("git", args, { cwd: ROOT, encoding: "utf8", env: GIT_ENV });
   return run.status === 0 ? run.stdout : null;
 };
 
@@ -323,7 +323,7 @@ describe("append-only history", () => {
     const origin = repoWithVersions(["a\n", "a\nb\n"]);
     const clone = join(mkdtempSync(join(tmpdir(), "evals-shallow-")), "clone");
     run(origin, ["clone", "-q", "--depth", "1", `file://${origin}`, clone]);
-    assert.equal(spawnSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: clone, encoding: "utf8" }).stdout.trim(), "true");
+    assert.equal(spawnSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: clone, encoding: "utf8", env: GIT_ENV }).stdout.trim(), "true");
     assert.match(historyGitProblem(clone) ?? "", /shallow clone.*fetch-depth: 0/);
   });
 

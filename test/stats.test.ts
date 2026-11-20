@@ -13,6 +13,7 @@ import { propose } from "../lib/metrics/propose.ts";
 import { renderReport } from "../lib/metrics/report.ts";
 import { patch } from "../lib/targets.ts";
 import { treeHash } from "../lib/tree.ts";
+import { gitEnv } from "../lib/lock/git.ts";
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 import { CANARY } from "./metrics.helpers.ts";
 import { stubPstack } from "./pstack.helpers.ts";
@@ -417,9 +418,9 @@ describe("rig stats --suggest", () => {
     const saved = s.fx.read(`${STATE}proposals/2026-11-05.patch`);
     assert.ok(r.stdout.endsWith(saved), "the printed diff is the saved patch");
 
-    const check = spawnSync("git", ["apply", "--check", "-v", s.fx.path(`${STATE}proposals/2026-11-05.patch`)], { cwd: s.root, encoding: "utf8" });
+    const check = spawnSync("git", ["apply", "--check", "-v", s.fx.path(`${STATE}proposals/2026-11-05.patch`)], { cwd: s.root, env: gitEnv(), encoding: "utf8" });
     assert.equal(check.status, 0, check.stderr);
-    const applied = spawnSync("git", ["apply", s.fx.path(`${STATE}proposals/2026-11-05.patch`)], { cwd: s.root, encoding: "utf8" });
+    const applied = spawnSync("git", ["apply", s.fx.path(`${STATE}proposals/2026-11-05.patch`)], { cwd: s.root, env: gitEnv(), encoding: "utf8" });
     assert.equal(applied.status, 0, applied.stderr);
     assert.deepEqual(JSON.parse(readFileSync(join(s.root, "rig.json"), "utf8")).disable, ["own/idle"]);
     const p = s.rig(["plan"]);

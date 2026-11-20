@@ -63,8 +63,8 @@ describe("loadWorld on the repo's own data", () => {
       assert.deepEqual(Object.fromEntries(Object.entries(tiers).map(([t, row]) => [t, row.claude])),
         { reason: "fable", strong: "opus", fast: "sonnet", cheap: "haiku" });
       for (const [t, row] of Object.entries(tiers)) {
-        assert.deepEqual(Object.keys(row).sort(), ["claude", "codex", "cursor", "omp"], t);
-        for (const h of ["codex", "cursor", "omp"]) assert.match(row[h], /^[^\s]+$/, `${t} ${h}`);
+        assert.deepEqual(Object.keys(row).sort(), ["antigravity", "claude", "codex", "cursor", "omp"], t);
+        for (const h of ["antigravity", "codex", "cursor", "omp"]) assert.match(row[h], /^[^\s]+$/, `${t} ${h}`);
       }
     }));
 
@@ -190,7 +190,7 @@ describe("overlay merge adds only", () => {
       assert.equal(w.packs.get("mine").root, "overlay");
       assert.deepEqual(w.config.fill, { "eng:ground": "mine/notes" });
       assert.deepEqual(w.config.private_terms, ["acme-internal"]);
-      assert.deepEqual(w.tiers.tiers.strong, { claude: "opus", codex: "gpt-6.1-sol", cursor: "claude-opus-5-5", omp: "google-antigravity/claude-opus-5-5", acme: "<provider>/<model-a>" });
+      assert.deepEqual(w.tiers.tiers.strong, { antigravity: "pro", claude: "opus", codex: "gpt-6.1-sol", cursor: "claude-opus-5-5", omp: "google-antigravity/claude-opus-5-5", acme: "<provider>/<model-a>" });
       assert.equal(w.roots.overlay, fx.path(".config/rig"));
     }));
   test("adds a scope choice to a repo pack entry that has none", () =>

@@ -325,6 +325,9 @@ describe("mirror", () => {
 
     const u = harnessArgv("cursor", "q", { dir, env, pluginDir: "/tmp/p" });
     assert.deepEqual([u.bin, u.args], ["cursor-agent", ["-p", "--mode", "ask", "--trust", "--workspace", dir, "--output-format", "json", "--plugin-dir", "/tmp/p", "q"]]);
+
+    const agy = harnessArgv("antigravity", "q", { dir, env, model: "gemini-3.8-flash" });
+    assert.deepEqual([agy.bin, agy.args], ["agy", ["-p", "q", "--output-format", "json", "--model", "gemini-3.8-flash"]]);
     assert.throws(() => harnessArgv("vim", "q", { dir, env }), /unknown harness/);
   });
 
@@ -353,6 +356,10 @@ describe("mirror", () => {
     const msg = { type: "item.completed", item: { type: "agent_message", text: tok } };
     assert.equal(replyOf("codex", { code: 0, stdout: line(msg), json: null }), tok);
     assert.equal(replyOf("codex", { code: 0, stdout: [msg, { type: "turn.failed" }].map(line).join("\n"), json: null }), null);
+
+    assert.equal(replyOf("antigravity", { code: 0, stdout: "", json: { response: tok } }), tok);
+    assert.equal(replyOf("antigravity", { code: 0, stdout: tok, json: null }), tok);
+    assert.equal(replyOf("antigravity", { code: 1, stdout: tok, json: null }), null);
   });
 
   test("sentinels are random and shaped", () => {

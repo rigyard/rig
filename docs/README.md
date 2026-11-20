@@ -64,5 +64,6 @@ The v1 concept supersedes 0007 to 0010 (workflow providers, step-slots, the rout
 | [0024](decisions/0024-measure-per-turn-context-hook-first.md) | Accepted | Measure a per-turn context hook first, decide on disabling it later on data. |
 | [0025](decisions/0025-typescript-native-type-stripping.md) | Accepted | TypeScript through Node native type stripping, a strict tsc ratchet in CI, no runtime dependencies. |
 | [0026](decisions/0026-product-pack-in-v0.md) | Accepted | The product pack (`/oh`) is back in v0. |
+| [0027](decisions/0027-antigravity-harness-and-eval-framework.md) | Accepted | Antigravity harness support, subprocess git isolation, evidence ledger, and automated evaluation framework. |
 
 "Accepted" means the user stated or agreed to the decision. "Proposed" means the design work recommends it and the user has not confirmed it.
