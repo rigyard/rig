@@ -246,7 +246,7 @@ export function assertAnchors(home: string, targets: Target[]) {
   return n;
 }
 
-const MODE_PATH = /^(?:\.\.\/[^/\s]+\/SKILL\.md|(?:\.\.\/)?playbooks\/[^/\s]+\.md|(?:\.\.\/)?references\/[^/\s]+\.md)$/;
+const MODE_PATH = /^(?:\.\.\/[^/\s]+\/SKILL\.md|(?:\.\.\/)?playbooks\/[^/\s]+\.md|(?:\.\.\/)?references\/[^/\s]+\.md|worker\.md)$/;
 
 /**
  * A17: each `../<x>/SKILL.md`, `playbooks/<y>.md` or `references/<z>.md` in a code span or link of the hub or a playbook
@@ -257,7 +257,7 @@ export function assertModePaths(home: string, targets: Target[]) {
   for (const d of new Set(targets.flatMap((t) => skillDirs(home, t)))) {
     const base = expand(home, d);
     if (!existsSync(join(base, "craft/hub.md"))) continue;
-    for (const f of ["craft/hub.md", ...walk(join(base, "craft/playbooks")).map((p) => `craft/playbooks/${p}`)]) {
+    for (const f of ["craft/hub.md", ...(existsSync(join(base, "craft/worker.md")) ? ["craft/worker.md"] : []), ...walk(join(base, "craft/playbooks")).map((p) => `craft/playbooks/${p}`)]) {
       const t = text(join(base, f));
       const spans = [...t.matchAll(/(`+)([\s\S]*?)\1/g)].map((m) => m[2]);
       const links = [...t.matchAll(/\]\(\s*<?([^\s)>]*)>?\)/g)].map((m) => m[1]);

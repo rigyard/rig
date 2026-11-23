@@ -12,10 +12,9 @@ import {
 import { makeFixtureHome } from "./helpers/fixture-home.ts";
 
 const GOLDEN = join(ROOT, "test/golden/first-seed.manifest");
-/** A11: the warns of the first green run. Both are reference chains inside upstream pstack skills. */
+/** A11: the reference-chain warning in the pinned upstream pstack. */
 const WARNS = [
   "warn budget pstack/skills/ketchup-video/SKILL.md: reference chain skills/ketchup-video/SKILL.md -> skills/ketchup/SKILL.md -> skills/bro/SKILL.md is 2 levels deep; keep references one level from SKILL.md",
-  "warn budget pstack/skills/principle-attack-the-premise/SKILL.md: reference chain skills/principle-attack-the-premise/SKILL.md -> skills/principle-build-the-lever/SKILL.md -> skills/principle-laziness-protocol/SKILL.md is 2 levels deep; keep references one level from SKILL.md",
 ];
 /** A13: kept pstack files that name an excluded script, skill or path. */
 const DEGRADED = [
@@ -23,7 +22,6 @@ const DEGRADED = [
   "skills/figure-it-out/SKILL.md",
   "skills/maintain-formal-verification-skill/SKILL.md",
   "skills/poteto-mode/playbooks/babysit.md",
-  "skills/poteto-mode/playbooks/multi-phase-plan.md",
   "skills/poteto-mode/playbooks/shipping.md",
   "skills/poteto-mode/playbooks/worktree-cleanup.md",
   "skills/show-me-your-work/SKILL.md",
@@ -191,14 +189,14 @@ describe("the first seed over the committed config", () => {
     }
     const hubLines = readFileSync(join(skills, "hub.md"), "utf8").split("\n");
     const quoted = [...eng.matchAll(/^- `(eng:[a-z]+)`\..*\n  Replaces the hub trigger: "(.*)"$/gm)].map((m) => [m[1], hubLines.indexOf(`- ${m[2]}`) + 1]);
-    assert.deepEqual(quoted, [["eng:design", 22], ["eng:review", 29], ["eng:ship", 28]]);
+    assert.deepEqual(quoted, [], "the combined upstream triggers stay in the hub rather than being partly replaced");
     assert.match(eng, /^- \[bug-fix\]\(\.\.\/playbooks\/bug-fix\.md\)\. Pack `pstack`\.$/m);
     const prod = readFileSync(join(skills, "references/product.md"), "utf8");
     assert.match(prod, /^- `prod:discover`\. Before: none\. Slot: \[office-hours\]\(\.\.\/\.\.\/office-hours\/SKILL\.md\)\. After: none\.$/m);
-    assert.match(prod, /^- `brief` writes `docs\/designs\/<slug>\.md` at `prod:discover`\./m);
+    assert.match(prod, /^- `brief` writes `docs\/designs\/<slug>\.md or docs\/memos\/<slug>\.md` at `prod:discover`\./m);
   });
 
-  test("A13: the degraded files are exactly the 8 that the design lists", () => {
+  test("A13: the degraded files equal the committed upstream list", () => {
     const pack = join(run.root, "packs/pstack");
     const files = (dir: string, rel = ""): string[] => readdirSync(join(dir, rel), { withFileTypes: true })
       .flatMap((e) => (e.isDirectory() ? files(dir, `${rel}${e.name}/`) : [`${rel}${e.name}`]));
@@ -232,6 +230,13 @@ describe("the first seed over the committed config", () => {
   });
 
   test("A17: the playbook and reference paths of the hub and the playbooks resolve in each skill dir", () => {
-    assert.ok(assertModePaths(run.h1.home, targetsOf(run.root)) > 20);
+    assert.ok(assertModePaths(run.h1.home, targetsOf(run.root)) > 0);
+    const mode = json(join(run.root, "packs/pstack/pack.json")).mode;
+    for (const dir of [".claude/skills/craft", ".agents/skills/craft"]) {
+      for (const entry of Object.values(mode.playbooks) as {file: string}[]) {
+        assert.ok(existsSync(join(run.h1.home, dir, entry.file.replace("skills/poteto-mode/", ""))), entry.file);
+      }
+      assert.ok(existsSync(join(run.h1.home, dir, "worker.md")));
+    }
   });
 });

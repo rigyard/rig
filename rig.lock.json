@@ -37,27 +37,27 @@
     },
     "product": {
       "repo": "https://github.com/garrytan/gstack",
-      "sha": "0326b144af36676d599dcf63a9fad9a870d22ed6",
+      "sha": "100e109ccd4b5d72133b180e495e8889fcb15b28",
       "root": ".",
       "paths": [],
       "exclude": [],
       "license": "MIT",
-      "tree": "sha256:f21ec7c879e0a15e1506ed12dfa14d034cbc0ceace73efb216bbe0c8ca7a7ee5",
+      "tree": "sha256:0217b0134e06d5c760de210ed1aa2dd7a1512d160a819b2d9183d98f2efac4a4",
       "port": {
         "paths": [
           "LICENSE",
           "office-hours/SKILL.md",
           "office-hours/sections"
         ],
-        "tree": "sha256:145d43f2022e293826eb99c525607f1fbab8bacc2ea78bfb000d326af793dee1",
-        "reviewed_sha": "0326b144af36676d599dcf63a9fad9a870d22ed6",
-        "reviewed_tree": "sha256:145d43f2022e293826eb99c525607f1fbab8bacc2ea78bfb000d326af793dee1"
+        "tree": "sha256:5b15c2d80c358ef3fe516be694b90a28d87d3eda89df7870f19921b301f8cdb2",
+        "reviewed_sha": "100e109ccd4b5d72133b180e495e8889fcb15b28",
+        "reviewed_tree": "sha256:5b15c2d80c358ef3fe516be694b90a28d87d3eda89df7870f19921b301f8cdb2"
       },
       "candidate": null
     },
     "pstack": {
       "repo": "https://github.com/cursor/plugins",
-      "sha": "bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7",
+      "sha": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9",
       "root": "pstack",
       "paths": [
         "."
@@ -77,14 +77,14 @@
         "skills/statechart"
       ],
       "license": "MIT",
-      "tree": "sha256:528e7f3ba52f569fb44819b4540596595536610962ffbf65976e4e9d4c73b90a",
+      "tree": "sha256:3e290b800d28057fe1180dd9f02347ad14b6e03ed711cd23d5a9bf5f6a77c160",
       "port": {
         "paths": [
           "docs/harness/claude-code.md"
         ],
-        "tree": "sha256:be752016a6243d4d5bb8abbd4accd5e70f9736880cdc227d70af4ef61dfa0ac6",
-        "reviewed_sha": "bf0c7cd80abdbf7fe47b634978a7d1b4071f71a7",
-        "reviewed_tree": "sha256:be752016a6243d4d5bb8abbd4accd5e70f9736880cdc227d70af4ef61dfa0ac6"
+        "tree": "sha256:68a0bea163685c79b8be27bbc8762faf98b6aed008d2f4eb4acf388c7b3537f3",
+        "reviewed_sha": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9",
+        "reviewed_tree": "sha256:68a0bea163685c79b8be27bbc8762faf98b6aed008d2f4eb4acf388c7b3537f3"
       },
       "candidate": null
     }

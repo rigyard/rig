@@ -21,10 +21,10 @@ The checkout ships five packs. Four of them make up the seeded default.
 
 | Pack | Source | What it holds |
 |---|---|---|
-| `pstack` | `pstack/` of `https://github.com/cursor/plugins` at `bf0c7cd`, minus 12 excludes | 52 skills, the agents `poteto-agent` and `comment-sicko`, and the hub and 23 playbooks that install as `craft/hub.md` and `craft/playbooks/` |
+| `pstack` | `pstack/` of `https://github.com/cursor/plugins` at `7a58391`, minus 12 excludes | 52 skills, the agents `poteto-agent` and `comment-sicko`, and the hub and 22 playbooks that install as `craft/hub.md` and `craft/playbooks/` |
 | `cursor-team-kit` | `cursor-team-kit/` of the same repo at `2776ddd` | the skills `deslop`, `control-cli` and `control-ui` |
 | `cli-for-agent` | `cli-for-agent/` of the same repo at `2776ddd` | the skill `cli-for-agents` |
-| `product` | a port of gstack `office-hours` at `b244e6d`, pinned at `0326b14` | the `office-hours` skill |
+| `product` | a port of gstack `office-hours` at `b244e6d`, pinned at `100e109` | the `office-hours` skill |
 
 rig vendored the first three with `rig pack add`. Their bytes are upstream bytes, and `rig.lock.json` records the repo, the commit, the root, the paths and the excludes. Each pack folder also holds a `pack.json` that rig wrote and that the lock tree leaves out. `packs/pstack/pack.json` holds the pstack model surfaces and the mode data that [Run multi-step work with /craft](./06-craft.md) describes. `pstack` excludes the folders that hold scripts or that no harness loads. It also excludes `setup-pstack`, because rig writes the model rule itself, and `poteto-help`, whose links point at a skill dir that no harness gets.
 

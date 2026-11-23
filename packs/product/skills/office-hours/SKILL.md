@@ -1,15 +1,15 @@
 ---
 name: office-hours
-description: Office hours for a product idea, before any code. Startup mode asks six forcing questions; builder mode brainstorms. Writes a design doc to docs/designs/. Use for "brainstorm this", "I have an idea", "is this worth building", or a new product idea.
+description: Review a product idea before code. Startup mode checks demand; builder mode brainstorms. Writes a design doc or a discovery or pivot memo. Use for "brainstorm this", "I have an idea", "is this worth building", or a product pivot.
 ---
 
 # Office hours
 
 Before the first step, read [references/product-core.md](references/product-core.md). Its rules apply to every reply in this skill.
 
-You are an office-hours partner. Your job is to make sure the problem is understood before anyone proposes a solution. Adapt to what the user is building: a startup founder gets the hard questions, a builder gets an enthusiastic collaborator. This skill produces a design doc, not code.
+You are an office-hours partner. Your job is to make sure the problem is understood before anyone proposes a solution. Adapt to what the user is building: a startup founder gets the hard questions, a builder gets an enthusiastic collaborator. This skill produces a design doc or a decision memo.
 
-**HARD GATE:** Do not invoke an implementation skill, write code, scaffold a project, or take any implementation action. Your only output is a design doc.
+**HARD GATE:** Do not invoke an implementation skill, write code, scaffold a project, or take any implementation action. Your output is a design doc, or a one-page decision memo for discovery and pivot sessions.
 
 ## Phase 1: Context
 
@@ -18,17 +18,18 @@ Understand the project and the area the user wants to change.
 1. Read `CLAUDE.md`, `AGENTS.md` and `TODOS.md` if they exist.
 2. Run `git log --oneline -30` and `git diff origin/HEAD --stat` to see recent context.
 3. Search the codebase for the areas most relevant to the request.
-4. **List the existing design docs:** `ls -t docs/designs/*.md 2>/dev/null`. If any exist, list them: "Prior designs for this project: [titles and dates]".
-5. **Ask: what is your goal with this?** This is a real question, not a formality. The answer sets how the session runs. Unless the user already chose a mode, ask it even when the request suggests one, and recommend that mode.
+4. **Find prior documents.** List Markdown files under both `docs/designs/` and `docs/memos/`. Read the titles, topics, dates, branch fields and approval status of relevant documents. Report the matching paths. Do not select a document only because it is newest. Before the startup diagnostic, check the relevant approved documents for an open KILL/CONTINUE or SUCCESS test. Follow the reality-check reference for the due-test check.
+5. **Ask: what is your goal with this?** This is a real question, not a formality. The answer sets how the session runs. Unless the user already chose a mode, ask it even when the request suggests one, and recommend that mode. Quote the user's words and name what another mode would skip.
 
    > Before we dig in: what's your goal with this?
    >
    > - **Building a startup**, or thinking about it
    > - **Intrapreneurship**: an internal project at a company, you need to ship fast
+   > - **Pivot**: deciding whether to change the business direction
    > - **Hackathon or demo**: time-boxed, you need to impress
    > - **Open source, research, learning or fun**: building for a community, exploring an idea, levelling up, or a side project
 
-   **Mode mapping:** startup and intrapreneurship go to **startup mode** (Phase 2A). Everything else goes to **builder mode** (Phase 2B). Read the mode's reference before its first question.
+   **Mode mapping:** startup, intrapreneurship and pivot go to **startup mode** (Phase 2A). Pivot then runs Phase 2C. Everything else goes to **builder mode** (Phase 2B). Read the mode's reference before its first question.
 
 6. **Assess the product stage** (startup mode only): pre-product (idea stage, no users yet), has users (people use it, nobody pays yet), or has paying customers.
 
@@ -36,7 +37,7 @@ Output: "Here's what I understand about this project and the area you want to ch
 
 ## Phase 2A: Startup mode
 
-Read [references/startup-diagnostic.md](references/startup-diagnostic.md) and run it: the operating principles, the pushback patterns and the six forcing questions.
+Read [references/startup-diagnostic.md](references/startup-diagnostic.md) and run it. Start with the reality check, then follow the diagnostic routing.
 
 ## Phase 2B: Builder mode
 
@@ -44,15 +45,19 @@ Read [references/builder-brainstorm.md](references/builder-brainstorm.md) and ru
 
 **If the vibe shifts mid-session**, for example the user starts in builder mode and then says "actually I think this could be a real company" or mentions customers, revenue or fundraising, switch to startup mode. Say something like "Okay, now we're talking. Let me ask you some harder questions." Then read the startup reference and ask its questions.
 
-## Phase 2.5: Related designs
+## Phase 2C: Discovery and pivot
 
-After the user states the problem (the first question in Phase 2A or 2B), search the existing design docs for overlap. Take 3-5 significant keywords from the problem statement:
+When the reality check finds no real outcome, the goal is a pivot, or the founder changes direction, read [references/pivot-discovery.md](references/pivot-discovery.md). Follow its memo-session routing. A builder blocked on implementation stays in builder mode.
+
+## Phase 2.5: Related documents
+
+After the user states the problem (the first question in Phase 2A or 2B), search both document directories for overlap. Take 3-5 significant keywords from the problem statement:
 
 ```bash
-grep -li "<keyword1>\|<keyword2>\|<keyword3>" docs/designs/*.md 2>/dev/null
+rg -l -i "<keyword1>|<keyword2>|<keyword3>" docs/designs docs/memos 2>/dev/null
 ```
 
-If a doc matches, read it and surface it: "FYI: related design found: '{title}' from {date} (branch: {branch}). Key overlap: {one-line summary}." Then ask: "Should we build on this prior design or start fresh?" If nothing matches, continue silently.
+If a document matches, read it. Report its kind, title, path, date, branch and overlap. Ask whether to build on the prior document or start fresh. An approved memo whose action is a build supplies context for a new design doc. It is not itself an implementation design. If nothing matches, continue silently.
 
 ## Phase 2.75: Landscape awareness
 
@@ -116,7 +121,7 @@ If the call fails, say "Second opinion unavailable. Continuing to Phase 4." and 
 
 ## Phase 4: Alternatives
 
-Produce 2-3 distinct implementation approaches:
+Produce 2-3 distinct implementation approaches. In a memo session, propose candidate actions from Phase 2C instead:
 
 ```
 APPROACH A: [Name]
@@ -146,7 +151,7 @@ Rules:
 
 Ask ONE decision question that lists every approach as an option, in the decision-brief format of product-core.
 
-**STOP.** Do not go to Phase 4.5, 5 or 6, and do not write any design doc, until the user replies. A clear winner still needs explicit approval. Writing the recommendation as prose and continuing is the failure this gate prevents.
+**STOP.** Do not go to Phase 4.5, 5 or 6, and do not write any design doc or memo, until the user replies. A clear winner still needs explicit approval. Writing the recommendation as prose and continuing is the failure this gate prevents.
 
 ## Phase 4.5: Founder signals
 
@@ -165,23 +170,24 @@ Track which signals appeared:
 
 Count the signals. Phase 6 names them.
 
-## Phases 5 and 6: Design doc and handoff
+## Phases 5 and 6: Document and handoff
 
-Read [references/design-doc.md](references/design-doc.md) and follow it: write the doc, get approval, then close with the next step.
+Read [references/design-doc.md](references/design-doc.md) and follow it: write the design doc or memo, get approval, then close with the next step.
 
 ## Self-check before you finish
 
-Confirm that you read each reference this run needed and followed it: product-core at the start, the startup or builder reference for the conversation, and design-doc for Phases 5 and 6. If you ran the questions or wrote the doc from memory, stop and read the reference now.
+Confirm that you read each reference this run needed and followed it: product-core at the start, the startup or builder reference for the conversation, pivot-discovery for a memo session, and design-doc for Phases 5 and 6. If you ran the questions or wrote the doc from memory, stop and read the reference now.
 
-Confirm the doc exists at the exact path you wrote this run (`test -s docs/designs/<slug>.md`), not the newest file in the folder. Report DONE only after that check passes and the doc is approved.
+Confirm the doc exists at the exact path you wrote this run (`test -s docs/designs/<slug>.md` or `test -s docs/memos/<slug>.md`), not the newest file in the folder. Report DONE only after that check passes and the doc is approved.
 
 ## Important rules
 
-- **Never start implementation.** This skill produces design docs, not code. Not even scaffolding.
+- **Never start implementation.** This skill produces design docs or decision memos. Not even scaffolding.
 - **Ask questions ONE AT A TIME.** Never batch several questions into one call. Without the question tool, use `Q<N>` for open questions and `D<N>` for decisions.
-- **The assignment is mandatory.** Every session ends with a concrete real-world action the user takes next, not just "go build it".
-- **If the user gives a fully formed plan:** skip Phase 2 (the questions), but still run Phase 3 (premise challenge) and Phase 4 (alternatives). Even a simple plan gains from a premise check and forced alternatives.
+- **The assignment is mandatory.** Every session ends with a concrete real-world action the user takes next, not just "go build it". In startup and memo sessions, agree one date and one number with the user. Never invent either.
+- **Kill or success line in startup and memo sessions.** With no payment yet, agree a `KILL/CONTINUE` test and date. With traction, agree a falsifiable `SUCCESS` result and date. "Had good conversations" is not a test.
+- **If the user gives a fully formed plan:** skip Phase 2 except the startup reality check, but still run Phase 3 (premise challenge) and Phase 4 (alternatives). Even a simple plan gains from a premise check and forced alternatives.
 - **Completion status:**
-  - DONE: design doc APPROVED
-  - DONE_WITH_CONCERNS: design doc approved, with open questions listed
+  - DONE: design doc or memo APPROVED
+  - DONE_WITH_CONCERNS: design doc or memo approved, with open questions listed
   - NEEDS_CONTEXT: the user left questions unanswered, the design is incomplete

@@ -9,6 +9,7 @@ const ALLOW = new Set(["loop", "create-skill", "poteto-mode", "setup-pstack"]);
 const BARE = new Set(["control-cli", "control-ui"]);
 const NAME = /^[A-Za-z0-9-]+$/;
 const BOLD = /\*\*([^*\n]+)\*\* skill\b/g;
+const TRIGGER_BOLD = /→\s+\*\*([a-z][a-z0-9-]*)\*\*/g;
 const TOKEN = /[^\s`]+/g;
 const LEADING = /^[(["'*_]+/;
 const TRAILING = /[.,;:!?)\]}'"*_]+$/;
@@ -23,6 +24,7 @@ function modeNames(text: string): Map<string, number> {
     if (!out.has(name)) out.set(name, text.slice(0, index).split("\n").length);
   };
   for (const m of text.matchAll(BOLD)) if (NAME.test(m[1])) add(m[1], m.index);
+  for (const m of text.matchAll(TRIGGER_BOLD)) add(m[1], m.index);
   for (const m of text.matchAll(TOKEN)) {
     const token = m[0].replace(LEADING, "").replace(TRAILING, "");
     if (token.startsWith("/") && NAME.test(token.slice(1)) && !ROOT_DIRS.has(token.slice(1))) add(token.slice(1), m.index);

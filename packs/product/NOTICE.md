@@ -7,7 +7,7 @@ The product pack is a port of material from gstack. gstack is MIT licensed. The 
 - Source: https://github.com/garrytan/gstack
 - Commit: b244e6d11a6466650c5147cd7dc023859968c4b5
 - License: `licenses/MIT-gstack.txt`, an unmodified copy of the gstack `LICENSE` file at that commit.
-- Pinned at: 0326b144af36676d599dcf63a9fad9a870d22ed6. Since the port commit, upstream changed two port sources. `office-hours/sections/second-opinion.md` now asks Codex for a `VERDICT:` last line, and `office-hours/sections/visual-design.md` adds a secret path segment to the board URL. The port replaces the Codex second opinion with a same-model subagent and does not port the visual design section, so neither change reaches the port text.
+- Pinned at: 100e109ccd4b5d72133b180e495e8889fcb15b28. The port adds the upstream startup reality check, evidence ranking, discovery and pivot decision memos, customer privacy, and dated assignments and outcome tests. It keeps the rig document paths and same-model second opinion. gstack runtime, binaries, profiles, telemetry, brain storage, founder resources and visual design remain outside this port.
 
 Derived and modified:
 
@@ -16,3 +16,5 @@ Derived and modified:
 - `skills/office-hours/references/startup-diagnostic.md`: from `office-hours/sections/phase-2a-startup-diagnostic.md.tmpl`.
 - `skills/office-hours/references/builder-brainstorm.md`: from `office-hours/sections/phase-2b-builder-brainstorm.md.tmpl`.
 - `skills/office-hours/references/design-doc.md`: from `office-hours/sections/design-and-handoff.md.tmpl`. The design doc goes to `docs/designs/<slug>.md` in the user's repository. The closing ends with the design doc path.
+
+- `skills/office-hours/references/pivot-discovery.md`: from `office-hours/sections/phase-2c-pivot-discovery.md`. Adapted to repository decision memos and founder-approved commitments.

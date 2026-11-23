@@ -11,9 +11,9 @@
   "mode": {
     "artifacts": {
       "brief": {
-        "generates": "docs/designs/<slug>.md",
+        "generates": "docs/designs/<slug>.md or docs/memos/<slug>.md",
         "write_at": "prod:discover",
-        "instruction": "Write the design doc from the office-hours session.",
+        "instruction": "Write the approved design doc, or a decision memo for a discovery or pivot session, from office-hours.",
         "requires": []
       }
     }

@@ -27,7 +27,7 @@ rig places a `craft/` dir in every skill dir that holds a vendored leaf, so the 
 | `craft/references/<domain>.md` | one file per domain, from `domains.json`, pack `mode` data and `rig.json` `fill` |
 | `craft/references/adapter.md` | one section per harness that reads the dir |
 
-The shell tells the model to read its adapter section first, then `hub.md` in full, then the domain file. Hub triggers are keyed by situation, not by step. When a step's fill or pack hook restates a hub trigger, the domain file prints one line under that step, `Replaces the hub trigger: "<trigger text>"`, and the model runs the step in place of that trigger. The trigger text comes from `mode.hub_triggers` in the pack that ships the hub, keyed by step or hook address, verbatim from a `- ` line of `hub.md`. A text that is no such line fails with `E_MODE_REF`. The seeded pstack pack names four: `eng:ground` (`how`), `eng:design` (`architect`), `eng:review.before` (`no-comments`) and `eng:ship.before` (`deslop`). An address with no fill and no hook prints no line, so its hub trigger still applies. A step whose slot or hook holds the unit of a `fill` trigger with no domain also prints `Replaces the frame trigger: "<trigger text>"`, and the model runs the step in place of that line of the frame. The shell names both replace lines (`test/mode.test.ts`, "the shell names the precedence rule and each domain file, and drops the hub step with no hub"). The frame says the same for a `Replaces the frame trigger:` line.
+The shell tells the model to read its adapter section first, then `hub.md` in full, then the domain file. Hub triggers are keyed by situation, not by step. When a step's fill or pack hook restates a hub trigger, the domain file prints one line under that step, `Replaces the hub trigger: "<trigger text>"`, and the model runs the step in place of that trigger. The trigger text comes from `mode.hub_triggers` in the pack that ships the hub, keyed by step or hook address, verbatim from a `- ` line of `hub.md`. A text that is no such line fails with `E_MODE_REF`. The seeded pstack pack leaves `hub_triggers` empty. Its upstream now combines several obligations in each trigger, so replacing a whole line with one step would discard the other obligations. An address with no fill and no hook prints no line, so its hub trigger still applies. A step whose slot or hook holds the unit of a `fill` trigger with no domain also prints `Replaces the frame trigger: "<trigger text>"`, and the model runs the step in place of that line of the frame. The shell names both replace lines (`test/mode.test.ts`, "the shell names the precedence rule and each domain file, and drops the hub step with no hub"). The frame says the same for a `Replaces the frame trigger:` line.
 
 Each domain file says where to start. A domain with a playbook or an artifact tells the model to follow the playbook that the hub selects. If the hub selects no playbook, the model skips each step whose artifact for this task already exists and starts at the first step left. A domain with neither tells the model to start at the first step. A pack that adopts no `hub.md` gives a shell with no hub step.
 
@@ -45,11 +45,11 @@ create  owned  claude  ~/.claude/skills/craft/playbooks/bug-fix.md              
 create  owned  claude  ~/.claude/skills/craft/references/bugbot-triage.md              core/craft
 ```
 
-The checkout seeds pstack, so on main each `craft/` dir also holds pstack's hub, its 23 playbooks and `bugbot-triage.md`. rig writes one `craft/` dir in `~/.claude/skills`, for Claude Code and Cursor, and one in `~/.agents/skills`, for Codex, omp, Cursor and Antigravity. Cursor keeps the first copy of a name, so it reads one.
+The checkout seeds pstack, so on main each `craft/` dir also holds pstack's hub, its 22 playbooks, `worker.md` and `bugbot-triage.md`. rig writes one `craft/` dir in `~/.claude/skills`, for Claude Code and Cursor, and one in `~/.agents/skills`, for Codex, omp, Cursor and Antigravity. Cursor keeps the first copy of a name, so it reads one.
 
 ## Know the seeded default
 
-The seed behaves as pstack does by default, because the model reads pstack's own hub. `rig.json` restates four step triggers of the hub as fills, so the domain file and the hub agree:
+The seed loads pstack's own hub. Its fills and hooks assign these engineering steps:
 
 | Hub trigger | Step | Unit | Set in |
 |---|---|---|---|
@@ -58,11 +58,11 @@ The seed behaves as pstack does by default, because the model reads pstack's own
 | "Before review" | `eng:review.before` | `pstack/no-comments` | `packs/pstack/pack.json` `mode.hooks` |
 | "Before commit" | `eng:ship.before` | `cursor-team-kit/deslop` | `rig.json` `fill` |
 
-`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` in your repository.
+`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` or `docs/memos/<slug>.md` in your repository.
 
-`rig.json` restates four more hub triggers with no domain. rig renders them into the frame, and every harness loads the frame in every session. So these four apply with or without `/craft`:
+`rig.json` also defines four triggers with no domain. rig renders them into the frame, and every harness loads the frame in every session. So these four apply with or without `/craft`:
 
-| Hub trigger | Unit |
+| Frame trigger | Unit |
 |---|---|
 | "Any prose surface, your reply to the user included" | `pstack/unslop` |
 | "Docs, RFCs, readmes, PR descriptions, or commit messages" | `pstack/technical-writing` |
@@ -73,7 +73,7 @@ Inside `/craft`, "Before review" and "Before commit" are also step hooks, so the
 
 The hub's other triggers stay in the hub. `auto` is empty, so every skill stays hidden until the hub, a domain file, a frame trigger or you name it.
 
-Each pstack playbook carries a domain label in `packs/pstack/pack.json`. `worktree-cleanup` is upkeep, and the other 22 are engineering.
+Each pstack playbook carries a domain label in `packs/pstack/pack.json`. `worktree-cleanup` is upkeep, and the other 21 are engineering.
 
 pstack skills use Cursor tool names. `craft/references/adapter.md` maps them per harness:
 
@@ -132,7 +132,7 @@ A step has a `before` list, one `slot` and an `after` list. `fill` addresses the
 
 A hook list in `fill` replaces the pack list at the same address. A trigger with a `domain` goes in that domain file. A trigger with no domain goes in the frame, described below. `disable` removes a unit from every step. `auto` lists the units to which rig adds no hide switch, so the model may pick them. rig does not rewrite upstream frontmatter, so a unit whose source already sets the hide key of a harness, such as `disable-model-invocation: true`, stays hidden on that harness. `rig plan` then prints `info <unit> stays hidden on <harness>: its source sets <key>`. `auto` is empty by default, and an overlay `auto` adds to the repo list.
 
-The frame of each harness lists the triggers with no domain under `Triggers, in every task:`. Each line has the form `<when>: read <path> and apply it.` The path names the copy of the unit in the first read dir of the harness that holds one, such as `~/.claude/skills/unslop/SKILL.md` for Claude Code. The model opens that file by its path, so the unit can stay hidden. A disabled unit has no line. A unit with no copy in the read dirs of a harness has no line there, and `rig plan` prints an `info absent` line for it. A trigger whose unit is not a skill has no line on any harness, and the `info absent` line says `the unit has type <type>, not skill` (`test/frame.test.ts`, "a trigger unit that is not a skill has no frame line, and the info line says it is not a skill"). The shell section "Triggers with no domain" points to the frame and lists only the pack triggers with no domain (`test/mode.test.ts`, "every fill address form lands in its domain file; a fill trigger with no domain goes in the frame, a pack trigger with no domain in the shell"). The line format and the path are pinned by `test/frame.test.ts`, "each frame holds the four hub triggers, each a path to the owned SKILL.md of its unit in the read set of the harness".
+The frame of each harness lists the triggers with no domain under `Triggers, in every task:`. Each line has the form `<when>: read <path> and apply it.` The path names the copy of the unit in the first read dir of the harness that holds one, such as `~/.claude/skills/unslop/SKILL.md` for Claude Code. The model opens that file by its path, so the unit can stay hidden. A disabled unit has no line. A unit with no copy in the read dirs of a harness has no line there, and `rig plan` prints an `info absent` line for it. A trigger whose unit is not a skill has no line on any harness, and the `info absent` line says `the unit has type <type>, not skill` (`test/frame.test.ts`, "a trigger unit that is not a skill has no frame line, and the info line says it is not a skill"). The shell section "Triggers with no domain" points to the frame and lists only the pack triggers with no domain (`test/mode.test.ts`, "every fill address form lands in its domain file; a fill trigger with no domain goes in the frame, a pack trigger with no domain in the shell"). The line format and the path are pinned by `test/frame.test.ts`, "each frame holds the four configured triggers, each a path to the owned SKILL.md of its unit in the read set of the harness".
 
 ## Read the vendored leaves
 
@@ -174,7 +174,7 @@ block E_ANCHOR_MISSING unit fixture/architect: SKILL.md has no frontmatter close
 
 `E_MODE_REF` names a fill, a hook, an `auto` entry or a `{{skill:...}}` that names no kept unit. `E_CLASH` names two packs that adopt one path, or an adopt onto a path that rig renders.
 
-The gate check `mode` reads the hub and the playbooks of the composed mode skill. It blocks when they name a unit, as `**x** skill`, `` `/x` `` or /x, that no kept unit has. `rig pack add` and `rig pin check` gate one pack tree with no composed mode, so they do not run this check, and `rig pin set` runs no gate. A pin move that brings a new name passes `rig pin check` and `rig pin set`, and blocks at the next `rig plan` until you vendor the unit or ack the name:
+The gate check `mode` reads the hub and the playbooks of the composed mode skill. It blocks when they name a unit, as `**x** skill`, `→ **x**`, `` `/x` `` or /x, that no kept unit has. `rig pack add` and `rig pin check` gate one pack tree with no composed mode, so they do not run this check, and `rig pin set` runs no gate. A pin move that brings a new name passes `rig pin check` and `rig pin set`, and blocks at the next `rig plan` until you vendor the unit or ack the name:
 
 ```text
 block mode fixture/skills/poteto-mode/SKILL.md: E_MODE_NAME nope at line 23: no kept unit has this name; vendor the unit, or ack the name

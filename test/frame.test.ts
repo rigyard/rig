@@ -23,7 +23,7 @@ const CRAFT: Record<string, string> = { claude: "/craft", codex: "$craft", curso
 /** The real target records, which declare the frame paths (the world fixtures do not). */
 const realTargets = () => Object.fromEntries(HARNESSES.map((h) => [`targets/${h}.json`, readFileSync(join(ROOT, `targets/${h}.json`), "utf8")]));
 
-/** The four hub triggers that the default rig.json fill restates with no domain, as hub text and unit. */
+/** The four frame triggers that the default rig.json configures with no domain. */
 const FRAME_TRIGGERS = [
   ["Any prose surface, your reply to the user included", "pstack/unslop"],
   ["Docs, RFCs, readmes, PR descriptions, or commit messages", "pstack/technical-writing"],
@@ -104,10 +104,10 @@ test("frame blocks are the template byte for byte, except the declared per-harne
   assert.equal(new Set(HARNESSES.map((h) => models[h])).size, 4, "one distinct models line per harness");
 });
 
-test("each frame holds the four hub triggers, each a path to the owned SKILL.md of its unit in the read set of the harness", () => {
+test("each frame holds the four configured triggers, each a path to the owned SKILL.md of its unit in the read set of the harness", () => {
   const { at } = renderRepo();
-  const hub = readFileSync(join(ROOT, "packs/pstack/skills/poteto-mode/SKILL.md"), "utf8").split("\n");
-  for (const [when] of FRAME_TRIGGERS) assert.ok(hub.some((l) => l.startsWith(`- ${when} → `)), `"${when}" is the text of a hub trigger`);
+  const configured = JSON.parse(readFileSync(join(ROOT, "rig.json"), "utf8")).fill.triggers.filter((t) => !t.domain);
+  assert.deepEqual(configured.map(({ when, use }) => [when, use]), FRAME_TRIGGERS);
   for (const h of HARNESSES) {
     const reads: string[] = records().get(h).reads.skills.map((e: {path: string}) => e.path);
     assert.ok(reads.includes(TRIGGER_DIR[h]), `${h} reads ${TRIGGER_DIR[h]}`);

@@ -251,6 +251,7 @@ describe("fills, hooks, triggers and artifacts", () => {
 describe("E_MODE_NAME", () => {
   for (const [spelling, line] of [
     ["**x** skill", "Then run the **nope** skill."],
+    ["trigger arrow to **x**", "Across a function boundary → **nope**."],
     ["`/x`", "Then type `/nope`."],
     ["bare /x", "Then type /nope now."],
     ["bare `x`", "Then use `control-ui`."],
@@ -284,6 +285,11 @@ describe("E_MODE_NAME", () => {
 
   test("no name continues across a slash", () => {
     const b = built(hub("Notes: `/tmp/<slug>-resume.md` and `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png`, and/or /a/b, **/tmp/x**, (/usr/bin)."));
+    assert.deepEqual(modeFindings(b), []);
+  });
+
+  test("bold headings and ordinary emphasis are not skill references", () => {
+    const b = built(hub("**Core**\nKeep the **shape** small. A transition → **Ready**. A sentence → **two words**."));
     assert.deepEqual(modeFindings(b), []);
   });
 
