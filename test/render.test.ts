@@ -410,7 +410,7 @@ function stackOfFive() {
   return s as unknown as Stack;
 }
 
-test("antigravity: the frame is an always-on rule, the agent keeps name and description, and skills.json registers ~/.agents/skills", () => {
+test("antigravity: the frame is an always-on rule, the agent keeps name and description, and skills.json registers the absolute ~/.agents/skills", () => {
   const d = render(stackOfFive(), withAntigravity());
   assert.deepEqual(d.errors, []);
   const gemini = [...d.entries.keys()].map(rel).filter((p) => p.startsWith("~/.gemini/")).sort();
@@ -422,7 +422,7 @@ test("antigravity: the frame is an always-on rule, the agent keeps name and desc
   const agent = text(d.entries.get(`${HOME}/.gemini/config/agents/helper.md`));
   assert.match(agent, /^---\nname: helper\ndescription: "Helper agent: answers \\"why\\" questions\."\n---\nYou answer why questions/);
   assert.doesNotMatch(agent, /^(model|tools):/m, "Claude model and tool keys do not reach an Antigravity agent");
-  assert.deepEqual(JSON.parse(text(d.entries.get(`${HOME}/.gemini/config/skills.json`))), { entries: [{ path: "~/.agents/skills" }] });
+  assert.deepEqual(JSON.parse(text(d.entries.get(`${HOME}/.gemini/config/skills.json`))), { entries: [{ path: `${HOME}/.agents/skills` }] }, "agy rejects a path that is not absolute");
   assert.ok(!gemini.some((p) => p.includes("/skills/")), "rig writes no skill copy under ~/.gemini");
 });
 

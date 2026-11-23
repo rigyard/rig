@@ -453,7 +453,7 @@ function renderSkillRegistries(ctx: any) {
       ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `targets/${h}.json skill_registry names ${unread.join(", ")}, which reads.skills does not declare` });
       continue;
     }
-    const bytes = encoder.encode(JSON.stringify({ entries: reg.dirs.map((path: string) => ({ path })) }, null, 2) + "\n");
+    const bytes = encoder.encode(JSON.stringify({ entries: reg.dirs.map((dir: string) => ({ path: expand(ctx, dir) })) }, null, 2) + "\n");
     emit(ctx, reg.path, { kind: "owned", bytes, mode: FILE_MODE, unit: `core/${h}-skills` });
   }
 }

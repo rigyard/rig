@@ -69,7 +69,8 @@ export function makeFixtureHome(spec: Record<string, FixtureEntry> = {}): {home:
         const st = lstatSync(abs);
         if (st.isDirectory()) walk(abs);
         else if (st.isFile()) {
-          const sha256 = createHash("sha256").update(readFileSync(abs)).digest("hex");
+          // HOME reads as <HOME>: a file that must name an absolute path (agy's skills.json) differs only there.
+          const sha256 = createHash("sha256").update(readFileSync(abs, "latin1").replaceAll(home, "<HOME>"), "latin1").digest("hex");
           out.set(relative(home, abs).split(sep).join("/"), { sha256, mode: st.mode & 0o7777 });
         }
       }

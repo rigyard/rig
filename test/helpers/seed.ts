@@ -48,13 +48,14 @@ function walk(dir: string, base = dir): string[] {
 
 /**
  * Sorted `relpath<TAB>mode<TAB>sha256` lines of every file in HOME, without rig's state root. Tabs, not the design's
- * NUL separator, so git diffs the golden file as text.
+ * NUL separator, so git diffs the golden file as text. The hash reads HOME as `<HOME>`, because a file such as
+ * agy's skills.json must name an absolute path, and two HOMEs differ only there.
  */
 export function manifest(home: string): string[] {
   return walk(home).filter((p) => !p.startsWith(STATE)).map((p) => {
     const abs = join(home, p);
     const mode = (lstatSync(abs).mode & 0o777).toString(8);
-    return `${p}\t${mode}\t${createHash("sha256").update(readFileSync(abs)).digest("hex")}`;
+    return `${p}\t${mode}\t${createHash("sha256").update(readFileSync(abs, "latin1").replaceAll(home, "<HOME>"), "latin1").digest("hex")}`;
   });
 }
 

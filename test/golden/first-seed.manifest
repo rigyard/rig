@@ -268,6 +268,6 @@
 .gemini/config/agents/comment-sicko.md	644	0fb37221ab2a9159714d38f1528898e82b9758b5750f244bbe2e575bb593a1de
 .gemini/config/agents/poteto-agent.md	644	36a17dd8199e7239c863df22e3911cbf0bd1fa64bc97058552968f06357a2c9e
 .gemini/config/rules/rig-frame.md	644	27a15ced6f5707d45fbdd7523e0655f171b6443fdada67285b0de1f00e507c62
-.gemini/config/skills.json	644	8b05656d299fcfa2ce7b7fcf6e01b0d6f5d30437f851543ba13054c8df543104
+.gemini/config/skills.json	644	ad70bc20e2ddd75d3afe4e1bf501a4bc7626f5be2e7f89244d77787914d1be67
 .omp/agent/AGENTS.md	644	52df8684ecfa6252376e8d97f814d23b0946337c5a604878666fb16a68d9027d
 .omp/agent/pstack-models.md	644	392b6528e4ab962026fd296ba4821da1c6661cd4700dd33f315c38043560abfb
