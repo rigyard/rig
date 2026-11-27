@@ -74,6 +74,33 @@ export function makeRepo(base: string, commits: Record<string, any>[], opts: {al
   return { url: pathToFileURL(bare).href, bare, shas };
 }
 
+/**
+ * Build a bare repo whose one commit holds exactly these path -> text files, written with git plumbing. A working
+ * tree cannot hold a `.git` entry, so makeRepo cannot build a tree that names one; mktree can.
+ * Returns the file:// URL and the sha of the commit.
+ * @param base scratch dir
+ */
+export function makeRawRepo(base: string, files: Record<string, string>) {
+  const bare = join(mkdtempSync(join(base, "raw-")), "upstream.git");
+  git(base, "init", "-q", "--bare", bare);
+  const run = (input: string, ...args: string[]) => execFileSync("git", args, { cwd: bare, env: GIT_ENV, input, encoding: "utf8" }).trim();
+  const tree = (level: Record<string, any>): string => {
+    const lines = Object.entries(level).map(([name, v]) =>
+      typeof v === "string" ? `100644 blob ${run(v, "hash-object", "-w", "--stdin")}\t${name}` : `040000 tree ${tree(v)}\t${name}`);
+    return run(lines.join("\n") + "\n", "mktree");
+  };
+  const root: Record<string, any> = {};
+  for (const [path, text] of Object.entries(files)) {
+    const segs = path.split("/");
+    let at = root;
+    for (const s of segs.slice(0, -1)) at = at[s] ??= {};
+    at[segs[segs.length - 1]] = text;
+  }
+  const sha = run("raw\n", "commit-tree", tree(root), "-m", "raw");
+  git(bare, "update-ref", "refs/heads/main", sha);
+  return { url: pathToFileURL(bare).href, bare, sha };
+}
+
 /** A world with a scratch repo root and a writer that records each call. Null bytes remove the file. */
 export function makeWorld(base, extra = {}) {
   const repo = join(base, "config-repo");

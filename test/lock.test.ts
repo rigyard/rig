@@ -7,7 +7,7 @@ import { treeHash } from "../lib/tree.ts";
 import { vendor, pinCheck, pinSet } from "../lib/lock.ts";
 import { licenseAllowed } from "../lib/gate/license.ts";
 import { isLicenseFile, joinLicenses } from "../lib/lock/license.ts";
-import { APACHE_TEXT, cleanup, GPL_TEXT, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
+import { APACHE_TEXT, cleanup, GPL_TEXT, makeRawRepo, makeRepo, makeWorld, MIT_TEXT, scratch } from "./lock.helpers.ts";
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
 const f = (path, mode, text) => ({ path, mode, bytes: Buffer.from(text) });
@@ -268,6 +268,42 @@ test("vendor refuses bad input and unsafe trees before writing", async (t) => {
   await assert.rejects(vendor(world, { ...ok, sha: "0".repeat(40), root: "skills/kit", paths: ["."] }), { code: "E_FETCH" });
   assert.equal(world.calls.length, 0);
   assert.equal(existsSync(join(world.roots.repo, "packs")), false);
+});
+
+/** Every path under dir, relative, folders included. */
+function allPaths(dir, rel = "") {
+  return readdirSync(join(dir, rel), { withFileTypes: true }).flatMap((ent) => {
+    const r = rel ? `${rel}/${ent.name}` : ent.name;
+    return [r, ...(ent.isDirectory() ? allPaths(dir, r) : [])];
+  });
+}
+
+for (const [label, hostile] of [
+  [".git dir", { ".git/HEAD": "ref: refs/heads/main\n", ".git/config": "[core]\n\tfsmonitor = touch PWNED\n", ".git/objects/pack/p.pack": "x", ".git/refs/heads/main": "0".repeat(40) + "\n" }],
+  [".GIT case variant", { ".GIT/HEAD": "ref: refs/heads/main\n", ".GIT/config": "[core]\n\tfsmonitor = touch PWNED\n" }],
+  ["nested sub/.git gitdir file", { "sub/.git": "gitdir: /elsewhere\n" }],
+  ["nested .Git dir", { "skills/kit/.Git/HEAD": "ref: refs/heads/main\n" }],
+] as [string, Record<string, string>][]) {
+  test(`vendor refuses a tree with a ${label} and writes nothing`, async (t) => {
+    const base = scratch();
+    t.after(() => cleanup(base));
+    const repo = makeRawRepo(base, { LICENSE: MIT_TEXT, "skills/kit/SKILL.md": "---\nname: kit\n---\nDo the kit thing.\n", ...hostile });
+    const world = makeWorld(base, { writeConfig: undefined });
+    await assert.rejects(vendor(world, { repo: repo.url, sha: repo.sha, paths: ["."], name: "evil" }), { code: "E_LOCK_DOTGIT" });
+    const left = existsSync(world.roots.repo) ? allPaths(world.roots.repo) : [];
+    assert.deepEqual(left.filter((p) => p.split("/").some((s) => s.toLowerCase() === ".git")), []);
+    assert.deepEqual(left, [], "the refusal came before the first write");
+  });
+}
+
+test("vendor accepts a tree whose .git entries an exclude removes", async (t) => {
+  const base = scratch();
+  t.after(() => cleanup(base));
+  const repo = makeRawRepo(base, { LICENSE: MIT_TEXT, "skills/kit/SKILL.md": "---\nname: kit\n---\nDo the kit thing.\n", ".git/HEAD": "ref: refs/heads/main\n" });
+  const world = makeWorld(base, { writeConfig: undefined });
+  await vendor(world, { repo: repo.url, sha: repo.sha, paths: ["."], exclude: [".git"], name: "evil" });
+  assert.deepEqual(allPaths(world.roots.repo, "packs/evil").filter((p) => p.split("/").includes(".git")), []);
+  assert.equal(existsSync(join(world.roots.repo, "packs/evil/skills/kit/SKILL.md")), true);
 });
 
 test("vendor at another sha refuses to overwrite an existing pack dir", async (t) => {
