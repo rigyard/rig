@@ -1,6 +1,6 @@
 # rig CLI and repository reference
 
-This page holds the detailed command flags, harness paths, safety checks, repository layout, and development commands for rig. Start with [the README](../README.md) or [the rig guide](./guide/README.md) if you are setting up rig for the first time.
+This page holds command flags, domains, hooks and triggers, harness paths, safety checks, repository layout, and development commands for rig. Start with [the README](../README.md) or [the rig guide](./guide/README.md) for a walkthrough.
 
 ## Supported harnesses
 
@@ -12,7 +12,23 @@ This page holds the detailed command flags, harness paths, safety checks, reposi
 | Cursor | Reads `~/.agents/skills/`, `~/.cursor/rules/rig-frame.mdc`, `~/.cursor/agents/` | Agent frontmatter in `~/.cursor/agents/`, `~/.cursor/rules/pstack-models.mdc` |
 | Antigravity | `~/.gemini/config/skills.json` pointing to `~/.agents/skills`, `~/.gemini/config/rules/rig-frame.md`, `~/.gemini/config/agents/` | `model` key in `~/.gemini/config/agents/` |
 
-Read [What rig writes per harness](./harnesses.md) for full read-sets, dedupe rules, and never-write paths.
+Read [What rig writes per harness](./harnesses.md) for full read-sets, dedupe rules, and never-write paths. Additional harnesses such as `pi` can be added as target records in `targets/<name>.json` ([Make it yours](./guide/09-make-it-yours.md#add-a-harness-as-data)).
+
+## Domains, workflows, hooks, and triggers
+
+`packs/core/domains.json` defines four workflow domains compiled into `/craft` (`craft/references/<domain>.md`):
+
+| Domain | Stages | Shipped fills and hooks on `main` |
+|---|---|---|
+| Business (`biz`) | `demand`, `scope` | Open slots ready for your own packs |
+| Product (`prod`) | `discover`, `shape`, `review`, `spec` | `prod:discover` runs `product/office-hours` (ported from `gstack`); conditional trigger runs `pstack/reframe` |
+| Engineering (`eng`) | `ground`, `design`, `build`, `verify`, `review`, `ship` | `eng:ground` (`pstack/how`), `eng:design` (`pstack/architect`), `eng:review.before` (`pstack/no-comments`), `eng:ship.before` (`cursor-team-kit/deslop`), plus `engineering-research` and `cli-for-agents` triggers |
+| Upkeep (`upk`) | `upkeep`, `retire` | `worktree-cleanup` playbook from `pstack` |
+
+Customize behavior without changing upstream pack bytes:
+- **`fill` step slots and `.before`/`.after` hooks** in `rig.json` bind or replace skills at any `<prefix>:<stage>` address.
+- **Domain `triggers`** fire only inside the domain they target, while **frame `triggers`** (with no `domain` field) install into `rig-frame` across every session on all five harnesses (`unslop`, `technical-writing`, `deslop`, `no-comments` by default).
+- **`metrics.session_hook`** in `rig.json` or `~/.config/rig/rig.json` installs a Claude Code `SessionEnd` hook running `rig stats --record`.
 
 ## Commands
 
@@ -20,13 +36,13 @@ rig has seven commands, and every command accepts `--help`. Exit codes are `0` f
 
 | Command | What it does |
 |---|---|
-| `rig plan [--repair]` | Composes the stack, renders it per harness, runs the gate, and diffs it against disk and rig state. Writes nothing. `--repair` plans drifted managed entries as writes. |
+| `rig plan [--repair]` | Composes domains, packs, hooks, and triggers, renders per harness, runs the gate, and diffs against disk. Writes nothing. `--repair` plans drifted managed entries as writes. |
 | `rig apply [--undo <run-id> \| --repair]` | Runs the plan, then writes it as one journaled transaction. `--undo` restores a run byte for byte. `--repair` writes drifted managed files and blocks back to the render. |
-| `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, the evidence ledger counts, and the scope packs of the project. |
-| `rig stats [--since <dur>] [--harness <h>] [--suggest] [--record] [--session <id>]` | Token and session metrics read from harness transcripts. `--suggest` adds a proposed diff that you apply yourself. `--record` records one session, from the session hook or by hand with `--session <id>`. |
-| `rig models` and `rig models set <tier> <model> --harness <h>` | Shows the model table per harness, or swaps the model of one tier and re-renders only the model cells, through the same gate and transaction as `rig apply`. |
-| `rig pack add <repo> --sha <sha> [--root <dir>] [--path <path>] [--exclude <path>] [--port <path>] [--name <name>] [--into overlay]` | Vendors one folder of a repo at a full 40-hex commit, minus the excludes, gates it, and prints the ack stanzas the gate needs. `--port` records the upstream sources of a port. With `--port` and no `--path`, it adopts a pack folder that you wrote. `--into overlay` writes the pack and its lock entry into your overlay. |
-| `rig pin check <name> [--sha <sha>] [--diff] [--exclude <path>] [--no-exclude]` and `rig pin set <name> [--ported]` | For core, gates the core tree, records its tree hash as a candidate, then promotes it to the core seal. For a pack, gates the pack at a new commit with its license and exclude list, prints `port fresh` or `port stale` for its port paths, then moves the pack to that commit. `--diff` prints the port diff and records nothing. `--ported` attests a reviewed port. A stale port blocks `rig plan` with `E_PORT_STALE`. |
+| `rig doctor [--project <dir>]` | Read-only diagnosis of the machine, or of one project: drift, the core seal, telemetry, aliases, evidence ledger counts, and scope packs. |
+| `rig stats [--since <dur>] [--harness <h>] [--suggest] [--record] [--session <id>]` | Token and session metrics from harness transcripts. `--suggest` writes a proposed diff patch that you review and apply. `--record` records one session. |
+| `rig models` and `rig models set <tier> <model> --harness <h>` | Shows the model table per harness, or swaps one tier model and re-renders only model cells through the gate and journal. |
+| `rig pack add <repo> --sha <sha> [--root <dir>] [--path <path>] [--exclude <path>] [--port <path>] [--name <name>] [--into overlay]` | Vendors one folder at a full 40-hex commit, gates it, and prints ack stanzas if needed. `--port` tracks upstream sources; `--into overlay` writes into `~/.config/rig`. |
+| `rig pin check <name> [--sha <sha>] [--diff] [--exclude <path>] [--no-exclude]` and `rig pin set <name> [--ported]` | Gates a core or pack candidate tree before `rig pin set` promotes it. `--diff` shows upstream port diffs; `--ported` attests a reviewed port (`E_PORT_STALE` otherwise). |
 
 ## Safety and supply-chain model
 
@@ -41,23 +57,23 @@ Read [SECURITY.md](../SECURITY.md) for vulnerability reporting and threat-model 
 
 | Path | Content |
 |---|---|
-| `packs/core` | The sealed core: the frame that every harness loads, the per-harness terms, the alias template, the domain table, the `craft` shell, the `engineering-research` skill, and the agents `rig-agent` and `rig-janitor`. Their model and effort come from the model table. |
-| `packs/pstack`, `packs/cursor-team-kit`, `packs/cli-for-agent` | Upstream bytes of pstack, three cursor-team-kit skills, and `cli-for-agents`, vendored from `https://github.com/cursor/plugins` (pstack at `b7b93c3`, the other two at `2776ddd`). pstack's hub and playbooks install inside the `craft` mode skill ([Run multi-step work with /craft](./guide/06-craft.md)). `rig.json` disables pstack's two agents, and the core agents take their place. |
-| `packs/product` | The `office-hours` skill, a product review ported from gstack under its MIT license (see [packs/product/NOTICE.md](../packs/product/NOTICE.md)). |
-| `targets/` | One record per harness: where it reads, where rig writes, and which files carry model values. |
-| `models/` | `roles.json` maps roles to four tiers. `tiers.json` maps each tier to a model per harness. |
+| `packs/core` | Sealed core: `frame.md`, alias template, `terms.json`, `domains.json`, `craft` shell, `engineering-research`, and `rig-agent` / `rig-janitor`. |
+| `packs/pstack`, `packs/cursor-team-kit`, `packs/cli-for-agent` | Engineering workflow (`pstack` hub and 22 playbooks at `b7b93c3`) plus `deslop`, `control-cli`, `control-ui`, and `cli-for-agents` (`2776ddd`) from `https://github.com/cursor/plugins`. |
+| `packs/product` | Product discovery skill `office-hours`, ported from `gstack` under MIT ([packs/product/NOTICE.md](../packs/product/NOTICE.md)). |
+| `targets/` | One JSON target record per harness (`claude`, `codex`, `omp`, `cursor`, `antigravity`). |
+| `models/` | `roles.json` maps roles to four tiers; `tiers.json` maps each tier per harness. |
 
 ## Customize with an overlay
 
-Put your own config in `~/.config/rig`. The overlay adds packs, harnesses that the repository does not list, aliases, new `fill` addresses, `disable` and `auto` entries, private terms, and model rows that the repository leaves empty. It never changes a value that the repository sets, stopping with `E_OVERLAY_CONFLICT` if it tries. The one exception is `metrics.session_hook`, where your value wins. The overlay lives outside the checkout, so a `git pull` of rig leaves it alone. Read [Make it yours](./guide/09-make-it-yours.md) for the four customization operations and adding a harness target as data.
+Put personal additions in `~/.config/rig`. The overlay adds packs, extra `fill` triggers, harness records outside the repo list, aliases, private terms, and empty model cells, and may enable `metrics.session_hook`. Any attempt to overwrite a key set by the repo fails with `E_OVERLAY_CONFLICT`. Because `~/.config/rig` lives outside the checkout, `git pull` leaves your customizations intact ([Make it yours](./guide/09-make-it-yours.md)).
 
 ## Install notes and development
 
-`npm link` places both `rig` and `rigctl` on your `PATH`. Use `rigctl` if Homebrew `rig` is already installed. Do not run `npm install -g` from a git URL because Node does not strip TypeScript types for files under `node_modules`.
+`npm link` places both `rig` and `rigctl` on your `PATH`. Do not run `npm install -g` from a git URL because Node does not strip TypeScript types under `node_modules`.
 
 ```sh
 npm test
 npm ci --ignore-scripts && npm run typecheck
 ```
 
-Offline tests build a temporary `HOME` and never touch your config files. Live harness CLI tests are opt-in with `RIG_LIVE=1` and verify that your real config hashes stay unchanged. `npm run typecheck` fails when the strict `tsc` error count rises above `tsc-baseline.json`. Read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a pull request.
+Offline tests build a temporary `HOME` and never touch your config files. Live harness CLI tests require `RIG_LIVE=1`. Read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a pull request.
