@@ -393,6 +393,41 @@ for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent
 });
 
 
+for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent/AGENTS.md"]]) test(`targets.patch (${harness}): remove deletes the marker pair and the blank line rig added, so the user file round-trips`, () => {
+  const block = render(fixtureStack(), world()).entries.get(`${HOME}/${rel}`);
+  const enc = (s: string) => new TextEncoder().encode(s);
+  const dec = (b: Uint8Array) => new TextDecoder().decode(b);
+  const MARKERS = /rig:frame:(start|end)/;
+  const out = (before: string) => patch(patch(enc(before), block).next, { ...block, bytes: undefined, remove: true });
+  for (const before of ["# My notes\n", "# My notes\nKeep this line.\n", "line one\n\nline three\n"]) {
+    const r = out(before);
+    assert.equal(dec(r.next), before, JSON.stringify(before));
+    assert.deepEqual(r.current, block.bytes, "current is the body that was removed");
+  }
+  // insertion adds the same bytes to "a\n" and "a\n\n", so both come back as "a\n"
+  assert.equal(dec(out("a\n\n").next), "a\n");
+  assert.equal(dec(out("a").next), "a\n");
+  // user text after the block stays, and the blank line before the block stays as the separator
+  const inserted = dec(patch(enc("above\n"), block).next);
+  const withTail = patch(enc(`${inserted}below\n`), { ...block, bytes: undefined, remove: true });
+  assert.equal(dec(withTail.next), "above\n\nbelow\n");
+  // a file that holds only the block, which rig created, becomes empty with no marker lines
+  const created = patch(null, block);
+  const emptied = patch(created.next, { ...block, bytes: undefined, remove: true });
+  assert.equal(dec(emptied.next), "");
+  assert.doesNotMatch(dec(emptied.next), MARKERS);
+  // no marker pair: nothing to remove, bytes untouched, current null
+  const none = patch(enc("# My notes\n"), { ...block, bytes: undefined, remove: true });
+  assert.equal(none.current, null);
+  assert.equal(dec(none.next), "# My notes\n");
+  // a file that is absent: nothing to remove
+  assert.equal(patch(null, { ...block, bytes: undefined, remove: true }).current, null);
+  // remove does not trip the toml table guard: a [table] outside the markers cannot block taking the block out
+  const toml = { ...block, path: "/h/.codex/config.toml", marker: "rig:cfg", table: "features", bytes: enc("[features]\nx = 1\n") };
+  const tomlIn = patch(enc("[features]\ny = 2\n"), { ...toml, table: "other" });
+  assert.equal(dec(patch(tomlIn.next, { ...toml, bytes: undefined, remove: true }).next), "[features]\ny = 2\n");
+});
+
 /** The render world with Antigravity installed next to the four, and term rows for it. */
 function withAntigravity(edit: (rec: any) => void = () => {}) {
   const targets = records();

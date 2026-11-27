@@ -596,9 +596,10 @@ function blockMarker(path, marker) {
 
 function patchBlock(bytes, entry) {
   const where = entry.path;
+  const marker = blockMarker(where, entry.marker);
+  if (entry.remove) return removeBlock(bytes, entry, marker);
   const body = decode(entry.bytes, where);
   if (body && !body.endsWith("\n")) fail("E_INTERNAL", `${where}: block render must end with a newline`);
-  const marker = blockMarker(where, entry.marker);
   const wrapped = `${marker.start}\n${body}${marker.end}\n`;
   if (bytes === null) return { current: null, next: ENCODER.encode(wrapped), markers: "inserted" };
 
@@ -627,6 +628,28 @@ function patchBlock(bytes, entry) {
   if (lead && !lead.endsWith("\n")) lead += "\n";
   if (lead && !lead.endsWith("\n\n")) lead += "\n";
   return { current: null, next: ENCODER.encode(lead + wrapped), markers: "inserted" };
+}
+
+/**
+ * Take the marker pair, the body and the one blank line that insertion added before the pair out of the file. The
+ * blank line goes only when the pair is the last thing in the file, so user text after the pair keeps its separator.
+ * Insertion cannot be told apart for a file that already ended in a blank line or lacked a final newline, so those
+ * come back as ending in exactly one newline.
+ * A file that only held the block becomes empty: rig cannot tell that it created the file, so it does not delete it.
+ */
+function removeBlock(bytes, entry, marker) {
+  const where = entry.path;
+  if (bytes === null) return { current: null, next: new Uint8Array(), markers: "n/a" };
+  const text = decode(bytes, where);
+  const lines = splitLines(text);
+  const pairs = markerPairs(lines, marker, where);
+  if (pairs.length === 0) return { current: null, next: bytes, markers: "n/a" };
+  if (pairs.length > 1) fail("E_LOCATOR", `${where}: block ${entry.marker} appears ${pairs.length} times`, { path: where });
+  const [a, b] = pairs[0];
+  const after = text.slice(Math.min(lines[b].e + 1, text.length));
+  let before = text.slice(0, lines[a].s);
+  if (!after && before.endsWith("\n\n")) before = before.slice(0, -1);
+  return { current: ENCODER.encode(text.slice(lines[a].e + 1, lines[b].s)), next: ENCODER.encode(before + after), markers: "present" };
 }
 
 // ---------------------------------------------------------------- owned with keep_header

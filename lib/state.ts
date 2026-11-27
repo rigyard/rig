@@ -165,7 +165,8 @@ function planPatched(e, o, ent, patch, repair: boolean) {
   if (convert) return write("update");
   if (!ent) {
     if (have === want) return writes ? write("insert-markers") : mkOp("adopt", e.kind, o, e, f);
-    if (have === null && e.kind !== "cells") return write(o.sha === null ? "create" : "update");
+    // An empty marker pair, as older rig versions left behind on removal, holds none of the user's text: fill it.
+    if ((have === null || (e.kind === "block" && r.current.length === 0)) && e.kind !== "cells") return write(o.sha === null ? "create" : "update");
     return blockOp(e.kind, o, e, ent, err("E_ADOPT_MISMATCH", `${o.tilde}: current values differ from the render`, o.tilde), diff);
   }
   if (have !== ent.digest) {

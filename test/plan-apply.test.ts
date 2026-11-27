@@ -553,3 +553,72 @@ describe("rig doctor drift summary", () => {
     assert.doesNotMatch(d.stdout, /^error /m);
   });
 });
+
+describe("removing a harness that owns a managed block", () => {
+  const HARNESS_FILES = [["omp", ".omp/agent/AGENTS.md"], ["codex", ".codex/AGENTS.md"]];
+  // Without codex, antigravity has no writable dir that reads ~/.agents/skills (E_READSET), so the codex case drops both.
+  const dropped = (harness: string) => (h: string[]) => h.filter((x) => x !== harness && !(harness === "codex" && x === "antigravity"));
+  const START = "<!-- rig:frame:start -->";
+  const END = "<!-- rig:frame:end -->";
+  const setHarnesses = (s: ReturnType<typeof setup>, pick: (all: string[]) => string[]) => {
+    const file = join(s.root, "rig.json");
+    const cfg = JSON.parse(readFileSync(file, "utf8"));
+    writeFileSync(file, `${JSON.stringify({ ...cfg, harnesses: pick(cfg.harnesses) }, null, 2)}\n`);
+    return cfg.harnesses as string[];
+  };
+
+  for (const [harness, rel] of HARNESS_FILES) {
+    test(`${harness}: apply after dropping it restores the user file with no marker lines, and adding it back applies cleanly`, (t) => {
+      const s = setup({ home: { [rel]: "# my notes\n" } });
+      t.after(s.cleanup);
+      assert.equal(s.rig(["apply"]).code, 0);
+      assert.ok(s.fx.read(rel).includes(START), "the block was added");
+      const all = setHarnesses(s, dropped(harness));
+      const r = s.rig(["apply"]);
+      assert.equal(r.code, 0, r.all);
+      assert.equal(s.fx.read(rel), "# my notes\n");
+      setHarnesses(s, () => all);
+      const again = s.rig(["apply"]);
+      assert.equal(again.code, 0, again.all);
+      assert.doesNotMatch(again.all, /E_ADOPT_MISMATCH/);
+      const text = s.fx.read(rel);
+      assert.ok(text.startsWith(`# my notes\n\n${START}\n`) && text.endsWith(`${END}\n`), text);
+      assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+    });
+  }
+
+  test("a file that rig created for the block is left empty, and adding the harness back writes the block", (t) => {
+    const s = setup();
+    t.after(s.cleanup);
+    assert.equal(s.rig(["apply"]).code, 0);
+    const all = setHarnesses(s, (h) => h.filter((x) => x !== "omp"));
+    assert.equal(s.rig(["apply"]).code, 0);
+    assert.equal(s.fx.read(".omp/agent/AGENTS.md"), "");
+    setHarnesses(s, () => all);
+    const r = s.rig(["apply"]);
+    assert.equal(r.code, 0, r.all);
+    assert.ok(s.fx.read(".omp/agent/AGENTS.md").startsWith(`${START}\n`));
+  });
+
+  test("an empty marker pair that an older rig left, with no installed entry, is filled on the next apply", (t) => {
+    const stranded = `# my codex notes\n\n${START}\n${END}\n`;
+    const s = setup({ home: { ".codex/AGENTS.md": stranded } });
+    t.after(s.cleanup);
+    const r = s.rig(["apply"]);
+    assert.equal(r.code, 0, r.all);
+    assert.doesNotMatch(r.all, /E_ADOPT_MISMATCH/);
+    const text = s.fx.read(".codex/AGENTS.md");
+    assert.ok(text.startsWith(`# my codex notes\n\n${START}\n`) && text.length > stranded.length, text);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("a marker pair with user text inside still blocks the adopt with E_ADOPT_MISMATCH", (t) => {
+    const mine = `${START}\nmine\n${END}\n`;
+    const s = setup({ home: { ".codex/AGENTS.md": mine } });
+    t.after(s.cleanup);
+    const r = s.rig(["apply"]);
+    assert.equal(r.code, 1, r.all);
+    assert.match(r.all, /E_ADOPT_MISMATCH/);
+    assert.equal(s.fx.read(".codex/AGENTS.md"), mine);
+  });
+});
