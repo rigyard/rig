@@ -30,6 +30,16 @@ rig apply
 
 `rig doctor` and `rig plan` write nothing. Edit `harnesses` in `rig.json` before `rig apply` if you use only part of the five harnesses. Use `rigctl` when Homebrew `rig` is already on `PATH`.
 
+## Let your agent set it up
+
+Paste this into any coding agent. It needs no checkout first:
+
+```text
+Set up rig for me. Read https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md and follow it: clone the repo, run rig doctor and rig plan, explain the diff, and wait for my approval before rig apply.
+```
+
+The agent follows [AGENTS.md](./AGENTS.md): it clones the repo to `~/src/rig`, checks Node, runs the two read-only commands, summarizes the diff, and writes only after you approve. Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`.
+
 ## What ships out of the box
 
 - **Default stack.** Pinned `/craft` workflow (`packs/pstack`), `office-hours` product discovery (`packs/product`), `cursor-team-kit`, `cli-for-agents`, and a sealed core (`packs/core`) across Claude Code, Codex, omp, Cursor, and Antigravity.
@@ -38,6 +48,7 @@ rig apply
 
 ## Documentation
 
+- [AGENTS.md](./AGENTS.md) tells your coding agent how to set up and use rig.
 - [The rig guide](./docs/guide/README.md) walks through setup, the gate, packs, `/craft`, hooks, models, and overlays.
 - [CLI and repository reference](./docs/reference.md) holds domains, hooks, commands, harness paths, shipped packs, and safety checks.
 - [What rig writes per harness](./docs/harnesses.md) lists every path rig touches and every path it refuses to write.

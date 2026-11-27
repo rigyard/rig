@@ -1,5 +1,7 @@
 # Contributing to rig
 
+[AGENTS.md](./AGENTS.md) holds the same contracts in a form that coding agents read first. Keep both files in step. [REVIEW.md](./REVIEW.md) lists what reviewers check.
+
 ## Prerequisites
 
 Install Node 22.18.0 or later. rig runs `.ts` files directly through Node's native type stripping, with no build step and no runtime dependencies. `test/package.test.ts` fails if `package.json` declares `dependencies`, `optionalDependencies`, `peerDependencies`, `bundleDependencies`, or `bundledDependencies`.

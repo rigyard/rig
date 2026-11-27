@@ -15,7 +15,7 @@ rig keeps one stack of skills, workflows, custom hooks, triggers, and model tier
 9. [Make it yours](./09-make-it-yours.md). Use `~/.config/rig` overlays, unit operations, evidence ledgers, and custom targets.
 10. [Recipes and pitfalls](./10-recipes-and-pitfalls.md). Common command sequences and quick fixes.
 
-Read [What rig writes per harness](../harnesses.md) for every filesystem path rig touches.
+Coding agents read [AGENTS.md](../../AGENTS.md) for the setup steps and rules. Read [What rig writes per harness](../harnesses.md) for every filesystem path rig touches.
 
 ## Core loop
 
