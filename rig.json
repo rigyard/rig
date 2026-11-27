@@ -23,6 +23,16 @@
     "prod:discover": "product/office-hours",
     "triggers": [
       {
+        "when": "In prod:discover, before research, if two interpretations of the problem change the scope or research questions",
+        "use": "pstack/reframe",
+        "domain": "product"
+      },
+      {
+        "when": "In eng:ground, before eng:design, if a decision depends on a fact the repository cannot establish",
+        "use": "core/engineering-research",
+        "domain": "engineering"
+      },
+      {
         "when": "Building or changing a CLI",
         "use": "cli-for-agent/cli-for-agents",
         "domain": "engineering"

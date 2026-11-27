@@ -46,8 +46,8 @@
 .agents/skills/craft/references/adapter.md	644	2cd78aad42805ba3147385dc3e8c0ef9fe34fe8d199a620516e02b49e1a0d231
 .agents/skills/craft/references/bugbot-triage.md	644	b2d146c770d8d3593e1ef3d77b668039b8e1f78093ea1a86f1d45d7f99614309
 .agents/skills/craft/references/business.md	644	fc05fe97adbde1fcfaf976d243e992fced99fb5a321b621af5d5745e500d9d1b
-.agents/skills/craft/references/engineering.md	644	3f5011fe6ee0d0ac5f2af1ff701e2bd4a3330511a3f7b515d8d46a85247de57f
-.agents/skills/craft/references/product.md	644	f9d4155fe2ed1d13c982a3cf1b5b95059297582cd69e3a61844ecb4cadb3f5f0
+.agents/skills/craft/references/engineering.md	644	28440d0ee948f99a65a54c9d2c1feb850bd42caeb906a0158b6eb88a03456601
+.agents/skills/craft/references/product.md	644	cc9ed4b482e56ca8adfde4e240fad881a8c8def62c5b2080e1e3d17088bb2a96
 .agents/skills/craft/references/upkeep.md	644	9b652ef448dff4e805495d357256829a0d290f496e5c3448f84e79c1273fd2ff
 .agents/skills/craft/worker.md	644	d051060527ab1649fb1e69d1e7d416950264f9955c3de3635c0d63569f1b90d8
 .agents/skills/create-verification-skill/SKILL.md	644	c57ef6d16c9db5bab016d28e89a8e0deee41cf9dd3aeb0aed1afb65201115420
@@ -57,6 +57,8 @@
 .agents/skills/create-verification-skill/references/feature-map-example/search.md	644	6e87b9e7f2791a7776ba1bb83f371cd285c306c67f19d245cc4dd6ca3015c823
 .agents/skills/deslop/SKILL.md	644	0658b62824815611e8620deb30b5448bc0bf3c0cc55a7a3b9d3692103b71e7dc
 .agents/skills/deslop/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
+.agents/skills/engineering-research/SKILL.md	644	be45b3f014c7e151f8b6ad3e9b5c16abc91d6d67e2d59a80bc2dedb3dabf822f
+.agents/skills/engineering-research/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/figure-it-out/SKILL.md	644	b5b8aff8c18c8efdeb155f408016c990932f1c1eff03e838c3ef5037769a24d8
 .agents/skills/figure-it-out/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/how/SKILL.md	644	c541652db24e09d3db8e6b40eb16c6fdc04405795dbd06900d483a604e7c8e89
@@ -197,8 +199,8 @@
 .claude/skills/craft/references/adapter.md	644	4c861c449de5bc5c658a29d0e490069e5209608067997e67a7f47d9c7c1256f2
 .claude/skills/craft/references/bugbot-triage.md	644	b2d146c770d8d3593e1ef3d77b668039b8e1f78093ea1a86f1d45d7f99614309
 .claude/skills/craft/references/business.md	644	fc05fe97adbde1fcfaf976d243e992fced99fb5a321b621af5d5745e500d9d1b
-.claude/skills/craft/references/engineering.md	644	3f5011fe6ee0d0ac5f2af1ff701e2bd4a3330511a3f7b515d8d46a85247de57f
-.claude/skills/craft/references/product.md	644	f9d4155fe2ed1d13c982a3cf1b5b95059297582cd69e3a61844ecb4cadb3f5f0
+.claude/skills/craft/references/engineering.md	644	28440d0ee948f99a65a54c9d2c1feb850bd42caeb906a0158b6eb88a03456601
+.claude/skills/craft/references/product.md	644	cc9ed4b482e56ca8adfde4e240fad881a8c8def62c5b2080e1e3d17088bb2a96
 .claude/skills/craft/references/upkeep.md	644	9b652ef448dff4e805495d357256829a0d290f496e5c3448f84e79c1273fd2ff
 .claude/skills/craft/worker.md	644	d051060527ab1649fb1e69d1e7d416950264f9955c3de3635c0d63569f1b90d8
 .claude/skills/create-verification-skill/SKILL.md	644	20947fee9f49e66ac8e3c65e20273743cb285f40c377d6c7242470311fe9cc5f
@@ -206,6 +208,7 @@
 .claude/skills/create-verification-skill/references/feature-map-example/create-note.md	644	644a44c74f35d38c2feb7cd05a0121fdebbb623e8dc376c185b565a581d1ccf7
 .claude/skills/create-verification-skill/references/feature-map-example/search.md	644	6e87b9e7f2791a7776ba1bb83f371cd285c306c67f19d245cc4dd6ca3015c823
 .claude/skills/deslop/SKILL.md	644	834de6bf2f628ee3f71b09cbed10debc9646770601342c10c59450adc773875a
+.claude/skills/engineering-research/SKILL.md	644	fc1d5816aaa4e8a7a93b479889bd32f7186399a8f714f06d679847aa228b4ffb
 .claude/skills/figure-it-out/SKILL.md	644	405777da873739a17d711562ab85d4c2f5b5c82962c61011b99a92eeab5bc7b2
 .claude/skills/how/SKILL.md	644	0b82343327cbbaed6951ea198dcfb86c6c48475f139cc69002849e37a1a01244
 .claude/skills/in-your-own-words/SKILL.md	644	f1fe112ec346f64ffcc17821ec7ee5c84f5866b38c694604e08f91bf238b8205

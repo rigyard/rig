@@ -14,7 +14,7 @@ const TIDY_ALIAS = { repo: { "rig.json": rigJson({ packs: { own: {} }, aliases: 
 describe("core seal", () => {
   test("core is always in the stack, with no packs listed", () => {
     const s = stackOf(withPacks({}, {}));
-    assert.deepEqual(ids(s), ["core/rig-frame", "core/craft"]);
+    assert.deepEqual(ids(s), ["core/rig-frame", "core/craft", "core/engineering-research"]);
     assert.deepEqual(s.errors, []);
     assert.equal(unit(s, "core/craft").type, "mode");
     assert.deepEqual([...unit(s, "core/craft").files.keys()], ["SKILL.md"]);

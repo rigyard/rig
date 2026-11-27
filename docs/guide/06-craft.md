@@ -58,7 +58,7 @@ The seed loads pstack's own hub. Its fills and hooks assign these engineering st
 | "Before review" | `eng:review.before` | `pstack/no-comments` | `packs/pstack/pack.json` `mode.hooks` |
 | "Before commit" | `eng:ship.before` | `cursor-team-kit/deslop` | `rig.json` `fill` |
 
-`rig.json` also adds one trigger to the engineering domain: when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` or `docs/memos/<slug>.md` in your repository.
+`rig.json` also adds three domain triggers. In the product domain, during `prod:discover` and before research, use `pstack/reframe` when two readings of the problem change the scope or the research questions. In the engineering domain, during `eng:ground` and before `eng:design`, use `core/engineering-research` when a decision depends on a fact that the repository cannot establish. Also in the engineering domain, when you build or change a CLI, use `cli-for-agent/cli-for-agents`. `prod:discover` runs `product/office-hours`, which writes the `brief` artifact to `docs/designs/<slug>.md` or `docs/memos/<slug>.md` in your repository.
 
 `rig.json` also defines four triggers with no domain. rig renders them into the frame, and every harness loads the frame in every session. So these four apply with or without `/craft`:
 

@@ -17,7 +17,7 @@ An optional `pack.json` holds the license, the scopes the pack supports, and exc
 
 The checkout ships five packs. Four of them make up the seeded default.
 
-`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json`, the alias template, the domain table and the shell of the `craft` mode skill. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
+`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json`, the alias template, the domain table, the shell of the `craft` mode skill and the `engineering-research` skill. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
 
 | Pack | Source | What it holds |
 |---|---|---|
