@@ -17,11 +17,13 @@ Use `rigctl` when Homebrew `rig` is already on `PATH`. Do not run `npm install -
 
 ## Let your agent do it
 
-Paste this prompt into any coding agent. It needs no checkout first. The agent follows [AGENTS.md](../../AGENTS.md) and stops for your approval before any write:
+Your agent follows [AGENTS.md](../../AGENTS.md) and waits for your approval before any write. Without a checkout, paste:
 
 ```text
-Set up rig for me. Read https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md and follow it: clone the repo, run rig doctor and rig plan, explain the diff, and wait for my approval before rig apply.
+Set up rig: follow https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md
 ```
+
+In a checkout, say `Set up rig.`
 
 ## Config and state roots
 

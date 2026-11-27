@@ -15,9 +15,27 @@ Stop maintaining separate agent setups for Claude Code, Codex, omp, Cursor, and 
 - **Write once, extend as data.** Add a unit once and rig writes each harness's native format with zero duplicate listings across `~/.agents/skills/`. Add more harnesses such as `pi` as records in `targets/`.
 - **Pinned copies, offline gate, instant undo.** Packs are data pinned by commit SHA and sha256 tree hash in `rig.lock.json`, ten checks block secrets, executables, broken links, and cap overruns, and `rig apply --undo <run-id>` restores any run byte for byte.
 
-## Try it
+## Get started
 
-Requires Node 22.18.0 or later, with zero runtime dependencies and no build step.
+Requires Node 22.18.0 or later. rig has no runtime dependencies and no build step.
+
+### With your coding agent
+
+No checkout yet? Paste this into any coding agent:
+
+```text
+Set up rig: follow https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md
+```
+
+Already cloned? Open the checkout in your agent and say:
+
+```text
+Set up rig.
+```
+
+The agent runs `rig doctor` and `rig plan`, explains the diff, and runs `rig apply` only after you approve.
+
+### By hand
 
 ```sh
 git clone https://github.com/rigyard/rig.git ~/src/rig
@@ -28,17 +46,7 @@ rig plan
 rig apply
 ```
 
-`rig doctor` and `rig plan` write nothing. Edit `harnesses` in `rig.json` before `rig apply` if you use only part of the five harnesses. Use `rigctl` when Homebrew `rig` is already on `PATH`.
-
-## Let your agent set it up
-
-Paste this into any coding agent. It needs no checkout first:
-
-```text
-Set up rig for me. Read https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md and follow it: clone the repo, run rig doctor and rig plan, explain the diff, and wait for my approval before rig apply.
-```
-
-The agent follows [AGENTS.md](./AGENTS.md): it clones the repo to `~/src/rig`, checks Node, runs the two read-only commands, summarizes the diff, and writes only after you approve. Claude Code reads `CLAUDE.md`, which imports `AGENTS.md`.
+`rig doctor` and `rig plan` write nothing. To use fewer than five harnesses, edit `harnesses` in `rig.json` before `rig apply`. If Homebrew `rig` is already on `PATH`, use `rigctl`.
 
 ## What ships out of the box
 
