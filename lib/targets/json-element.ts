@@ -1,6 +1,7 @@
 // lib/targets/json-element.ts — internal to targets; reached through targets.patch.
 //
-// One element inside a JSON array at a JSON pointer (RFC 6901), found by its identity: the command string.
+// One element inside a JSON array at a JSON pointer (RFC 6901), found by its identity: the command string,
+// up to the node path and the rig checkout path (see sameCommand).
 // An element is rig's when its `command` equals the id (Cursor hooks.json shape), or when it is a matcher group whose
 // only hook has that command (Claude settings.json shape). A group that also holds foreign hooks is never rig's.
 //
@@ -8,6 +9,8 @@
 // Under it, reserializing the edited value changes only the bytes of the one element (plus the comma or the
 // containers that the insert needs), so every foreign entry keeps its value, its order and its bytes.
 // A file that fails the precondition is never rewritten: E_JSON_ROUNDTRIP carries the element for the user to paste.
+// Several elements can match (an old `apply --repair` left a stale one beside the current one): apply keeps one,
+// the exact match when there is one, else the first, rewrites it and drops the others; remove drops all of them.
 // Remove leaves an emptied array or object in place: rig cannot tell a container it created from one the user wrote.
 
 const DECODER = new TextDecoder("utf-8", { fatal: true });
@@ -33,17 +36,27 @@ const HEAD = /^('(?:[^']|'\\'')*'|[^\s']+) (.+)$/s;
 const unquote = (w: string): string => (w.startsWith("'") ? w.slice(1, -1).replaceAll("'\\''", "'") : w);
 const isNode = (w: string): boolean => /(^|\/)node(\.exe)?$/.test(unquote(w));
 
+const isRigBin = (w: string): boolean => /(^|\/)bin\/rig\.ts$/.test(unquote(w));
+
+/** `<node> <rig-bin> <tail>` split into its three parts, or null when the command has another shape. */
+function rigCommand(command: string): { tail: string } | null {
+  const x = command.match(HEAD);
+  const y = x?.[2].match(HEAD);
+  return x && y && isNode(x[1]) && isRigBin(y[1]) ? { tail: y[2] } : null;
+}
+
 /**
- * One command identity. rig's hook command is `<node> <rig-bin> ...` and the node path carries a version (a node
- * upgrade moves it), so two commands that differ only in a first word naming a node executable are the same element:
- * plan updates it in place instead of reporting drift.
+ * One command identity. rig's hook command is `<node> <rig-bin> ...`. The node path carries a version (a node upgrade
+ * moves it) and the rig bin path is the checkout (another worktree or a moved clone moves it). Two commands that
+ * differ only in those two words, with a node executable first and a `bin/rig.ts` second, are the same element:
+ * plan updates it in place instead of reporting drift or appending a second element.
  */
 export function sameCommand(a: unknown, id: string): boolean {
   if (typeof a !== "string") return false;
   if (a === id) return true;
-  const x = a.match(HEAD);
-  const y = id.match(HEAD);
-  return !!x && !!y && x[2] === y[2] && isNode(x[1]) && isNode(y[1]);
+  const x = rigCommand(a);
+  const y = rigCommand(id);
+  return !!x && !!y && x.tail === y.tail;
 }
 
 /** True when `el` is rig's element for `id`. */
@@ -52,6 +65,9 @@ export function isOwnElement(el, id) {
   if (sameCommand(el.command, id)) return true;
   return Array.isArray(el.hooks) && el.hooks.length === 1 && isObject(el.hooks[0]) && sameCommand(el.hooks[0].command, id);
 }
+
+/** The command an element carries, in either shape. */
+const commandOf = (el: any) => (isObject(el) && typeof el.command === "string" ? el.command : el.hooks?.[0]?.command);
 
 /** @param {string} pointer @returns {string[]} */
 function tokens(pointer, where) {
@@ -123,19 +139,23 @@ export function patchJsonElement(bytes: Uint8Array | null, entry: {path: string,
   const root = parseCanonical(bytes, entry);
   const list = arrayAt(root, keys, !entry.remove, where);
   const hits = (list ?? []).flatMap((el, i) => (isOwnElement(el, entry.id) ? [i] : []));
-  if (hits.length > 1) fail("E_LOCATOR", `${where}: ${hits.length} elements at ${entry.pointer} carry the command ${JSON.stringify(entry.id)}`, where);
-  const at = hits[0];
+  // Several hits are all rig's (a checkout move plus an old `apply --repair` left a stale one beside the current one).
+  // Keep one, the exact match when there is one, else the last (old `apply --repair` appended last and the ledger
+  // recorded that one), and drop the rest so rig converges to one element.
+  const at = hits.find((i: number) => commandOf(list[i]) === entry.id) ?? hits.at(-1);
+  const others = hits.filter((i: number) => i !== at).reverse();
   const current = at === undefined ? null : list[at];
 
   if (entry.remove) {
     if (at === undefined) return { current: null, next: bytes, markers: "n/a" };
-    list.splice(at, 1);
+    for (const i of hits.toReversed()) list.splice(i, 1);
   } else if (at === undefined) {
     list.push(entry.value);
-  } else if (sorted(current) === sorted(entry.value)) {
+  } else if (others.length === 0 && sorted(current) === sorted(entry.value)) {
     return { current, next: bytes, markers: "n/a" };
   } else {
     list[at] = entry.value;
+    for (const i of others) list.splice(i, 1);
   }
   return { current, next: ENCODER.encode(canonicalText(root)), markers: "n/a" };
 }

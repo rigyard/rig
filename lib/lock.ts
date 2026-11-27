@@ -79,7 +79,7 @@ async function collect(dir, picked) {
   const dests = [...picked.keys()];
   for (const d of dests) {
     const e = picked.get(d);
-    if (d.split("/").some((s) => s.toLowerCase() === ".git")) throw new LockError("E_LOCK_DOTGIT", `.git path in the vendored tree: ${e.path}`, e.path);
+    if (d.split("/").some((s: string) => s.toLowerCase() === ".git")) throw new LockError("E_LOCK_DOTGIT", `.git path in the vendored tree: ${e.path}`, e.path);
     if (e.mode === "120000") throw new LockError("E_LOCK_SYMLINK", `symlink in the vendored tree: ${e.path}`, e.path);
     if (e.type !== "blob") throw new LockError("E_LOCK_SUBMODULE", `submodule in the vendored tree: ${e.path}`, e.path);
   }

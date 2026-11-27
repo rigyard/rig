@@ -271,7 +271,7 @@ test("vendor refuses bad input and unsafe trees before writing", async (t) => {
 });
 
 /** Every path under dir, relative, folders included. */
-function allPaths(dir, rel = "") {
+function allPaths(dir: string, rel = ""): string[] {
   return readdirSync(join(dir, rel), { withFileTypes: true }).flatMap((ent) => {
     const r = rel ? `${rel}/${ent.name}` : ent.name;
     return [r, ...(ent.isDirectory() ? allPaths(dir, r) : [])];
@@ -291,7 +291,7 @@ for (const [label, hostile] of [
     const world = makeWorld(base, { writeConfig: undefined });
     await assert.rejects(vendor(world, { repo: repo.url, sha: repo.sha, paths: ["."], name: "evil" }), { code: "E_LOCK_DOTGIT" });
     const left = existsSync(world.roots.repo) ? allPaths(world.roots.repo) : [];
-    assert.deepEqual(left.filter((p) => p.split("/").some((s) => s.toLowerCase() === ".git")), []);
+    assert.deepEqual(left.filter((p: string) => p.split("/").some((s: string) => s.toLowerCase() === ".git")), []);
     assert.deepEqual(left, [], "the refusal came before the first write");
   });
 }
@@ -302,7 +302,7 @@ test("vendor accepts a tree whose .git entries an exclude removes", async (t) =>
   const repo = makeRawRepo(base, { LICENSE: MIT_TEXT, "skills/kit/SKILL.md": "---\nname: kit\n---\nDo the kit thing.\n", ".git/HEAD": "ref: refs/heads/main\n" });
   const world = makeWorld(base, { writeConfig: undefined });
   await vendor(world, { repo: repo.url, sha: repo.sha, paths: ["."], exclude: [".git"], name: "evil" });
-  assert.deepEqual(allPaths(world.roots.repo, "packs/evil").filter((p) => p.split("/").includes(".git")), []);
+  assert.deepEqual(allPaths(world.roots.repo, "packs/evil").filter((p: string) => p.split("/").includes(".git")), []);
   assert.equal(existsSync(join(world.roots.repo, "packs/evil/skills/kit/SKILL.md")), true);
 });
 

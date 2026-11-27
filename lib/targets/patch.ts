@@ -10,8 +10,9 @@
 //   yaml-map-value           "<key>: <value>" under a top-level "<map>:" line        (surface kind keys)
 //   toml-table               "[<table>]" header detection for a block that rig inserts (entry kind block)
 //
-// Markers exist only around tables of a cells surface with markers: true, and around a block. A locator that
-// does not match exactly once throws an Error with code E_LOCATOR. The json-element kind lives in json-element.mjs.
+// Markers exist only around tables of a cells surface with markers: true, and around a block. A locator of the
+// kinds above that does not match exactly once throws an Error with code E_LOCATOR. The json-element kind lives in
+// json-element.ts and converges several matching elements to one instead.
 
 import { patchJsonElement } from "./json-element.ts";
 
@@ -637,10 +638,10 @@ function patchBlock(bytes, entry) {
  * come back as ending in exactly one newline.
  * A file that only held the block becomes empty: rig cannot tell that it created the file, so it does not delete it.
  */
-function removeBlock(bytes, entry, marker) {
+function removeBlock(bytes: Uint8Array | null, entry: any, marker: any) {
   const where = entry.path;
   if (bytes === null) return { current: null, next: new Uint8Array(), markers: "n/a" };
-  const text = decode(bytes, where);
+  const text = decode(bytes, where) as string;
   const lines = splitLines(text);
   const pairs = markerPairs(lines, marker, where);
   if (pairs.length === 0) return { current: null, next: bytes, markers: "n/a" };

@@ -219,16 +219,154 @@ describe("rig doctor shows compose and render errors", () => {
   });
 });
 
+describe("a session-hook element whose rig checkout path moved", () => {
+  const MOVED = "/old/checkout/bin/rig.ts";
+
+  test("sameCommand: the rig bin path and the node path may both differ, nothing else may", () => {
+    const id = "/usr/local/bin/node /opt/rig/bin/rig.ts stats --record";
+    assert.ok(sameCommand(`/usr/local/bin/node ${MOVED} stats --record`, id), "another checkout");
+    assert.ok(sameCommand(`/opt/node/v20.0.0/bin/node '/home/a b/rig/.worktrees/live/bin/rig.ts' stats --record`, id), "node and checkout both moved, quoted path");
+    assert.ok(!sameCommand("my-logger --end", id), "a user's own SessionEnd hook");
+    assert.ok(!sameCommand("/usr/local/bin/node /home/me/hooks/log.ts stats --record", id), "another script with the same arguments");
+    assert.ok(!sameCommand("/usr/local/bin/node /opt/rig/bin/other.ts stats --record", id), "another file in a bin directory");
+    assert.ok(!sameCommand("/usr/local/bin/node /opt/rig/lib/rig.ts stats --record", id), "rig.ts outside a bin directory");
+    assert.ok(!sameCommand("/usr/bin/python /opt/rig/bin/rig.ts stats --record", id), "not a node executable");
+    assert.ok(!sameCommand(`/usr/local/bin/node ${MOVED} stats`, id), "another argument list");
+  });
+
+  /** The state a move leaves: the old checkout applied, so settings.json and installed.json both carry its path. */
+  const moved = (t: any) => {
+    const foreign = { hooks: [{ type: "command", command: "my-logger --end" }] };
+    const s = setup({ entry: { harnesses: ["claude"] }, rig: { metrics: { session_hook: true } }, home: { ".claude/settings.json": canon({ hooks: { SessionEnd: [foreign] } }) } });
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    const settings = JSON.parse(s.fx.read(".claude/settings.json"));
+    const current = settings.hooks.SessionEnd[1].hooks[0].command;
+    const stale = `${current.slice(0, current.indexOf(" "))} ${MOVED} stats --record`;
+    settings.hooks.SessionEnd[1].hooks[0].command = stale;
+    writeFileSync(s.fx.path(".claude/settings.json"), canon(settings));
+    const inst = JSON.parse(s.fx.read(`${STATE}installed.json`));
+    const ent = inst.entries["~/.claude/settings.json"];
+    ent.id = stale;
+    ent.digest = jsonDigest({ hooks: [{ type: "command", command: stale }] });
+    writeFileSync(s.fx.path(`${STATE}installed.json`), canon(inst));
+    return { s, foreign, current };
+  };
+
+  test("plan shows an update, not E_DRIFT, and apply rewrites the one rig element in place", (t) => {
+    const { s, foreign, current } = moved(t);
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 0, p.all);
+    assert.doesNotMatch(p.stdout, /E_DRIFT/);
+    assert.match(p.stdout, /^update +json-element +claude +~\/\.claude\/settings\.json +core\/session-end$/m, p.stdout);
+    const a = s.rig(["apply"]);
+    assert.equal(a.code, 0, a.all);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign, { hooks: [{ type: "command", command: current }] }]);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("apply --repair leaves no orphaned rig element", (t) => {
+    const { s, foreign, current } = moved(t);
+    assert.equal(s.rig(["apply", "--repair"]).code, 0);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign, { hooks: [{ type: "command", command: current }] }]);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+});
+
+describe("an orphaned rig session-hook element left beside the current one by an old apply --repair", () => {
+  /** The state old --repair left: the ledger records the current element, and a stale-path rig element sits before it. */
+  const orphaned = (t: any) => {
+    const foreign = { hooks: [{ type: "command", command: "my-logger --end" }] };
+    const s = setup({ entry: { harnesses: ["claude"] }, rig: { metrics: { session_hook: true } }, home: { ".claude/settings.json": canon({ hooks: { SessionEnd: [foreign] } }) } });
+    t.after(() => s.fx.cleanup());
+    assert.equal(s.rig(["apply"]).code, 0);
+    const settings = JSON.parse(s.fx.read(".claude/settings.json"));
+    const current = settings.hooks.SessionEnd[1].hooks[0].command;
+    const stale = { hooks: [{ type: "command", command: `${current.slice(0, current.indexOf(" "))} /old/checkout/bin/rig.ts stats --record` }] };
+    settings.hooks.SessionEnd.splice(1, 0, stale);
+    writeFileSync(s.fx.path(".claude/settings.json"), canon(settings));
+    return { s, foreign, current: { hooks: [{ type: "command", command: current }] }, stale };
+  };
+
+  test("plan shows an update, apply leaves [foreign, current], and a second plan has no changes", (t) => {
+    const { s, foreign, current } = orphaned(t);
+    for (const args of [["plan"], ["doctor"]]) {
+      const r = s.rig(args);
+      assert.equal(r.code, 0, r.all);
+      assert.doesNotMatch(r.all, /E_LOCATOR|E_DRIFT/);
+    }
+    assert.match(s.rig(["plan"]).stdout, /^update +json-element +claude +~\/\.claude\/settings\.json +core\/session-end$/m);
+    const a = s.rig(["apply"]);
+    assert.equal(a.code, 0, a.all);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign, current]);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("apply --repair converges the same way", (t) => {
+    const { s, foreign, current } = orphaned(t);
+    assert.equal(s.rig(["apply", "--repair"]).code, 0);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign, current]);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("with no exact match (node and rig path changed), the ledger's element is the last one: plan shows an update, not E_DRIFT", (t) => {
+    const { s, foreign } = orphaned(t);
+    const settings = JSON.parse(s.fx.read(".claude/settings.json"));
+    const node = settings.hooks.SessionEnd[2].hooks[0].command.split(" ")[0];
+    const el = (path: string) => ({ hooks: [{ type: "command", command: `${node} ${path}/bin/rig.ts stats --record` }] });
+    const [a, b] = [el("/A"), el("/B")];
+    settings.hooks.SessionEnd = [foreign, a, b];
+    writeFileSync(s.fx.path(".claude/settings.json"), canon(settings));
+    const inst = JSON.parse(s.fx.read(`${STATE}installed.json`));
+    const ent = inst.entries["~/.claude/settings.json"];
+    ent.id = b.hooks[0].command;
+    ent.digest = jsonDigest(b);
+    writeFileSync(s.fx.path(`${STATE}installed.json`), canon(inst));
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 0, p.all);
+    assert.doesNotMatch(p.all, /E_DRIFT|E_LOCATOR/);
+    assert.match(p.stdout, /^update +json-element +claude +~\/\.claude\/settings\.json +core\/session-end$/m, p.stdout);
+    const r = s.rig(["apply"]);
+    assert.equal(r.code, 0, r.all);
+    const list = JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd;
+    assert.equal(list.length, 2, JSON.stringify(list));
+    assert.deepEqual(list[0], foreign);
+    assert.doesNotMatch(list[1].hooks[0].command, /\/[AB]\/bin\/rig\.ts/);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+
+  test("with no ledger entry, the plan labels the removal of the extra element an update, not insert-markers", (t) => {
+    const { s, foreign, current } = orphaned(t);
+    const inst = JSON.parse(s.fx.read(`${STATE}installed.json`));
+    delete inst.entries["~/.claude/settings.json"];
+    writeFileSync(s.fx.path(`${STATE}installed.json`), canon(inst));
+    const p = s.rig(["plan"]);
+    assert.equal(p.code, 0, p.all);
+    assert.match(p.stdout, /^update +json-element +claude +~\/\.claude\/settings\.json +core\/session-end$/m, p.stdout);
+    assert.equal(s.rig(["apply"]).code, 0);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign, current]);
+  });
+
+  test("turning the hook off removes both rig elements and keeps the foreign one", (t) => {
+    const { s, foreign } = orphaned(t);
+    const cfg = JSON.parse(s.fx.read("rig/rig.json"));
+    writeFileSync(s.fx.path("rig/rig.json"), canon({ ...cfg, metrics: { session_hook: false } }));
+    const a = s.rig(["apply"]);
+    assert.equal(a.code, 0, a.all);
+    assert.deepEqual(JSON.parse(s.fx.read(".claude/settings.json")).hooks.SessionEnd, [foreign]);
+    assert.match(s.rig(["plan"]).stdout, /^0 changes, 0 blocks$/m);
+  });
+});
+
 describe("a session-hook element whose command differs only in the node path", () => {
   const OLD = "/opt/node/v20.0.0/bin/node";
 
-  test("sameCommand: only a first word naming a node executable may differ", () => {
+  test("sameCommand: only the node path may differ when the rig bin path is the same", () => {
     const id = "/usr/local/bin/node /opt/rig/bin/rig.ts stats --record";
     assert.ok(sameCommand(id, id));
     assert.ok(sameCommand(`${OLD} /opt/rig/bin/rig.ts stats --record`, id));
     assert.ok(sameCommand("'/home/a b/.nvm/versions/node/v22.1.0/bin/node' /opt/rig/bin/rig.ts stats --record", id));
     assert.ok(!sameCommand("/usr/bin/python /opt/rig/bin/rig.ts stats --record", id), "not a node executable");
-    assert.ok(!sameCommand(`${OLD} /other/rig/bin/rig.ts stats --record`, id), "another rig bin");
     assert.ok(!sameCommand(`${OLD} /opt/rig/bin/rig.ts stats`, id), "another argument list");
     assert.ok(!sameCommand(undefined, id));
   });

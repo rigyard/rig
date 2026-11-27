@@ -394,7 +394,7 @@ for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent
 
 
 for (const [harness, rel] of [["codex", ".codex/AGENTS.md"], ["omp", ".omp/agent/AGENTS.md"]]) test(`targets.patch (${harness}): remove deletes the marker pair and the blank line rig added, so the user file round-trips`, () => {
-  const block = render(fixtureStack(), world()).entries.get(`${HOME}/${rel}`);
+  const block: any = render(fixtureStack() as any, world()).entries.get(`${HOME}/${rel}`);
   const enc = (s: string) => new TextEncoder().encode(s);
   const dec = (b: Uint8Array) => new TextDecoder().decode(b);
   const MARKERS = /rig:frame:(start|end)/;

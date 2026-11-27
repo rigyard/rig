@@ -166,11 +166,35 @@ describe("json-element patch (targets.patch)", () => {
     assert.equal(dec(removed.next), canon({ theme: "dark", hooks: { SessionEnd: [] } }));
   });
 
-  test("a non-object on the pointer path, a non-array target, and two rig elements are E_LOCATOR", () => {
-    for (const v of [{ hooks: [] }, { hooks: { SessionEnd: {} } }, { hooks: { SessionEnd: [CLAUDE_ELEMENT, CLAUDE_ELEMENT] } }]) {
+  test("a non-object on the pointer path and a non-array target are E_LOCATOR", () => {
+    for (const v of [{ hooks: [] }, { hooks: { SessionEnd: {} } }]) {
       const r = patch(enc(canon(v)), claudeEntry());
       assert.equal(r.error?.code, "E_LOCATOR", JSON.stringify(v));
     }
+  });
+
+  test("several rig elements converge to one: the exact match stays, the others go, foreign entries keep their order", () => {
+    const foreign = { hooks: [{ type: "command", command: "my-logger --end" }] };
+    const stale = { hooks: [{ type: "command", command: "/usr/local/bin/node /old/checkout/bin/rig.ts stats --record" }] };
+    for (const list of [[foreign, stale, CLAUDE_ELEMENT], [stale, foreign, CLAUDE_ELEMENT, stale], [foreign, CLAUDE_ELEMENT, CLAUDE_ELEMENT]]) {
+      const text = canon({ hooks: { SessionEnd: list } });
+      const r = patch(enc(text), claudeEntry());
+      assert.equal(r.error, undefined, JSON.stringify(list));
+      assert.deepEqual(r.current, CLAUDE_ELEMENT, "current is the kept element");
+      assert.deepEqual(JSON.parse(dec(r.next)).hooks.SessionEnd, [foreign, CLAUDE_ELEMENT].sort((a, b) => list.indexOf(a) - list.indexOf(b)), JSON.stringify(list));
+      assert.equal(dec(patch(r.next, claudeEntry()).next), dec(r.next), "run twice, same bytes");
+      const removed = patch(enc(text), { ...claudeEntry(), remove: true });
+      assert.deepEqual(JSON.parse(dec(removed.next)).hooks.SessionEnd, [foreign], "remove takes every rig element");
+    }
+  });
+
+  test("with no exact match, several stale rig elements converge to the last one (what old --repair recorded), rewritten in place", () => {
+    const stale = (path: string) => ({ hooks: [{ type: "command", command: `/usr/local/bin/node ${path} stats --record` }] });
+    const foreign = { hooks: [{ type: "command", command: "my-logger --end" }] };
+    const text = canon({ hooks: { SessionEnd: [stale("/a/bin/rig.ts"), foreign, stale("/b/bin/rig.ts")] } });
+    const r = patch(enc(text), claudeEntry());
+    assert.deepEqual(r.current, stale("/b/bin/rig.ts"));
+    assert.deepEqual(JSON.parse(dec(r.next)).hooks.SessionEnd, [foreign, CLAUDE_ELEMENT]);
   });
 
   test("a foreign group that also runs rig's command is not rig's element: it stays, rig adds its own", () => {
@@ -202,6 +226,16 @@ describe("json-element patch (targets.patch)", () => {
     assert.equal(v.hooks.sessionEnd.filter((e) => e.command === ID).length, 1, "exactly one rig element");
     assert.ok(insertedLines(hooksJson.replace('"./hooks/notify.sh"\n      }', '"./hooks/notify.sh"\n      },'), dec(once.next)));
     assert.equal(dec(patch(once.next, entry).next), dec(once.next), "run twice, same bytes");
+  });
+
+  test("a Cursor hooks.json with a stale and a current rig element converges to the current one", () => {
+    const stale = { command: "/usr/local/bin/node /old/checkout/bin/rig.ts stats --record" };
+    const text = canon({ version: 1, hooks: { sessionEnd: [{ command: "./hooks/audit.sh" }, stale, { command: ID }] } });
+    const entry: any = { kind: "json-element", path: "/h/.cursor/hooks.json", pointer: "/hooks/sessionEnd", id: ID, value: { command: ID }, unit: "core/session-end" };
+    const r = patch(enc(text), entry);
+    assert.equal(r.error, undefined);
+    assert.deepEqual(JSON.parse(dec(r.next)).hooks.sessionEnd, [{ command: "./hooks/audit.sh" }, { command: ID }]);
+    assert.deepEqual(JSON.parse(dec(patch(enc(text), { ...entry, remove: true }).next)).hooks.sessionEnd, [{ command: "./hooks/audit.sh" }]);
   });
 });
 

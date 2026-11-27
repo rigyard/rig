@@ -508,7 +508,8 @@ function renderMarketplaces(ctx: any) {
 
 const RIG_BIN = fileURLToPath(new URL("../bin/rig.ts", import.meta.url));
 const shellWord = (s) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : `'${s.replaceAll("'", "'\\''")}'`);
-/** The hook command, and the element's identity in the JSON merge (section 2.10): `<node> <rig-bin> stats --record`. */
+/** The hook command, and the element's identity in the JSON merge (section 2.10): `<node> <rig-bin> stats --record`.
+ * Only the node and rig-bin words are compared loosely (sameCommand in targets/json-element.ts). */
 const SESSION_HOOK_COMMAND = `${shellWord(process.execPath)} ${shellWord(RIG_BIN)} stats --record`;
 
 /** One hook element per record whose `hooks.session_end` is set, in the Claude matcher-group shape (probe h). */
