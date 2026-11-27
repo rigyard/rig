@@ -37,27 +37,27 @@
     },
     "product": {
       "repo": "https://github.com/garrytan/gstack",
-      "sha": "100e109ccd4b5d72133b180e495e8889fcb15b28",
+      "sha": "306ff23b9d2bd7951b7f6c408c7376f3237520c9",
       "root": ".",
       "paths": [],
       "exclude": [],
       "license": "MIT",
-      "tree": "sha256:0217b0134e06d5c760de210ed1aa2dd7a1512d160a819b2d9183d98f2efac4a4",
+      "tree": "sha256:6daeb4748c342df8ff2661ba17b2f632271bc2707ea2559d3715d58a80feff49",
       "port": {
         "paths": [
           "LICENSE",
           "office-hours/SKILL.md",
           "office-hours/sections"
         ],
-        "tree": "sha256:5b15c2d80c358ef3fe516be694b90a28d87d3eda89df7870f19921b301f8cdb2",
-        "reviewed_sha": "100e109ccd4b5d72133b180e495e8889fcb15b28",
-        "reviewed_tree": "sha256:5b15c2d80c358ef3fe516be694b90a28d87d3eda89df7870f19921b301f8cdb2"
+        "tree": "sha256:a2929b9b986a1718b0f9c6593edc575cb1fd50645895b157a626a6d105492610",
+        "reviewed_sha": "306ff23b9d2bd7951b7f6c408c7376f3237520c9",
+        "reviewed_tree": "sha256:a2929b9b986a1718b0f9c6593edc575cb1fd50645895b157a626a6d105492610"
       },
       "candidate": null
     },
     "pstack": {
       "repo": "https://github.com/cursor/plugins",
-      "sha": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9",
+      "sha": "b7b93c36be9bcc36a74db438e0fd385d660bc559",
       "root": "pstack",
       "paths": [
         "."
@@ -77,7 +77,7 @@
         "skills/statechart"
       ],
       "license": "MIT",
-      "tree": "sha256:3e290b800d28057fe1180dd9f02347ad14b6e03ed711cd23d5a9bf5f6a77c160",
+      "tree": "sha256:290f12f6133226dd852612b066bf30a984c337dc705c24f374df80a68e8bf592",
       "port": {
         "paths": [
           "docs/harness/claude-code.md"

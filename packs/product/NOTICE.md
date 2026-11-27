@@ -7,7 +7,7 @@ The product pack is a port of material from gstack. gstack is MIT licensed. The 
 - Source: https://github.com/garrytan/gstack
 - Commit: b244e6d11a6466650c5147cd7dc023859968c4b5
 - License: `licenses/MIT-gstack.txt`, an unmodified copy of the gstack `LICENSE` file at that commit.
-- Pinned at: 100e109ccd4b5d72133b180e495e8889fcb15b28. The port adds the upstream startup reality check, evidence ranking, discovery and pivot decision memos, customer privacy, and dated assignments and outcome tests. It keeps the rig document paths and same-model second opinion. gstack runtime, binaries, profiles, telemetry, brain storage, founder resources and visual design remain outside this port.
+- Pinned at: 306ff23b9d2bd7951b7f6c408c7376f3237520c9. The port adds the upstream startup reality check, evidence ranking, discovery and pivot decision memos, customer privacy, and dated assignments and outcome tests. It keeps the rig document paths and same-model second opinion. gstack runtime, binaries, profiles, telemetry, brain storage, founder resources and visual design remain outside this port. Since `100e109`, upstream gave its shipping skill a prefixed name in the office-hours proactive skill list and in the shared preamble, so that the Claude Code `/ship` command no longer hides it, and moved the preamble id. The port carries neither the gstack preamble nor the proactive skill list, so neither change reaches the port text.
 
 Derived and modified:
 

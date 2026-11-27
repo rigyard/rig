@@ -134,6 +134,8 @@
 .agents/skills/recall/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/reflect/SKILL.md	644	9b89b86c4be1d28f3e219ea3e4178c5e0f035c3ffde9857b94d819a65befcce6
 .agents/skills/reflect/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
+.agents/skills/reframe/SKILL.md	644	6d74ef7ac0ee8ea34ba8586e4644a79e38e51c0704f2e9290a8b8c8e07524b32
+.agents/skills/reframe/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/sharpen/SKILL.md	644	58c6cd7ec96365655460e75f9ea4a9473917cf07bf4e60bafb6fe7eb580c84a6
 .agents/skills/sharpen/agents/openai.yaml	644	a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94
 .agents/skills/show-me-your-work/SKILL.md	644	e4543f4291598b33f02c4bca314402a11866c8d37cee32459275a49ee3f83a0c
@@ -245,6 +247,7 @@
 .claude/skills/principle-type-system-discipline/SKILL.md	644	ea7d5c53727dd997258b6a15f72b2246632bed68f03422df467182c45f44a2fb
 .claude/skills/recall/SKILL.md	644	4a2ad1a5c77ab10a78d36684fd8cd5756a6b635dbb8ebc60e8a0dbd7e496e47e
 .claude/skills/reflect/SKILL.md	644	d12281fd0130fd4fe37dd4146d2e8c6f8625ec4b04ac9f7a23c960cee0bede7a
+.claude/skills/reframe/SKILL.md	644	5af5398bee024563ad31004510a5299317071955b807e207dbac8f9f65bc7e4f
 .claude/skills/sharpen/SKILL.md	644	78f91017631b94768c888bacb3559a8f74db729279eedcf0fb87fa14bb8a62f0
 .claude/skills/show-me-your-work/SKILL.md	644	7772ffb25a764b5e4220578621fd6441739719446f8f6e4d503c9d3ed4659741
 .claude/skills/show-me-your-work/references/decision-log-template.tsv	644	6779378006a2f5225e8c06deb84f1d913fb532041ebbb6e50d94600bfe3f4b76

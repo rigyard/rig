@@ -74,7 +74,7 @@ Before you paste the snippet, the plugin is off:
 ```text
 $ rig doctor --project ~/src/app
 info  drift    managed files match installed.json and the render
-info  evidence untested 59, helps 0, no-effect 0, hurts 0, safety 0 (no evidence.json)
+info  evidence untested 60, helps 0, no-effect 0, hurts 0, safety 0 (no evidence.json)
 warn  scope    claude pack product is declared for this project but not enabled: paste {"enabledPlugins": {"product@rig-local": true}} into ~/src/app/.claude/settings.local.json
 info  scope    codex pack product: commit .agents/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
 info  scope    omp pack product: commit .omp/skills/office-hours/ (a copy of ~/rig/packs/product/skills/office-hours/)
@@ -87,7 +87,7 @@ Then add the snippet:
 ```text
 $ rig doctor --project ~/src/app
 info  drift    managed files match installed.json and the render
-info  evidence untested 59, helps 0, no-effect 0, hurts 0, safety 0 (no evidence.json)
+info  evidence untested 60, helps 0, no-effect 0, hurts 0, safety 0 (no evidence.json)
 info  scope    claude pack product is enabled here (local)
 ...
 0 errors, 0 warnings
