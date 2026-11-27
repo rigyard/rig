@@ -2,7 +2,7 @@
 
 rig is a version-pinned agent-skill stack and a seeder for coding-agent harnesses. On 2026-11-05 the direction changed to v1. rig now vendors pstack and renders its own mode skill, `craft` (`/craft`), around pstack's hub, which installs byte-identical as `craft/hub.md`. Start a planning session from the v1 concept, the first-seed design and the first-seed plan. The v0 documents, the research and the decision log below are history. A v1 document confirms or replaces each v0 decision.
 
-To use rig, read [the rig guide](guide/README.md) and [what rig writes per harness](harnesses.md). The pages below explain why rig works the way it does.
+To use rig, read [the rig guide](guide/README.md), [the CLI and repository reference](reference.md), and [what rig writes per harness](harnesses.md). The pages below explain why rig works the way it does.
 
 ## Design
 
