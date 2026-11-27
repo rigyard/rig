@@ -12,4 +12,4 @@ rig vendors and ports third-party packs under their own MIT licenses. Exact pinn
 
 ## Trademarks
 
-Claude and Claude Code (Anthropic), OpenAI and Codex (OpenAI), Cursor (Anysphere), oh-my-pi (`omp`), and Google Gemini / Antigravity (Google) are trademarks or product marks of their respective owners. Their names and monochrome icons appear in [docs/assets/rig-overview.png](./docs/assets/rig-overview.png) only to identify the target coding-agent harnesses supported by rig, without implying endorsement.
+Claude and Claude Code (Anthropic), OpenAI and Codex (OpenAI), Cursor (Anysphere), oh-my-pi (`omp`), and Google Gemini / Antigravity (Google) are trademarks or product marks of their respective owners. Their names and brand icons appear in [docs/assets/rig-overview.png](./docs/assets/rig-overview.png) only to identify the target coding-agent harnesses supported by rig, without implying endorsement.
