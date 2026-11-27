@@ -470,8 +470,9 @@ describe("rig models", () => {
     for (const rel of ["~/.codex/pstack-models.md", "~/.cursor/rules/pstack-models.mdc", "~/.omp/agent/pstack-models.md", "~/.codex/config.toml"]) {
       assert.match(r.stdout, new RegExp(`^create +(owned|block) +\\w+ +${rel.replaceAll(".", "\\.")} `, "m"), rel);
     }
-    assert.match(r.stdout, /^5 changes, 0 blocks$/m);
-    assert.match(readFileSync(s.fx.path(".claude/rules/pstack-models.md"), "utf8"), /^hardest tasks: model-z xhigh$/m);
+    assert.match(r.stdout, /^create +owned +claude +~\/\.claude\/agents\/rig-agent\.md +core\/rig-agent$/m);
+    assert.match(r.stdout, /^13 changes, 0 blocks$/m);
+    assert.match(readFileSync(s.fx.path(".claude/rules/pstack-models.md"), "utf8"), /^hardest tasks: model-z high$/m);
     const afterText = readFileSync(file, "utf8");
     const a = beforeText.split("\n");
     const b = afterText.split("\n");
@@ -481,7 +482,9 @@ describe("rig models", () => {
     expected.tiers.strong.claude = "model-z";
     assert.deepEqual(JSON.parse(afterText), expected);
     const diff = changed(before, s.fx.snapshot());
-    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)), [".claude/rules/pstack-models.md", ".codex/config.toml", ".codex/pstack-models.md", ".cursor/rules/pstack-models.mdc", ".omp/agent/pstack-models.md", "rig/models/tiers.json"]);
+    const agents = [".claude/agents", ".codex/agents", ".cursor/agents", ".gemini/config/agents"].flatMap((d) => ["rig-agent", "rig-janitor"].map((n) => `${d}/${n}.${d === ".codex/agents" ? "toml" : "md"}`));
+    assert.deepEqual(diff.filter((p) => !p.startsWith(STATE)).sort(), [...agents, ".claude/rules/pstack-models.md", ".codex/config.toml", ".codex/pstack-models.md", ".cursor/rules/pstack-models.mdc", ".omp/agent/pstack-models.md", "rig/models/tiers.json"].sort());
+    assert.match(readFileSync(s.fx.path(".claude/agents/rig-agent.md"), "utf8"), /^model: "model-z"$/m, "the model of rig-agent follows the strong tier");
   });
 
   test("set refuses when the overlay has models/tiers.json: exit 2, the repo file keeps its bytes", (t) => {
@@ -542,7 +545,7 @@ describe("rig pack add", () => {
 
     // The lock it wrote loads, and its tree equals the files on disk once the pack is listed.
     const rigJson = JSON.parse(readFileSync(join(s.root, "rig.json"), "utf8"));
-    writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...rigJson, packs: { kit: {} }, fill: {} }, null, 2)}\n`);
+    writeFileSync(join(s.root, "rig.json"), `${JSON.stringify({ ...rigJson, packs: { kit: {} }, fill: {}, disable: [] }, null, 2)}\n`);
     const d = s.rig(["doctor"]);
     assert.equal(d.code, 0, d.stdout + d.stderr);
     assert.doesNotMatch(d.stdout, /^error/m);

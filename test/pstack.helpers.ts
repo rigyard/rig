@@ -38,7 +38,7 @@ export function stubPstack(): {spec: Record<string, string>, rig: Record<string,
   delete manifest.mode;
   const spec: Record<string, string> = { "rig/packs/pstack/pack.json": json(manifest) };
   for (const [rel, text] of Object.entries(STUB_FILES)) spec[`rig/packs/pstack/${rel}`] = text;
-  return { spec, rig: { ...repoJson("rig.json"), packs: { pstack: {} }, fill: {} }, lock: { pstack: authoredEntry("pstack", STUB_FILES) } };
+  return { spec, rig: { ...repoJson("rig.json"), packs: { pstack: {} }, fill: {}, disable: [] }, lock: { pstack: authoredEntry("pstack", STUB_FILES) } };
 }
 
 /**

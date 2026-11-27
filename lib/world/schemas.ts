@@ -34,7 +34,7 @@ const surface = S.rec(
     path: text(),
     harness: id(),
     consumer: id(),
-    kind: S.enum(["frontmatter", "cells", "whole", "keys", "block"]),
+    kind: S.enum(["frontmatter", "cells", "whole", "keys", "block", "agent"]),
     markers: S.bool(),
     harness_rewrites: S.bool(),
     header: text(),

@@ -28,7 +28,7 @@ const PACK_ADD = ["pack", "add", REPO, "--sha", SHA, "--root", "pstack", "--path
  * core seal only, so the pstack that `rig pack add` vendors is the first pack and does not collide with trunk's own.
  */
 function setup(t: {after: (fn: () => void) => void}) {
-  const spec: Record<string, string | {content: Uint8Array, mode: number}> = { "rig/rig.json": json({ ...repoJson("rig.json"), fill: {}, packs: {} }) };
+  const spec: Record<string, string | {content: Uint8Array, mode: number}> = { "rig/rig.json": json({ ...repoJson("rig.json"), fill: {}, disable: [], packs: {} }) };
   for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };
   }

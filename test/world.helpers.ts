@@ -58,8 +58,8 @@ export function fixture({ repo = {}, overlay = null, home = {}, env = {} } = {})
   return { env: e, home: fx.home, path: fx.path, load: () => loadWorld(e), cleanup: fx.cleanup };
 }
 
-/** rig.json of the repo with changes merged on top. Changes that replace `packs` drop the repo `fill`, which names seeded units. */
-export const rigJson = (changes: Record<string, unknown> = {}) => ({ ...baseJson("rig.json"), ...("packs" in changes ? { fill: {} } : {}), ...changes });
+/** rig.json of the repo with changes merged on top. Changes that replace `packs` drop the repo `fill` and `disable`, which name seeded units. */
+export const rigJson = (changes: Record<string, unknown> = {}) => ({ ...baseJson("rig.json"), ...("packs" in changes ? { fill: {}, disable: [] } : {}), ...changes });
 
 /** The pack entries of this repo's rig.lock.json, for a fixture that copies the packs rig.json lists. */
 export const repoLockPacks = () => JSON.parse(readFileSync(join(ROOT, "rig.lock.json"), "utf8")).packs;

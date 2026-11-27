@@ -213,7 +213,7 @@ describe("first seed", () => {
     t.after(() => (fx.cleanup(), rmSync(root, { recursive: true, force: true })));
     for (const p of ["pstack", "cursor-team-kit", "cli-for-agent"]) rmSync(join(root, "packs", p), { recursive: true });
     writeFileSync(join(root, "rig.lock.json"), `${JSON.stringify({ ...committed, packs: {} }, null, 2)}\n`);
-    writeFileSync(join(root, "rig.json"), `${JSON.stringify({ ...json(join(ROOT, "rig.json")), packs: {}, fill: {} }, null, 2)}\n`);
+    writeFileSync(join(root, "rig.json"), `${JSON.stringify({ ...json(join(ROOT, "rig.json")), packs: {}, fill: {}, disable: [] }, null, 2)}\n`);
     const r = (...args: string[]) => {
       const x = rig(root, fx.home, args);
       assert.equal(x.code, 0, `rig ${args.join(" ")}: ${x.all}`);

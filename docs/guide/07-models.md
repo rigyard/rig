@@ -11,29 +11,33 @@ rig keeps model choices in two files under `models/`:
 
 A vendor release changes `tiers.json` only. Roles stay as they are. When a role asks for an effort that the harness does not have, rig uses the highest rung of the ladder at or below it, so `xhigh` becomes `high` on Cursor. Read [decision 0018](../decisions/0018-four-tiers-and-second-opinion-slot.md) for why there are four tiers.
 
-On main, `tiers.json` names a model per tier for Claude Code, Codex, Cursor and omp. Antigravity has no model surface: a subagent file names only `inherit`, `flash` or `pro`. Claude tiers are aliases. The Codex, Cursor and omp values are ids that each harness lists, and you can change any of them with `rig models set`. The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
+On main, `tiers.json` names a model per tier for Claude Code, Codex, Cursor, omp and Antigravity. On Antigravity, rig renders the row only into the `model` line of its own agent files. In a scratch HOME, agy 1.5.15 listed agent files whose `model` was `inherit`, `flash`, `flash_lite` or `pro`, and skipped files with `opus` or an unknown value. Claude tiers are aliases. The Codex, Cursor and omp values are ids that each harness lists, and you can change any of them with `rig models set`. The pstack role values in `roles.json` are an open decision: see [assumptions and open questions](../assumptions-and-open-questions.md).
 
 ## Read the effective table
 
 ```text
 rig models
-harness  tier    model                                source
-claude   reason  fable                                tiers.json
-claude   strong  opus                                 tiers.json
-claude   fast    sonnet                               tiers.json
-claude   cheap   haiku                                tiers.json
-codex    reason  gpt-6-astra                          tiers.json
-codex    strong  gpt-6.1-sol                          tiers.json
-codex    fast    gpt-6.1-terra                        tiers.json
-codex    cheap   gpt-6-luna                           tiers.json
-omp      reason  google-antigravity/gemini-4-argon    tiers.json
-omp      strong  google-antigravity/claude-opus-5-5   tiers.json
-omp      fast    google-antigravity/gemini-3.8-flash  tiers.json
-omp      cheap   google-antigravity/gemini-3.8-flash  tiers.json
-cursor   reason  claude-opus-5-5                      tiers.json
-cursor   strong  claude-opus-5-5                      tiers.json
-cursor   fast    claude-sonnet-5-5                    tiers.json
-cursor   cheap   claude-haiku-5-5                     tiers.json
+harness      tier    model                                source
+claude       reason  fable                                tiers.json
+claude       strong  opus                                 tiers.json
+claude       fast    sonnet                               tiers.json
+claude       cheap   haiku                                tiers.json
+codex        reason  gpt-6-astra                          tiers.json
+codex        strong  gpt-6.1-sol                          tiers.json
+codex        fast    gpt-6.1-terra                        tiers.json
+codex        cheap   gpt-6-luna                           tiers.json
+omp          reason  google-antigravity/gemini-4-argon    tiers.json
+omp          strong  google-antigravity/claude-opus-5-5   tiers.json
+omp          fast    google-antigravity/gemini-3.8-flash  tiers.json
+omp          cheap   google-antigravity/gemini-3.8-flash  tiers.json
+cursor       reason  claude-opus-5-5                      tiers.json
+cursor       strong  claude-opus-5-5                      tiers.json
+cursor       fast    claude-sonnet-5-5                    tiers.json
+cursor       cheap   claude-haiku-5-5                     tiers.json
+antigravity  reason  pro                                  tiers.json
+antigravity  strong  pro                                  tiers.json
+antigravity  fast    flash                                tiers.json
+antigravity  cheap   flash_lite                           tiers.json
 ```
 
 The `source` column tells you where each value comes from. Claude tiers are aliases, so `opus` always resolves to the current model of that family. Claude Code can remap an alias for every session through an environment variable, and `rig models` shows that:
@@ -50,9 +54,24 @@ claude   cheap   haiku           tiers.json
 
 `rig models` reads only. Most Claude releases need no edit at all, because the alias follows the release ([decision 0019](../decisions/0019-claude-aliases-with-optional-pins.md)).
 
+## The agents that rig ships
+
+The core pack ships two agents, `rig-agent` (the `craft` delegate) and `rig-janitor` (the comment reviewer of `no-comments`). The `agents` consumer of `roles.json` sets their tier and effort: `rig-agent` is `["strong", "medium"]` and `rig-janitor` is `["cheap", "low"]`. rig writes the result into each agent file that it renders:
+
+| Harness | `rig-agent` | `rig-janitor` |
+|---|---|---|
+| Claude Code | `model: "opus"`, `effort: "medium"` | `model: "haiku"`, `effort: "low"` |
+| Codex | `model = "gpt-6.1-sol"`, `model_reasoning_effort = "medium"` | `model = "gpt-6-luna"`, `model_reasoning_effort = "low"` |
+| Cursor | `model: "claude-opus-5-5[effort=medium]"` | `model: "claude-haiku-5-5[effort=low]"` |
+| Antigravity | `model: "pro"` | `model: "flash_lite"` |
+
+rig knows no effort key for an Antigravity agent file, so it writes none there. omp gets no agents. No shipped role names `xhigh`, and no agent file carries a fast setting: Claude Code has none per subagent. `test/first-seed.test.ts` pins these lines.
+
+rig refuses to write an agent definition with effort `xhigh` or `max`, or with a fast model (a model token with a `-fast` segment, such as `opus-fast`, `opus-fast[1m]` or `opus-fast:high`). The plan blocks with `E_AGENT_MODEL`, which names the role, the harness and the value, and `apply` writes no agent file. The check runs on the rendered value, so it also fires when `rig models set` or an overlay brings the value in. To fix it, lower the effort in the `agents` consumer of `models/roles.json`, or choose a non-fast model in `models/tiers.json`. Fleet roles and the pstack role lines keep their own rules. `test/agent-surface.test.ts` pins the check. Without an `agents` consumer in `roles.json`, rig writes no model keys into the core agent files and prints an `info` line for each harness.
+
 ## Let rig adopt your agent files
 
-rig does not ship Claude agent files. When `~/.claude/agents/<role>.md` exists for a `fleet` role, rig manages its `model` and `effort` lines and the model name in parentheses in `description`. The first plan compares your cells with the render:
+rig ships no `fleet` agent files. When `~/.claude/agents/<role>.md` exists for a `fleet` role, rig manages its `model` and `effort` lines and the model name in parentheses in `description`. The first plan compares your cells with the render:
 
 ```text
 rig plan
@@ -78,7 +97,7 @@ run 20261105T055313.336Z-2: 1 ops applied
 
 `rig models set` runs one journaled apply on the model files only, then writes `models/tiers.json`. You do not need a separate `rig apply`. The next `rig apply` prints `0 changes, 0 blocks`. If the plan blocks, for example because you hand-edited a cell, rig writes nothing, and `tiers.json` keeps its bytes. Commit `models/tiers.json` after the swap.
 
-In `reviewer.md`, the swap changed `model: opus` to `model: acme-strong-2` and the description token `(Opus)` to `(Acme-strong-2)`. Every other byte stayed. The tests `swap: every tier on every harness changes only cell lines, converges, and reverts byte-exact` in `test/models.test.ts` and `rig models set changes exactly the expected cells` in `test/models-render.test.ts` pin that.
+In `reviewer.md`, the swap changed `model: opus` to `model: acme-strong-2` and the description token `(Opus)` to `(Acme-strong-2)`. Every other byte stayed. With the seeded default, the same swap also rewrites the `strong` lines of `~/.claude/rules/pstack-models.md` and the `model` line of `~/.claude/agents/rig-agent.md`. The tests `swap: every tier on every harness changes only cell lines, converges, and reverts byte-exact` in `test/models.test.ts` and `set changes exactly one value in models/tiers.json of the fixture root, and nothing else` in `test/cli-wiring.test.ts` pin that. The same `cli-wiring` test pins the `rig-agent` line, and `test/agent-surface.test.ts` pins a non-fast swap.
 
 `set` takes a tier that `tiers.json` knows, a harness that `rig.json` lists, and one model token without spaces. Anything else exits 2, for example `rig models: E_USAGE: unknown tier ultra`.
 
@@ -119,7 +138,7 @@ Codex passes the `model` and `reasoning_effort` of the line to `spawn_agent`. Cu
 
 ## Add a harness's models
 
-The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo does not set. The repo names all four seeded harnesses, so the overlay is for a harness that you add as a target ([Make it yours](./09-make-it-yours.md)). For a harness `acme`:
+The overlay at `~/.config/rig/models/tiers.json` adds the rows that the repo does not set. The repo names all five seeded harnesses, so the overlay is for a harness that you add as a target ([Make it yours](./09-make-it-yours.md)). For a harness `acme`:
 
 ```text
 {

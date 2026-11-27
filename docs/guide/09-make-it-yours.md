@@ -30,11 +30,13 @@ rig plan
 <n> changes, 0 blocks
 ```
 
-The same plan without the entry has 305 changes. The 11 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
+The same plan without the entry has 279 changes. The 13 missing lines are the `office-hours` skill files on Claude Code and Codex. An id that no listed pack contains blocks the plan:
 
 ```text
 block E_UNKNOWN_UNIT disable names product/nothing, which no listed pack contains
 ```
+
+The repo `rig.json` disables `pstack/poteto-agent` and `pstack/comment-sicko` this way. The core agents `rig-agent` and `rig-janitor` do their jobs, and the adapter of each harness maps the pstack names to them. To change their model or effort, edit the `agents` consumer in `models/roles.json`, then run `rig apply`. rig refuses `xhigh`, `max` and fast models for agent definitions: the plan blocks with `E_AGENT_MODEL` (guide 7).
 
 The hub and the playbooks of the mode skill are upstream text, so they can still name a unit that you disabled. That is not a block. The `mode` check prints an `info mode` line with the unit and the line, and the `craft` shell tells the model to skip a skill that is not installed and write one line that names it. A `rig.json` `fill` or a pack hook that names the disabled unit is dropped, and `rig plan` prints an `info` line with its address. A name that matches no unit and is not disabled, such as an upstream rename, still blocks with `E_MODE_NAME`. `auto` is different: an `auto` entry that names a disabled unit is `E_MODE_REF`.
 
@@ -129,7 +131,7 @@ A row has these keys, and no others:
 `rig doctor` prints one line with the count per status. A unit with no row counts as `untested`:
 
 ```text
-info  evidence untested 57, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
+info  evidence untested 58, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
 ```
 
 With no `evidence.json`, or an empty one, every unit is `untested`, and doctor prints `(no evidence.json)` or `(evidence.json, empty)`. That is not an error.
@@ -144,7 +146,7 @@ No other command reads the ledger yet. `rig stats --suggest` does not use it.
 
 ## Know what stays sealed
 
-The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md`), the alias template and `terms.json`. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).
+The core pack, `packs/core/`, is sealed. It holds the frame (`frame.md`), the alias template, `terms.json`, the domain table (`domains.json`), the `craft` shell and the `engineering-research` skill. `rig.lock.json` records the hash of the core tree, and the gate blocks a plan whose core tree differs from it ([decision 0005](../decisions/0005-sealed-core.md)).
 
 - `disable` and `replaces` cannot name a core unit. Both fail with `E_SCHEMA`, for example `disable[0]: core units are sealed and cannot be named here`.
 - A pack unit with a core name fails with `E_CORE_SHADOW`. With `"aliases": {"pm": "tidy"}` in `rig.json`, a pack command `pm` gives `mine/pm uses the core name pm (core/pm)`.

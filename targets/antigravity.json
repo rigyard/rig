@@ -20,11 +20,13 @@
     "rule": {"dir": "~/.gemini/config/rules", "format": "antigravity-md"}
   },
   "hide": {"method": "frontmatter-key", "key": "disable-model-invocation", "value": true},
-  "models": {"source": "the agy --model flag. A subagent file names only inherit, flash or pro"},
+  "models": {"source": "the agy --model flag, and the model line of the agent files in ~/.gemini/config/agents"},
   "instructions": {"path": "~/.gemini/config/rules/rig-frame.md", "mode": "whole-file"},
   "skill_prefix": "/",
   "effort_syntax": "separate-key",
-  "model_surfaces": [],
+  "model_surfaces": [
+    {"path": "~/.gemini/config/agents/{role}.md", "consumer": "agents", "kind": "agent", "keys": {"model": "model"}}
+  ],
   "project_scope": null,
   "hooks": {"session_end": null},
   "transcripts": null

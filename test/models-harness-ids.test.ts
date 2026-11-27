@@ -108,10 +108,10 @@ describe("harness model ids", () => {
     assert.equal(s.rig(["apply"]).code, 0);
     const codex = roleTokens(s.read(TABLES.codex));
     assert.deepEqual(codex.get("judgment and prose"), ["gpt-6.1-sol high"]);
-    assert.deepEqual(codex.get("hardest tasks"), ["gpt-6.1-sol xhigh"], "the Codex ladder reaches xhigh");
+    assert.deepEqual(codex.get("hardest tasks"), ["gpt-6.1-sol high"], "the shipped table names no xhigh");
     assert.deepEqual(codex.get("swarm workers"), ["gpt-6.1-terra high"]);
     const omp = roleTokens(s.read(TABLES.omp));
-    assert.deepEqual(omp.get("hardest tasks"), ["google-antigravity/claude-opus-5-5:high"], "xhigh clamps to high on omp");
+    assert.deepEqual(omp.get("hardest tasks"), ["google-antigravity/claude-opus-5-5:high"]);
     assert.deepEqual(omp.get("swarm workers"), ["google-antigravity/gemini-3.8-flash:high"]);
   });
 

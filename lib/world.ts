@@ -93,8 +93,8 @@ export type ModelSurface = {
   harness?: string;
   /** a key of roles.json consumers */
   consumer: "fleet"|"pstack"|"omp"|"codex"|string;
-  /** decision 0011 */
-  kind: "frontmatter"|"cells"|"whole"|"keys"|"block";
+  /** decision 0011; agent: the model keys of a rig-rendered agent unit file */
+  kind: "frontmatter"|"cells"|"whole"|"keys"|"block"|"agent";
   /** cells: markdown files people maintain only */
   markers?: boolean;
   /** the harness rewrites this file (probe c) */
@@ -108,7 +108,7 @@ export type ModelSurface = {
   marker?: string;
   /** block */
   table?: string;
-  /** frontmatter, whole, block */
+  /** frontmatter, whole, block, agent */
   keys?: {model?: string, effort?: string};
   /** frontmatter: the key whose first "(<display>)" token is a cell */
   display_in?: string;

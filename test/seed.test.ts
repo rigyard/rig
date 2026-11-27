@@ -45,7 +45,7 @@ const s: Record<string, any> = {};
 function bareConfig() {
   const root = mkdtempSync(join(tmpdir(), "rig-seed-twin-"));
   for (const dir of ["models", "targets", "packs/core"]) cpSync(join(ROOT, dir), join(root, dir), { recursive: true });
-  const cfg = { ...json(join(ROOT, "rig.json")), packs: {}, fill: {} };
+  const cfg = { ...json(join(ROOT, "rig.json")), packs: {}, fill: {}, disable: [] };
   writeFileSync(join(root, "rig.json"), canon(cfg));
   writeFileSync(join(root, "rig.lock.json"), canon({ schema: 2, core: { tree: treeHash(filesUnder(join(root, "packs/core")), { core: true }), candidate: null }, packs: {} }));
   return root;

@@ -90,7 +90,7 @@ describe("pstack model rules, a whole file with keep_header (S3.3)", () => {
     assert.equal(entry.keep_header, true);
     const body = new TextDecoder().decode(entry.bytes);
     assert.ok(body.startsWith("---\nalwaysApply: true\n---\n# budget: medium (high)\nfeature, refactoring: claude-sonnet-5-5-high\n"), body);
-    assert.match(body, /^hardest tasks: claude-opus-5-5-high$/m, "xhigh clamps to the top of the Cursor ladder");
+    assert.match(body, /^hardest tasks: claude-opus-5-5-high$/m, "the top of the Cursor ladder");
     assert.match(body, /^arena runners: claude-opus-5-5-high, claude-sonnet-5-5-high$/m);
 
     // No Cursor tier at all: nothing renders, with an info line.

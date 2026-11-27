@@ -42,7 +42,7 @@ export type Entry = {scope?: string, projects?: string[], harnesses?: string[]};
  */
 export function setup({ entry = {}, scopes = ["machine-hidden", "project", "hybrid"], rig: rigCfg = {}, home = {}, skill = NOTES_SKILL, tidy = TIDY_CMD }: {entry?: Entry, scopes?: string[], rig?: Record<string, unknown>, home?: Record<string, string>, skill?: string, tidy?: string} = {}) {
   const cfg = JSON.parse(readFileSync(join(ROOT, "rig.json"), "utf8"));
-  const final = { ...cfg, fill: {}, ...rigCfg, packs: { notes: entry } };
+  const final = { ...cfg, fill: {}, disable: [], ...rigCfg, packs: { notes: entry } };
   const spec: Record<string, string | {content: Uint8Array, mode: number}> = { "rig/rig.json": canon(final) };
   for (const dir of ["models", "targets", "packs/core"]) {
     for (const f of filesUnder(join(ROOT, dir))) spec[`rig/${dir}/${f.path}`] = { content: f.bytes, mode: f.mode };

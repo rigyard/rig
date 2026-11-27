@@ -43,7 +43,7 @@ describe("antigravity", () => {
     assert.equal(r.status, 0, r.stderr);
     const listed = r.stdout.split("\n").map((l) => l.trim()).filter(Boolean);
     t.diagnostic(`agy agents: ${listed.join(", ") || "none"}`);
-    for (const name of ["comment-sicko", "poteto-agent"]) assert.ok(listed.includes(name), `agy agents does not list ${name}`);
+    for (const name of ["rig-agent", "rig-janitor"]) assert.ok(listed.includes(name), `agy agents does not list ${name}`);
   });
 
   liveTest("antigravity reads the always-on frame rule from the workspace", async (t) => {

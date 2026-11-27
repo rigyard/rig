@@ -116,21 +116,36 @@ describe("the first seed over the committed config", () => {
     assert.ok(assertByteIdentity(run.h1.home, run.root, targetsOf(run.root), "pstack") > 100);
   });
 
-  test("the poteto-agent copies on Codex and Cursor name the rig hub, which exists in the seeded HOME", () => {
-    const upstream = readFileSync(join(run.root, "packs/pstack/agents/poteto-agent.md"), "utf8");
-    const body = upstream.slice(upstream.indexOf("\n---\n", 4) + 5);
-    assert.match(body, /skills\/poteto-mode\/SKILL\.md/, "the upstream fallback that rig points away from");
-    for (const [rel, expected] of [
-      [".codex/agents/poteto-agent.toml", "~/.agents/skills/craft/hub.md"],
-      [".cursor/agents/poteto-agent.md", "~/.agents/skills/craft/hub.md"],
-    ]) {
-      const text = readFileSync(join(run.h1.home, rel), "utf8");
-      const named = [...text.matchAll(/`(~\/[^`\s]*craft\/hub\.md)`/g)].map((m) => m[1]);
-      assert.deepEqual(named, [expected], rel);
-      assert.ok(existsSync(join(run.h1.home, named[0].slice(2))), `${rel} names ${named[0]}, which is absent from the HOME`);
-      assert.ok(text.includes(body.trimEnd()), `${rel} keeps the upstream body`);
+  test("rig-agent and rig-janitor replace the pstack agents, with the model and effort of the model table and no fast or xhigh", () => {
+    const tiers = json(join(run.root, "models/tiers.json")).tiers;
+    assert.doesNotMatch(readFileSync(join(run.root, "models/roles.json"), "utf8"), /xhigh/, "no shipped role names xhigh");
+    const rel = (h: string, name: string) => `${h === "codex" ? ".codex/agents" : h === "claude" ? ".claude/agents" : h === "cursor" ? ".cursor/agents" : ".gemini/config/agents"}/${name}.${h === "codex" ? "toml" : "md"}`;
+    const expected = (tier: string, effort: string): Record<string, string[]> => ({
+      claude: [`model: "${tiers[tier].claude}"`, `effort: "${effort}"`],
+      codex: [`model = "${tiers[tier].codex}"`, `model_reasoning_effort = "${effort}"`],
+      cursor: [`model: "${tiers[tier].cursor}[effort=${effort}]"`],
+      antigravity: [`model: "${tiers[tier].antigravity}"`],
+    });
+    for (const [name, tier, effort] of [["rig-agent", "strong", "medium"], ["rig-janitor", "cheap", "low"]]) {
+      for (const [h, lines] of Object.entries(expected(tier, effort))) {
+        const text = readFileSync(join(run.h1.home, rel(h, name)), "utf8");
+        const keys = text.split("\n").filter((l) => /^(model|effort|model_reasoning_effort)( =|:)/.test(l));
+        assert.deepEqual(keys, lines, `${h} ${name}`);
+      }
     }
-    assert.equal(readFileSync(join(run.h1.home, ".claude/agents/poteto-agent.md"), "utf8"), upstream, "the Claude copy stays the upstream bytes");
+    // A Claude agent takes only an alias or a full id, and no fast setting: the shipped table must not reach -fast or xhigh.
+    const files = [".claude/agents", ".codex/agents", ".cursor/agents", ".gemini/config/agents"].flatMap((d) =>
+      readdirSync(join(run.h1.home, d)).map((f) => `${d}/${f}`));
+    assert.deepEqual(files.map((f) => f.split("/").pop()!.replace(/\.(md|toml)$/, "")).sort(), ["rig-agent", "rig-agent", "rig-agent", "rig-agent", "rig-janitor", "rig-janitor", "rig-janitor", "rig-janitor"]);
+    for (const f of [...files, ".claude/rules/pstack-models.md", ".codex/pstack-models.md", ".cursor/rules/pstack-models.mdc", ".omp/agent/pstack-models.md"]) {
+      assert.doesNotMatch(readFileSync(join(run.h1.home, f), "utf8"), /xhigh|-fast\b|\bfast mode\b/, f);
+    }
+    for (const [h, hub] of [["claude", "~/.claude/skills/craft/hub.md"], ["codex", "~/.agents/skills/craft/hub.md"], ["cursor", "~/.agents/skills/craft/hub.md"], ["antigravity", "~/.agents/skills/craft/hub.md"]]) {
+      const text = readFileSync(join(run.h1.home, rel(h, "rig-agent")), "utf8");
+      const named = [...text.matchAll(/`(~\/[^`\s]*craft\/hub\.md)`/g)].map((m) => m[1]);
+      assert.deepEqual(named, [hub], h);
+      assert.ok(existsSync(join(run.h1.home, hub.slice(2))), `${h} rig-agent names ${hub}, which is absent from the HOME`);
+    }
   });
 
   test("A9: every relative Markdown link of a seeded skill dir resolves inside that dir", () => {

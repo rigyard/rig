@@ -13,6 +13,7 @@ import { alwaysOnRule, codexAgent, cursorAgent, frontmatterValue, mdBody, mdc, s
 import { absentLine, delivery, manifests, marketplaceOf, packOf, pluginDir, pluginPath } from "./targets/scope.ts";
 import type { Delivery, Plugin } from "./targets/scope.ts";
 import { renderModelSurfaces } from "./targets/models-render.ts";
+import type { AgentKeys } from "./targets/models-render.ts";
 import { insertAnchor, modeFiles } from "./mode.ts";
 import type { Mode, UnitRef } from "./mode.ts";
 
@@ -53,7 +54,8 @@ const ANCHOR_LINK = "../craft/references/adapter.md";
  * harness that declares one, the `whole` model
  * surfaces (a pack's model rules, the Codex fleet agent TOML) and the session-end hook: with rig.json
  * `metrics.session_hook` true, one json-element per target record that names `hooks.session_end`. The other model
- * surfaces render as cells entries (frontmatter, cells, keys) and one block (the Codex [agents] table). Core
+ * surfaces render as cells entries (frontmatter, cells, keys) and one block (the Codex [agents] table), and an `agent`
+ * surface sets the model keys in the bytes of an agent unit. Core
  * templates fill a closed set of {{name}} variables from the target records; a name outside that set is
  * E_TERM_UNKNOWN.
  * A render error lands in `errors` and its entry is left out. A malformed World (an installed harness with no
@@ -311,7 +313,8 @@ function renderSingle(ctx, unit, kind) {
       ctx.errors.push({ code: "E_INTERNAL", harness: h, message: `unit ${unit.id}: unknown ${kind} format "${spec.format}"` });
       continue;
     }
-    const text = isCore(unit) ? coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), {}, [ALIAS_NAME]) : terms(ctx, unit, src, h);
+    const vars = kind === "agent" ? { hub: () => hubVar(ctx, h, unit) } : {};
+    const text = isCore(unit) ? coreVars(ctx, unit, src.rel, terms(ctx, unit, src, h), vars, [ALIAS_NAME]) : terms(ctx, unit, src, h);
     if (text === null) continue;
     const [file, transform] = format;
     const note = kind === "agent" ? hubNote(ctx, h, unit, text) : "";
@@ -329,13 +332,28 @@ const HUB_SEARCH = /skills\/poteto-mode\/SKILL\.md/;
  */
 function hubNote(ctx: any, h: string, unit: Unit, text: string): string {
   if (!HUB_SEARCH.test(text) || !ctx.hubSkill) return "";
-  const dirs: string[] = ctx.targets.get(h).reads.skills.map((e: {path: string}) => e.path);
-  const dir = dirs.find((d) => ctx.owners.has(`${d}/${ctx.hubSkill}/hub.md`));
-  if (!dir) {
+  const hub = hubFile(ctx, h);
+  if (!hub) {
     ctx.info.push(`absent ${h} ${unit.id}: no skill dir of the harness holds ${ctx.hubSkill}/hub.md, so the agent keeps the upstream hub search`);
     return "";
   }
-  return `rig install note: the poteto-mode hub is the file \`${dir}/${ctx.hubSkill}/hub.md\`. When your parent gives no path, read that file and skip the plugin search below.`;
+  return `rig install note: the poteto-mode hub is the file \`${hub}\`. When your parent gives no path, read that file and skip the plugin search below.`;
+}
+
+/** The hub that this harness reads: hub.md of the mode skill in the first read dir in record order that holds it. */
+function hubFile(ctx: any, h: string): string | null {
+  if (!ctx.hubSkill) return null;
+  const dirs: string[] = ctx.targets.get(h).reads.skills.map((e: {path: string}) => e.path);
+  const dir = dirs.find((d) => ctx.owners.has(`${d}/${ctx.hubSkill}/hub.md`));
+  return dir ? `${dir}/${ctx.hubSkill}/hub.md` : null;
+}
+
+/** {{hub}} of a core agent: the hub path in backticks, or a plain name and an info line when no read dir holds it. */
+function hubVar(ctx: any, h: string, unit: Unit): string {
+  const hub = hubFile(ctx, h);
+  if (hub) return `\`${hub}\``;
+  ctx.info.push(`absent ${h} ${unit.id}: no skill dir of the harness holds ${ctx.hubSkill ?? "craft"}/hub.md, so the agent names no hub path`);
+  return `the \`hub.md\` file of the \`${ctx.hubSkill ?? "craft"}\` skill`;
 }
 
 // ---- the frame
@@ -422,6 +440,32 @@ function renderModels(ctx) {
   ctx.errors.push(...r.errors);
   ctx.info.push(...r.info);
   for (const { rel, entry } of r.entries) emit(ctx, rel, entry);
+  for (const a of r.agents) setAgentKeys(ctx, a);
+}
+
+/**
+ * Set the model keys of an agent surface in the bytes that an agent unit rendered at that path. In Markdown the keys
+ * replace a model line of the source. A TOML file gets its key lines after name and description, which codexAgent
+ * writes without model keys. A path that no agent unit
+ * renders gets an info line, because the unit is disabled or absent on this harness.
+ */
+function setAgentKeys(ctx: any, a: AgentKeys) {
+  const path = expand(ctx, a.rel);
+  const entry = ctx.entries.get(path);
+  const owner = ctx.owners.get(a.rel);
+  if (!entry || entry.kind !== "owned" || ctx.types.get(owner) !== "agent") {
+    ctx.info.push(`absent ${a.harness} ${a.unit}: no agent unit renders ${a.rel}, so its model keys do not render`);
+    return;
+  }
+  let text = decoder.decode(entry.bytes);
+  if (a.rel.endsWith(".toml")) {
+    const lines = text.split("\n");
+    lines.splice(2, 0, ...a.keys.map((k) => `${k.key} = ${JSON.stringify(k.value)}`));
+    text = lines.join("\n");
+  } else {
+    for (const k of a.keys) text = setFrontmatterKey(text, k.key, k.value);
+  }
+  ctx.entries.set(path, { ...entry, bytes: encoder.encode(text) });
 }
 
 // ---- plugin manifests

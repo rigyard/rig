@@ -26,6 +26,8 @@
   "effort_syntax": "bracket",
   "model_surfaces": [
     {"path": "~/.cursor/agents/{role}.md", "consumer": "fleet", "kind": "frontmatter", "keys": {"model": "model"},
+     "grammar": "{model_effort}"},
+    {"path": "~/.cursor/agents/{role}.md", "consumer": "agents", "kind": "agent", "keys": {"model": "model"},
      "grammar": "{model_effort}"}
   ],
   "hooks": {"session_end": null},

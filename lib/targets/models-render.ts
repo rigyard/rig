@@ -8,6 +8,7 @@
 //   keys         one cells entry: the omp modelRoles values
 //   whole        a pack's model rules (owned, keep_header), or a Codex agent TOML per {role} from its text_from file
 //   block        the Codex [agents] table between rig:models markers
+//   agent        the model keys of an agent file that an agent unit renders; lib/targets.ts sets them in those bytes
 
 import { cellValues } from "../models.ts";
 import { codexAgent, mdc } from "./formats.ts";
@@ -31,7 +32,9 @@ const FILE_MODE = 0o644;
 const ROLE = "{role}";
 const CELL_KINDS = new Set(["frontmatter", "cells", "keys"]);
 
-type Out = {entries: {rel: string, entry: ModelEntry}[], errors: RigError[], info: string[]};
+/** The model keys of one agent file, in key order: `key` is the file's key name, `value` the rendered token. */
+export type AgentKeys = {rel: string, harness: string, unit: string, keys: {key: string, value: string}[]};
+type Out = {entries: {rel: string, entry: ModelEntry}[], agents: AgentKeys[], errors: RigError[], info: string[]};
 type Source = {surface: ModelSurface, harness: string | undefined, unit: string};
 type Cells = {surfaces: ModelSurface[], values: CellValue[], unit: string};
 
@@ -41,7 +44,7 @@ type Cells = {surfaces: ModelSurface[], values: CellValue[], unit: string};
  * names in no tier renders no surface, with an info line. Any other cell error is a render error of that surface.
  */
 export function renderModelSurfaces(input: ModelRenderInput): Out {
-  const out: Out = { entries: [], errors: [], info: [] };
+  const out: Out = { entries: [], agents: [], errors: [], info: [] };
   const sources: Source[] = [
     ...input.packs.flatMap((p) => (p.manifest.model_surfaces ?? []).map((s) => ({ surface: s, harness: s.harness, unit: `${p.name}/models` }))),
     ...input.installed.flatMap((h) =>
@@ -62,6 +65,12 @@ function renderSurface(input: ModelRenderInput, src: Source, out: Out, cells: Ma
   if (!src.harness) return fail("E_SCHEMA", `model surface ${s.path} names no harness`);
   const h = src.harness;
   if (!input.installed.includes(h)) return;
+  // An agent surface sets keys for the agents its consumer lists, so an absent consumer lists none. The core agents
+  // then keep the source bytes, which name no model, so the file inherits its parent's: say so, do not skip silently.
+  if (s.kind === "agent" && !Object.hasOwn(input.world.roles?.consumers ?? {}, s.consumer)) {
+    out.info.push(`absent ${h} ${unit}: roles.json has no consumer ${s.consumer}, so ${s.path} gets no model keys`);
+    return;
+  }
   if (!Object.values(input.tiers?.tiers ?? {}).some((row) => Object.hasOwn(row, h))) {
     out.info.push(`absent ${h} ${unit}: tiers.json names no ${h} model, so ${s.path} does not render`);
     return;
@@ -92,6 +101,15 @@ function renderSurface(input: ModelRenderInput, src: Source, out: Out, cells: Ma
     const body = tomlTable(s, values, roles, fail);
     if (body === null) return;
     out.entries.push({ rel: s.path, entry: { kind: "block", marker: s.marker ?? "rig:models", bytes: encoder.encode(body), unit, ...(s.table ? { table: s.table } : {}) } });
+    return;
+  }
+  if (s.kind === "agent") {
+    if (!s.path.includes(ROLE)) return fail("E_SCHEMA", `an agent surface needs ${ROLE} in its path`);
+    for (const role of roles) {
+      const keys = agentKeys(s, values.filter((v) => v.key === role), role, fail);
+      if (keys !== null && agentForbidden(s, h, role, keys, fail)) continue;
+      if (keys !== null) out.agents.push({ rel: s.path.replaceAll(ROLE, role), harness: h, unit, keys });
+    }
     return;
   }
   if (s.kind === "whole" && s.text_from) {
@@ -134,6 +152,52 @@ function keyLines(s: ModelSurface, values: CellValue[], role: string, fail: (cod
     if (key && v) lines.push(`${key} = ${JSON.stringify(v.value)}`);
   }
   return lines;
+}
+
+/**
+ * The key-value pairs of one agent role. With a grammar, its filled token is the value of keys.model, as Cursor's
+ * `<slug>[effort=<e>]`. Without one, each of model and effort goes to its key in surface.keys.
+ */
+function agentKeys(s: ModelSurface, values: CellValue[], role: string, fail: (code: string, message: string) => void): {key: string, value: string}[] | null {
+  if (values.some((v) => v.field === "literal" || v.element > 0)) {
+    fail("E_SCHEMA", `${s.path}: role ${role} must be one [tier, effort] pair`);
+    return null;
+  }
+  const field = (f: string) => values.find((v) => v.field === f)?.value;
+  if (s.grammar) {
+    if (!s.keys?.model) {
+      fail("E_SCHEMA", `${s.path}: an agent surface with a grammar needs keys.model`);
+      return null;
+    }
+    return [{ key: s.keys.model, value: s.grammar.replace(/\{(\w+)\}/g, (_, name: string) => field(name) ?? "") }];
+  }
+  return (["model", "effort"] as const).flatMap((f) => {
+    const key = s.keys?.[f];
+    const value = field(f);
+    return key && value ? [{ key, value }] : [];
+  });
+}
+
+/** The effort values that no agent definition carries, and a model token that names a fast mode in any fused form. */
+const AGENT_EFFORT = /^(xhigh|max)$/;
+const AGENT_FAST = /-fast(?![A-Za-z0-9])/;
+const AGENT_FUSED_EFFORT = /(?:effort=|[:-])(xhigh|max)\]?$/;
+
+/**
+ * Boundary guard: rig never writes an agent definition with effort xhigh or max, or with a fast model. It checks the
+ * rendered key values, so a roles.json effort, a tiers.json model (also through `rig models set` and an overlay) and a
+ * fused grammar token all meet it. Returns true after it reports E_AGENT_MODEL for the first offending value.
+ */
+function agentForbidden(s: ModelSurface, h: string, role: string, keys: {key: string, value: string}[], fail: (code: string, message: string) => void): boolean {
+  for (const { key, value } of keys) {
+    const isEffort = key === s.keys?.effort;
+    const bad = isEffort ? AGENT_EFFORT.test(value) : AGENT_FAST.test(value) || (!!s.grammar && AGENT_FUSED_EFFORT.test(value));
+    if (!bad) continue;
+    const what = isEffort ? "effort" : "model";
+    fail("E_AGENT_MODEL", `${s.path}: role ${role} on ${h} resolves to ${what} ${JSON.stringify(value)} (${key}), and rig never writes an agent definition with effort xhigh or max or a fast model. Lower the effort of ${role} in models/roles.json consumer ${s.consumer}, or choose a non-fast model for its tier in models/tiers.json`);
+    return true;
+  }
+  return false;
 }
 
 /** The block body: `[<table>]` and the key lines of the consumer's one role. */

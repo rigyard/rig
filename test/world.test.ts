@@ -47,7 +47,7 @@ describe("loadWorld on the repo's own data", () => {
   test("the core pack holds the members the doc names", () =>
     withFixture({}, (fx) => {
       const files = [...fx.load().packs.get("core").files.keys()];
-      assert.deepEqual(files.sort(), ["commands/alias.md", "domains.json", "frame.md", "skills/craft/SKILL.md", "skills/engineering-research/SKILL.md", "terms.json"]);
+      assert.deepEqual(files.sort(), ["agents/rig-agent.md", "agents/rig-janitor.md", "commands/alias.md", "domains.json", "frame.md", "skills/craft/SKILL.md", "skills/engineering-research/SKILL.md", "terms.json"]);
     }));
 
   test("the repo's data files are in canonical encode form", () => {

@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "core": {
-    "tree": "sha256:2a6a63577e58da07ebfe6bccb4a9e9b238311806a83a46cc5783c804f2fc5f7e",
+    "tree": "sha256:7dacd27aa606c97e3b21f83b18050d09c203d2b4764abc9ea137289e831503ec",
     "candidate": null
   },
   "packs": {
@@ -83,7 +83,7 @@
           "docs/harness/claude-code.md"
         ],
         "tree": "sha256:68a0bea163685c79b8be27bbc8762faf98b6aed008d2f4eb4acf388c7b3537f3",
-        "reviewed_sha": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9",
+        "reviewed_sha": "b7b93c36be9bcc36a74db438e0fd385d660bc559",
         "reviewed_tree": "sha256:68a0bea163685c79b8be27bbc8762faf98b6aed008d2f4eb4acf388c7b3537f3"
       },
       "candidate": null

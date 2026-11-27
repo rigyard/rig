@@ -27,6 +27,7 @@
   "effort_syntax": "separate-key",
   "model_surfaces": [
     {"path": "~/.claude/agents/{role}.md", "consumer": "fleet", "kind": "frontmatter",
-     "keys": {"model": "model", "effort": "effort"}, "display_in": "description"}
+     "keys": {"model": "model", "effort": "effort"}, "display_in": "description"},
+    {"path": "~/.claude/agents/{role}.md", "consumer": "agents", "kind": "agent", "keys": {"model": "model", "effort": "effort"}}
   ]
 }

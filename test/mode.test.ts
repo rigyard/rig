@@ -547,7 +547,7 @@ describe("adapter, hide switch and placement", () => {
   const alone = ["claude", "cursor", "antigravity"];
   for (const h of alone) {
     test(`a vendored pack limited to ${h}: craft sits next to its leaves, no anchor dangles, one craft per harness`, () => {
-      const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } });
+      const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {}, disable: [] } });
       assert.deepEqual(b.errors, []);
       assert.deepEqual(b.findings.filter((f: Finding) => f.check === "links"), []);
       assertOneCraft(b, [h]);
@@ -556,15 +556,15 @@ describe("adapter, hide switch and placement", () => {
 
   for (const h of HARNESSES.filter((x) => !alone.includes(x))) {
     test(`a vendored pack limited to ${h} is E_READSET with antigravity installed, and adding antigravity to the pack places it`, () => {
-      const e = errorOf(built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } }), "E_READSET");
+      const e = errorOf(built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {}, disable: [] } }), "E_READSET");
       assert.equal(e.harness, h);
       assert.match(e.message, new RegExp(`^${h} would see unit core/craft 2 times, via [^:]*~/\\.agents/skills[^:]*: unit core/craft must sit in `));
       assert.match(e.message, /Exits: add antigravity to rig\.json packs\.fixture\.harnesses, or remove antigravity from rig\.json harnesses\.$/);
       assert.doesNotMatch(e.message, /one harness list/);
-      const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h, "antigravity"] } }, fill: {} } });
+      const b = built({ rig: { packs: { product: {}, [PACK]: { harnesses: [h, "antigravity"] } }, fill: {}, disable: [] } });
       assert.deepEqual(b.errors, []);
       assertOneCraft(b, [h, "antigravity"]);
-      const without = built({ rig: { harnesses: RENDER_HARNESSES, packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {} } });
+      const without = built({ rig: { harnesses: RENDER_HARNESSES, packs: { product: {}, [PACK]: { harnesses: [h] } }, fill: {}, disable: [] } });
       assert.deepEqual(without.errors, []);
       assertOneCraft(without, [h], RENDER_HARNESSES);
     });
@@ -572,10 +572,10 @@ describe("adapter, hide switch and placement", () => {
 
   for (const harnesses of [["antigravity"], ["claude", "antigravity"], ["cursor", "antigravity"], ["omp", "antigravity"]]) {
     test(`harnesses [${harnesses.join(", ")}] is E_READSET: no writable dir reaches antigravity, and adding codex places it`, () => {
-      const e = errorOf(built({ rig: { harnesses, packs: { product: {}, [PACK]: {} }, fill: {} } }), "E_READSET");
+      const e = errorOf(built({ rig: { harnesses, packs: { product: {}, [PACK]: {} }, fill: {}, disable: [] } }), "E_READSET");
       assert.equal(e.harness, "antigravity");
       assert.match(e.message, /antigravity/);
-      const placed = built({ rig: { harnesses: [...harnesses, "codex"], packs: { product: {}, [PACK]: {} }, fill: {} } });
+      const placed = built({ rig: { harnesses: [...harnesses, "codex"], packs: { product: {}, [PACK]: {} }, fill: {}, disable: [] } });
       assert.deepEqual(placed.errors, []);
       assertOneCraft(placed, [...harnesses, "codex"], [...harnesses, "codex"]);
     });

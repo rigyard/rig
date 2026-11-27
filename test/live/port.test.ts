@@ -39,7 +39,7 @@ function configRoot(dir: string, enable: string[], extra: Extra, fromTrunk: stri
       chmodSync(join(dir, sub, f.path), f.mode);
     }
   }
-  const files: Extra = { ...extra, "rig.json": json({ ...cfg, fill: {}, packs: Object.fromEntries(enable.map((p) => [p, {}])) }) };
+  const files: Extra = { ...extra, "rig.json": json({ ...cfg, fill: {}, disable: [], packs: Object.fromEntries(enable.map((p) => [p, {}])) }) };
   for (const [rel, bytes] of Object.entries(files)) {
     mkdirSync(join(dir, rel, ".."), { recursive: true });
     writeFileSync(join(dir, rel), bytes);

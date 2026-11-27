@@ -56,7 +56,10 @@
     ]
   },
   "auto": [],
-  "disable": [],
+  "disable": [
+    "pstack/comment-sicko",
+    "pstack/poteto-agent"
+  ],
   "metrics": {
     "session_hook": false
   }

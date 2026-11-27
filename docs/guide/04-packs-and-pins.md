@@ -17,11 +17,11 @@ An optional `pack.json` holds the license, the scopes the pack supports, and exc
 
 The checkout ships five packs. Four of them make up the seeded default.
 
-`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json`, the alias template, the domain table, the shell of the `craft` mode skill and the `engineering-research` skill. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
+`packs/core` is always installed, and you never list it in `rig.json`. It holds the frame rule, the vocabulary in `terms.json`, the alias template, the domain table, the shell of the `craft` mode skill, the `engineering-research` skill and the agents `rig-agent` and `rig-janitor`. Its tree hash is sealed in `rig.lock.json` under `core.tree`. If you edit a core file, the `pin` check blocks with `core seal broken`. See [decision 0005](../decisions/0005-sealed-core.md).
 
 | Pack | Source | What it holds |
 |---|---|---|
-| `pstack` | `pstack/` of `https://github.com/cursor/plugins` at `b7b93c3`, minus 12 excludes | 53 skills, the agents `poteto-agent` and `comment-sicko`, and the hub and 22 playbooks that install as `craft/hub.md` and `craft/playbooks/` |
+| `pstack` | `pstack/` of `https://github.com/cursor/plugins` at `b7b93c3`, minus 12 excludes | 53 skills, the agents `poteto-agent` and `comment-sicko`, which `rig.json` disables in favor of the core `rig-agent` and `rig-janitor`, and the hub and 22 playbooks that install as `craft/hub.md` and `craft/playbooks/` |
 | `cursor-team-kit` | `cursor-team-kit/` of the same repo at `2776ddd` | the skills `deslop`, `control-cli` and `control-ui` |
 | `cli-for-agent` | `cli-for-agent/` of the same repo at `2776ddd` | the skill `cli-for-agents` |
 | `product` | a port of gstack `office-hours` at `b244e6d`, pinned at `306ff23` | the `office-hours` skill |
@@ -54,7 +54,7 @@ To turn a pack off, remove its key from the checkout `rig.json`. The overlay at 
 }
 ```
 
-On a fresh temporary HOME, `rig plan` drops from 305 changes to 302: the two copies of its `SKILL.md` and its Codex sidecar are gone. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
+On a fresh temporary HOME, `rig plan` drops from 279 changes to 276: the two copies of its `SKILL.md` and its Codex sidecar are gone. A core unit in `disable` is an `E_SCHEMA` error. [Scope packs to projects](./05-scope-and-projects.md) covers the `scope` and `projects` keys.
 
 ## Vendor a pack at a commit
 
@@ -154,13 +154,13 @@ rig pin set kit
 
 ## Read rig.lock.json
 
-Each config root has one `rig.lock.json`. This is the checkout's file on main:
+Each config root has one `rig.lock.json`. A root with no vendored pack has this shape:
 
 ```text
 {
   "schema": 2,
   "core": {
-    "tree": "sha256:02e383d3d5ec0414909820e019bb1483ef91f264821ccfe81e6abb3148394bce",
+    "tree": "sha256:...",
     "candidate": null
   },
   "packs": {}
