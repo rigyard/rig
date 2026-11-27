@@ -4,7 +4,7 @@ rig compiles one Git-pinned stack of skills, workflows, hooks, triggers, and mod
 
 ## Set up or use rig
 
-When the user asks to install, set up, update, or use rig, read [.agents/skills/rig-setup/SKILL.md](./.agents/skills/rig-setup/SKILL.md) and follow it. If you do not have a checkout yet, run `git clone https://github.com/rigyard/rig.git ~/src/rig` first.
+When the user asks to install, set up, update, or use rig, read [.agents/skills/rig-setup/SKILL.md](./.agents/skills/rig-setup/SKILL.md) and follow it.
 
 ## Rules
 

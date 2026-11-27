@@ -24,7 +24,7 @@ Requires Node 22.18.0 or later. rig has no runtime dependencies and no build ste
 No checkout yet? Paste this into any coding agent:
 
 ```text
-Set up rig: follow https://raw.githubusercontent.com/rigyard/rig/main/AGENTS.md
+Set up rig: follow https://raw.githubusercontent.com/rigyard/rig/main/.agents/skills/rig-setup/SKILL.md
 ```
 
 Already cloned? Open the checkout in your agent and say:
