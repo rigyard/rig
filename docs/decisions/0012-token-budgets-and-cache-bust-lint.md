@@ -27,4 +27,4 @@ Change: `audit` folds into `plan`, so `rig plan` gives the duplicate warning. ri
 
 Reason: running a foreign hook spawns code outside `lib/lock.ts`, which the boundary test forbids. `plan` writes nothing, so it already is the audit. See deltas 1 and 10 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0012 row in section 15.
 
-Implemented in: [#21](https://github.com/rigyard/rig/pull/21) (`plan`), [#16](https://github.com/rigyard/rig/pull/16) (`budget` over rendered bytes) and [#24](https://github.com/rigyard/rig/pull/24) (hook bytes from transcripts).
+Implemented in: pre-release PR #21 (`plan`), pre-release PR #16 (`budget` over rendered bytes) and pre-release PR #24 (hook bytes from transcripts).

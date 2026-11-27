@@ -27,4 +27,4 @@ Change: `installed.json` lives in one state root, `~/.local/state/rig/`, next to
 
 Reason: two state roots split the ownership of rig's state. A network use of its own for OSV would add a third command. See deltas 2 and 14 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0003 row in section 15.
 
-Implemented in: [#12](https://github.com/rigyard/rig/pull/12) (state root, journal) and [#3](https://github.com/rigyard/rig/pull/3) (boundary test: network only in `lib/lock/`). The OSV refresh inside `pack add` and `pin check` belongs to the `checks` PR, which has not merged yet. [#16](https://github.com/rigyard/rig/pull/16) added the `cve` check only.
+Implemented in: pre-release PR #12 (state root, journal) and pre-release PR #3 (boundary test: network only in `lib/lock/`). The OSV refresh inside `pack add` and `pin check` belongs to the `checks` PR, which has not merged yet. Pre-release PR #16 added the `cve` check only.

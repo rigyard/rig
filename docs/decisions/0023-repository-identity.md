@@ -19,3 +19,7 @@ The machine's global git identity does not belong to this project. The repositor
 - The global identity and signing rule stay unchanged for every other repository.
 - Unsigned commits carry no cryptographic author proof. Revisit before the repository goes public or accepts outside contributions.
 - The repository docs name no account. The identity lives only in local git config.
+
+## Update 2026-11-27
+
+This update supersedes the private-visibility and unsigned-commit lines once the filtered history is pushed to the public `rigyard/rig` repository. Commit history was rewritten before publication to strip personal email addresses and local absolute paths, and commit signing will be enabled locally for commits going forward after publication.

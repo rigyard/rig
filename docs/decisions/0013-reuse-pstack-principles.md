@@ -26,4 +26,4 @@ Change: the principles index is in core. Index entries point at the pstack pin f
 
 Reason: core holds what rig's own contract needs. See delta 12 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0013 row in section 15.
 
-Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (core data) and [#25](https://github.com/rigyard/rig/pull/25) (pstack provider path, locked path).
+Implemented in: pre-release PR #13 (core data) and pre-release PR #25 (pstack provider path, locked path).

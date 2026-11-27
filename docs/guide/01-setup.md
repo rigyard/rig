@@ -17,13 +17,13 @@ The `engines` field in `package.json` says `>=22.18.0`. rig runs its `.ts` files
 Clone the repository and link it:
 
 ```text
-git clone <rig repository url> ~/src/rig
+git clone https://github.com/rigyard/rig.git ~/src/rig
 cd ~/src/rig
 npm link
 rig --help
 ```
 
-`npm link` puts `rig` on your `PATH` and points it at your checkout. When you pull new commits, the `rig` command runs the new code at once.
+`npm link` puts `rig` and `rigctl` on your `PATH` and points them at your checkout. Use `rigctl` to avoid clashing with Homebrew `rig`. When you pull new commits, the `rig` command runs the new code at once.
 
 Do not use `npm install -g <git url>`. npm puts the package inside `node_modules`, and Node does not strip types for files there, so the installed `rig` does not run. See [decision 0025](../decisions/0025-typescript-native-type-stripping.md) for the reasons rig ships TypeScript without a build.
 

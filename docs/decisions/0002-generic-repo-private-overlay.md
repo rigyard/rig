@@ -27,4 +27,4 @@ Change: `private_terms` is now a sub-rule of the `secret` check, not a check of 
 
 Reason: the gate has exactly eight checks. See delta 9 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0002 row in its decision update table (section 15).
 
-Implemented in: [#5](https://github.com/rigyard/rig/pull/5) (registry, `secret`, `unicode`) and [#16](https://github.com/rigyard/rig/pull/16) (`cve`, `budget`).
+Implemented in: pre-release PR #5 (registry, `secret`, `unicode`) and pre-release PR #16 (`cve`, `budget`).

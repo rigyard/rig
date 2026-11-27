@@ -33,4 +33,4 @@ Change: the fixture HOME premise was false. A fixture HOME alone does not make a
 
 Reason: the harnesses read their own config dirs and logins, so fixture-HOME tests cannot show that a harness sees a unit. See the 0015 row in section 15 of [the architecture doc](../design/rig-architecture.md#15-rationale).
 
-Implemented in: [#18](https://github.com/rigyard/rig/pull/18) (`test/helpers/mirror.ts`, live seed tests).
+Implemented in: pre-release PR #18 (`test/helpers/mirror.ts`, live seed tests).

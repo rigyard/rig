@@ -29,4 +29,4 @@ Change: v0 writes no Cursor `hooks.json`. Cursor holds `hooks.session_end: null`
 
 Reason: Cursor `stop` fires once per turn, which breaks the zero per-turn injection budget. `audit` folded into `plan`. See deltas 1 and 7 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0020 row in section 15.
 
-Implemented in: [#24](https://github.com/rigyard/rig/pull/24) (target records) and [#21](https://github.com/rigyard/rig/pull/21) (`plan`).
+Implemented in: pre-release PR #24 (target records) and pre-release PR #21 (`plan`).

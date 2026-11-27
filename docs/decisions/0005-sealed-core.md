@@ -26,4 +26,4 @@ Change: core holds the frame template, the principles index, the `doc-review` an
 
 Reason: core holds what rig's own contract needs. The rules files are user prose, and the router filler renders frame lines. See delta 12 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0005 row in section 15.
 
-Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (core data) and [#20](https://github.com/rigyard/rig/pull/20) (frame and `/craft`, core resealed).
+Implemented in: pre-release PR #13 (core data) and pre-release PR #20 (frame and `/craft`, core resealed).

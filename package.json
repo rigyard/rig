@@ -1,11 +1,21 @@
 {
   "name": "rig",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "description": "Version-pinned agent-skill stack and seeder for coding-agent harnesses",
+  "license": "MIT",
+  "homepage": "https://github.com/rigyard/rig#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rigyard/rig.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rigyard/rig/issues"
+  },
   "type": "module",
   "bin": {
-    "rig": "bin/rig.ts"
+    "rig": "bin/rig.ts",
+    "rigctl": "bin/rig.ts"
   },
   "engines": {
     "node": ">=22.18.0"

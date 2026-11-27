@@ -26,4 +26,4 @@ Change: rig writes one hook element in v0. `apply` merges one `hooks.SessionEnd`
 
 Reason: Codex `Stop` and Cursor `stop` fire once per turn, which breaks the zero per-turn injection budget. A fixed command string identifies rig's element in the JSON merge. See delta 7 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0004 row in section 15.
 
-Implemented in: [#24](https://github.com/rigyard/rig/pull/24).
+Implemented in: pre-release PR #24.

@@ -25,4 +25,4 @@ Change: the slot list and the filler kinds follow section 2 of [the architecture
 
 Reason: the architecture fixes the slot contract in closed-key schemas. See the 0007 row in section 15 and delta 17 in section 14.
 
-Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (schemas, provider records) and [#20](https://github.com/rigyard/rig/pull/20) (fillers rendered from provider records).
+Implemented in: pre-release PR #13 (schemas, provider records) and pre-release PR #20 (fillers rendered from provider records).

@@ -15,20 +15,20 @@ rig is one Node CLI with no runtime dependencies. Packs and harness targets are 
 You need Node 22.18.0 or later. rig runs its `.ts` files through Node's native type stripping, so there is no build step.
 
 ```sh
-git clone <rig repository url> ~/src/rig
+git clone https://github.com/rigyard/rig.git ~/src/rig
 cd ~/src/rig
 npm link
 rig --help
 ```
 
-`npm link` puts `rig` on your `PATH` and points it at your checkout. `npm install -g` from a git URL does not work, because Node does not strip types for files inside `node_modules`.
+`npm link` puts `rig` and `rigctl` on your `PATH` and points them at your checkout. Use `rigctl` when Homebrew `rig` is already on `PATH`. `npm install -g` from a git URL does not work, because Node does not strip types for files inside `node_modules`.
 
 ## Get started
 
 Three steps:
 
 1. Run `rig doctor`. It reads your harnesses and your rig config, writes nothing, and tells you what it found.
-2. Run `rig plan`. It shows every file rig would write, adopt or block, and why.
+2. Run `rig plan`. It shows every file rig would write, adopt or block, and why. The default `rig.json` lists all five harnesses, so check the plan and trim `harnesses` in `rig.json` if you only use a subset.
 3. Run `rig apply`. It writes the plan through one journaled transaction. Every write into a harness goes through this transaction. `rig apply --undo <run-id>` restores the previous bytes.
 
 ```text
@@ -83,3 +83,7 @@ Tests build a temporary HOME and never touch yours. Tests that run real harness 
 Design, decisions and research live in [docs/](./docs/README.md).
 
 rig v1 is in progress, and its first seed is merged. The checkout seeds the default config into all five harnesses: pstack from `https://github.com/cursor/plugins` at `b7b93c3`, cursor-team-kit and cli-for-agent from the same repo at `2776ddd`, and the gstack `office-hours` port pinned at `306ff23`. The mode skill `craft` (`/craft`) routes multi-step work through pstack's hub ([Run multi-step work with /craft](./docs/guide/06-craft.md)). When a plugin, a harness or a model changes, `rig pin check`, `rig pin set` and `rig plan` show in one place whether anything clashes. Read [the v1 concept](./docs/design/rig-v1-concept.md) and [the first-seed plan](./docs/plan/v1-first-seed-prs.md). The guide describes the current CLI.
+
+## License and security
+
+rig is released under the [MIT License](./LICENSE). See [NOTICE.md](./NOTICE.md) for third-party pack attributions, [SECURITY.md](./SECURITY.md) for vulnerability reporting, and [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor checks.

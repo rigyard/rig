@@ -28,4 +28,4 @@ Change: only the `rig-project:` line, or its uncommitted twin, selects a provide
 
 Reason: one selector per project, which the model reads in the project itself. See delta 11 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0008 row in section 15. This replaces the two consequences above that say the overlay entry selects and the frame renders it.
 
-Implemented in: [#13](https://github.com/rigyard/rig/pull/13) (overlay entry reported, one selector) and [#20](https://github.com/rigyard/rig/pull/20) (frame without a project list).
+Implemented in: pre-release PR #13 (overlay entry reported, one selector) and pre-release PR #20 (frame without a project list).

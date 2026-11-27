@@ -8,10 +8,11 @@
   "prereg": {
     "file": "prereg.md",
     "original_sha256": "34ed857e70547782eab8c78397b5f8702bde6361186ef10a78ef26e7b9074210",
-    "stored_sha256": "b6035197ccc94a0031ba7bb719b6391aafa9a97028ee94d0c8c3cfc439ba7654",
+    "stored_sha256": "07e9736cb4b4bd36b9a9215211ef86060c35ea24ab6995bc6b937793ff833a5a",
     "redactions": [
       "absolute path of the scratch work root replaced by <work-root>",
-      "home-relative path in a quoted fixture prompt replaced by <home>/.omp/"
+      "home-relative path in a quoted fixture prompt replaced by <home>/.omp/",
+      "local folder names in the hygiene leak-scan list replaced by placeholders"
     ]
   },
   "analysis": {

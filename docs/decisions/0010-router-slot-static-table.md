@@ -29,4 +29,4 @@ Change: the router renders cells only. It needs no core stub, because the router
 
 Reason: core holds what rig's own contract needs. See delta 12 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) and the 0010 row in section 15.
 
-Implemented in: [#20](https://github.com/rigyard/rig/pull/20).
+Implemented in: pre-release PR #20.

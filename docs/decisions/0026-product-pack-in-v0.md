@@ -20,5 +20,5 @@ The user then asked for end-to-end seed tests on real harnesses, using OpenSpec,
 - Delta 6 in section 14 of [the architecture doc](../design/rig-architecture.md#14-what-changes-from-draft-v4) no longer holds. The product pack is not under "After v0" in the slice plan.
 - The pack needs the `intake` and `ported_from` keys in the closed schemas.
 - Source: the decision trail rows of 2026-11-04 22:51 and 22:52 (`.audit/rig-v0-decisions.tsv` in the primary checkout, not committed).
-- Implemented in: [#17](https://github.com/rigyard/rig/pull/17) (the port) and [#22](https://github.com/rigyard/rig/pull/22) (enabled on all four harnesses).
+- Implemented in: pre-release PR #17 (the port) and pre-release PR #22 (enabled on all four harnesses).
 - Number: the program plan names this record 0025. The TypeScript decision took 0025 first, so this record is 0026.
