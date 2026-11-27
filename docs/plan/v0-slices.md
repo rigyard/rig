@@ -2,6 +2,8 @@
 
 Status: plan, 2026-11-04. Not started. It cuts v0 into slices 0 to 5. The architecture lives in [rig-architecture.md](../design/rig-architecture.md). Command, flag, file, field and error names come from the v0 design decisions that it writes up. Names that those decisions do not define carry the mark `(proposed)`.
 
+Status (2026-11-27): delivered.
+
 ## Why this order
 
 The order puts the riskiest unknown first. Each slice ends with done-checks that a command or a test can fail.

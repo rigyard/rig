@@ -19,7 +19,7 @@ To use rig, read [the rig guide](guide/README.md) and [what rig writes per harne
 
 | File | Status | Content |
 |---|---|---|
-| [plan/v1-first-seed-prs.md](plan/v1-first-seed-prs.md) | Program plan, in progress: `subtract`, `links`, `vendor` and `port` merged (#35 to #38), `mode` and `seed` open | Six PRs to the first seeded rig: `subtract`, `vendor`, `links`, `mode`, `port`, `seed`. Each PR has unit cases, live lanes on real harnesses and a `rig plan` wall-time budget. |
+| [plan/v1-first-seed-prs.md](plan/v1-first-seed-prs.md) | Program plan, delivered: `subtract`, `links`, `vendor` and `port` merged (#35 to #38), `mode` and `seed` merged (#41, #42) | Six PRs to the first seeded rig: `subtract`, `vendor`, `links`, `mode`, `port`, `seed`. Each PR has unit cases, live lanes on real harnesses and a `rig plan` wall-time budget. |
 | [plan/v0-slices.md](plan/v0-slices.md) | v0 plan, delivered | v0 in six vertical slices: nine harness probes, read-only doctor, owned-file writer, models, supply chain and scope, observability. Shared test strategy, done-checks per slice, guarantee map, plan risks. |
 | [plan/v0-prs.md](plan/v0-prs.md) | v0 program plan, delivered | The rest of v0 as small PRs in dependency order. Each PR has unit cases, live seed cases on real harnesses, a `rig plan` wall-time budget and its merge steps. Appendices hold the prototype evidence, rejected alternatives, risks and reading list. |
 

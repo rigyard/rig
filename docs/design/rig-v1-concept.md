@@ -2,6 +2,8 @@
 
 Status: concept, agreed with the user over five review iterations on 2026-11-05, and revised the same day for the `craft` install shape. It replaces the v0 direction "rig links an installed pstack". The ADRs in `docs/decisions/` are history until a decision here or in [rig-v1-first-seed.md](rig-v1-first-seed.md) confirms or replaces them.
 
+Status (2026-11-27): the first seed of phase 3 is merged as #42, and the pins have moved since (`rig.lock.json`). Antigravity became the fifth harness in #76 ([decision 0027](../decisions/0027-antigravity-harness-and-eval-framework.md)).
+
 ## What rig is
 
 rig is a seeder. It takes a skeleton of how agent work flows (from pstack and gstack), a default configuration pinned to exact upstream commits, and a team's own choices. It compiles them into one set of files per coding-agent harness: Claude Code, Codex, Cursor and omp.
@@ -217,7 +219,7 @@ The ledger is rig data, not upstream data. It lives outside `packs/`, so no tree
 Only `rig doctor` reads the ledger, through `ledgerLines` in `lib/evidence.ts`. `loadWorld` does not read it, so a broken ledger never stops another command (`test/cli-wiring.test.ts`, "a broken ledger stops no other command"). `rig doctor` checks the ledger and prints one line with the count per status, in the order `untested`, `helps`, `no-effect`, `hurts`, `safety`:
 
 ```text
-info  evidence untested 57, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
+info  evidence untested 58, helps 1, no-effect 0, hurts 0, safety 1 (evidence.json)
 ```
 
 The parenthesis names the source of the counts: `evidence.json`, `evidence.json, empty`, or `no evidence.json`.

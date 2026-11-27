@@ -4,13 +4,13 @@ In this page you start multi-step work with the mode skill `craft`. You see whic
 
 ## Type the mode skill
 
-Type `/craft` in Claude Code and Cursor, and `$craft` in Codex. The omp docs name `/skill:<name>` as the typed form of a skill, so `/skill:craft` there. The live lanes of `test/live/mode.test.ts` and `test/live/first-seed.test.ts` record the form that works. An optional first argument names a domain:
+Type `/craft` in Claude Code, Cursor and Antigravity, and `$craft` in Codex. The omp docs name `/skill:<name>` as the typed form of a skill, so `/skill:craft` there. The live lanes of `test/live/mode.test.ts` and `test/live/first-seed.test.ts` record the form that works. An optional first argument names a domain:
 
 ```text
 /craft eng: design the boundary between the parser and the renderer
 ```
 
-rig has four domains: business (`biz`), product (`prod`), engineering (`eng`) and upkeep (`upk`). `packs/core/domains.json` lists them with their stages. Without the argument, the model picks the domain from your task. The rig frame tells the model about `craft` in one line, in the typed form of each harness. The form comes from `skill_prefix` in `targets/<harness>.json`. It is `/craft` in Claude Code and Cursor, `$craft` in Codex, and `/skill:craft` in omp, because omp 18.16 runs a skill from a prompt only in the `/skill:<name>` form. In Claude Code the line reads ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.``. Codex says `$craft` and omp says `/skill:craft` at both places. The `craft` skill itself gives the domain argument as `eng: ...`, with no typed form, because every harness reads the same file.
+rig has four domains: business (`biz`), product (`prod`), engineering (`eng`) and upkeep (`upk`). `packs/core/domains.json` lists them with their stages. Without the argument, the model picks the domain from your task. The rig frame tells the model about `craft` in one line, in the typed form of each harness. The form comes from `skill_prefix` in `targets/<harness>.json`. It is `/craft` in Claude Code, Cursor and Antigravity, `$craft` in Codex, and `/skill:craft` in omp, because omp 18.16 runs a skill from a prompt only in the `/skill:<name>` form. In Claude Code the line reads ``For multi-step work, type `/craft`, optionally with a domain: `/craft eng: ...`.``. Codex says `$craft` and omp says `/skill:craft` at both places. The `craft` skill itself gives the domain argument as `eng: ...`, with no typed form, because every harness reads the same file.
 
 `craft` carries the hide switch of every harness, so the model never starts it on its own. You start it.
 
@@ -53,8 +53,8 @@ The seed loads pstack's own hub. Its fills and hooks assign these engineering st
 
 | Hub trigger | Step | Unit | Set in |
 |---|---|---|---|
-| "Nontrivial change, architecture decision, or 'are we sure?'" | `eng:ground` | `pstack/how` | `rig.json` `fill` |
-| "Code crossing a function boundary" | `eng:design` | `pstack/architect` | `rig.json` `fill` |
+| none | `eng:ground` | `pstack/how` | `rig.json` `fill` |
+| "Across a function boundary" | `eng:design` | `pstack/architect` | `rig.json` `fill` |
 | "Before review" | `eng:review.before` | `pstack/no-comments` | `packs/pstack/pack.json` `mode.hooks` |
 | "Before commit" | `eng:ship.before` | `cursor-team-kit/deslop` | `rig.json` `fill` |
 
@@ -83,6 +83,7 @@ pstack skills use Cursor tool names. `craft/references/adapter.md` maps them per
 | Codex | rig-authored from the Codex 0.166.0 tool names, for example `Task` to `spawn_agent` and a todolist to `update_plan` |
 | Cursor | rig-authored. The tool names stay. Only the install paths change. |
 | omp | rig-authored from the omp 18.16.0 tool names, for example `Task` to `task` and `AskQuestion` to `ask` |
+| Antigravity | rig-authored from the Antigravity tool names, for example `Task` to `invoke_subagent` and `AskQuestion` to `ask_question` |
 
 A pin move that changes `docs/harness/claude-code.md` upstream blocks `rig plan` with `E_PORT_STALE pstack` until a maintainer updates the Claude adapter and runs `rig pin set pstack --ported`.
 

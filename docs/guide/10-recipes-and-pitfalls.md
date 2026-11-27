@@ -71,7 +71,7 @@ A change of mode alone blocks the same way. After `chmod 600` on `~/.claude/rule
 
 When a harness record moves a file from a whole-file write to a managed block, rig converts the entry without a block if the file still has the bytes and mode rig recorded: the plan shows an `update` and apply replaces the file with the block. A file you edited keeps the `E_DRIFT ... is recorded as owned, desired as block` block. Move your text out of the file, then plan again. A changed mode keeps the block too, even when the bytes match: `chmod` the file back to the mode rig wrote, then plan again.
 
-**Setting a repo value in the overlay.** The overlay only adds. `harnesses` and the model cells of the four seeded harnesses are set in the repo's files, so an overlay value for them fails with `E_OVERLAY_CONFLICT` and exit 2. Change them in your checkout. The one exception is `metrics.session_hook` (guide 9).
+**Setting a repo value in the overlay.** The overlay only adds. `harnesses` and the model cells of the five seeded harnesses are set in the repo's files, so an overlay value for them fails with `E_OVERLAY_CONFLICT` and exit 2. Change them in your checkout. The one exception is `metrics.session_hook` (guide 9).
 
 **Acking a `pin` finding.** A `pin` block means a pack tree or the core tree differs from the lock, or a port is not reviewed (`E_PORT_STALE`). An ack for it fails the schema with exit 2. Restore the files, or, after a core change you meant, run `rig pin check core` and `rig pin set core`. For `E_PORT_STALE`, update the port, then run `rig pin set <pack> --ported`.
 

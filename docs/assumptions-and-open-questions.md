@@ -1,6 +1,6 @@
 # Assumptions and open questions
 
-Status: living record, last updated 2026-11-05 after the slice 0 probes (design draft v4). It collects every scored assumption from synthesis v1 to v3, the original plan, the two design candidates and the v3 review. Verified facts are not scored. Verified lines cite the probe id and the results file in `probes/results/`. Rows that a probe settled left the table, and their numbers stay unused. Scores run from 1 to 10. A score below 7 means the item needs a probe before you build on it.
+Status: living record, last updated 2026-11-27, when questions 4 and 7 were marked settled by code and questions 2 and 5 implemented. The rest dates from 2026-11-05, after the slice 0 probes (design draft v4). It collects every scored assumption from synthesis v1 to v3, the original plan, the two design candidates and the v3 review. Verified facts are not scored. Verified lines cite the probe id and the results file in `probes/results/`. Rows that a probe settled left the table, and their numbers stay unused. Scores run from 1 to 10. A score below 7 means the item needs a probe before you build on it.
 
 ## Verified, not scored
 
@@ -74,12 +74,12 @@ Overall confidence: 7 out of 10. The probes settled the omp, Codex and Claude Co
 ## Open questions for the user
 
 1. **Core membership.** The small core in decision 0005, or the larger set from design candidate 1 (mode skill, principle leaves, writing skills)? Do language-specific skills belong in the overlay?
-2. **CVE without a cache.** On the first offline apply, should `cve` block (current draft) or warn?
+2. **CVE without a cache.** On the first offline apply, should `cve` block (current draft) or warn? Implemented as block (`lib/gate/registry.ts:69`). The decision stays open.
 3. **Public release.** When does the repository go public, and which vendored packs ship in it?
-4. **First vendored pack.** cursor-team-kit or gstack `office-hours`?
-5. **Binary name.** `rig`, or `rigctl` to avoid the Homebrew `rig` clash?
+4. **First vendored pack.** cursor-team-kit or gstack `office-hours`? Settled by code: both ship. cursor-team-kit is vendored and `office-hours` is ported (`rig.lock.json` entries `cursor-team-kit` and `product`).
+5. **Binary name.** `rig`, or `rigctl` to avoid the Homebrew `rig` clash? Implemented as `rig` (`package.json` `bin`). The decision stays open.
 6. **Budget severities.** Confirm the proposed rule in decision 0012: block where the harness truncates, warn where text costs money.
-7. **Codex pstack channel.** Keep unpinned copies in `~/.agents/skills`, vendor a generated tree for Codex, or skip pstack in Codex?
+7. **Codex pstack channel.** Keep unpinned copies in `~/.agents/skills`, vendor a generated tree for Codex, or skip pstack in Codex? Settled by code: Codex gets pinned copies of the vendored pstack pack in `~/.agents/skills`, each with an `agents/openai.yaml` hide sidecar (`targets/codex.json:8,17`).
 8. **Hybrid scope.** Is `hybrid` "hidden machine-wide, invocable in the listed projects", or something else?
 9. **Cost source.** Where a harness records no cost, should rig compute cost from tokens and a price table that it maintains, or report tokens only?
 10. **Alias retirement.** When does the `/pm` alias go: on a date, or when `rig stats` shows no use for a set period?

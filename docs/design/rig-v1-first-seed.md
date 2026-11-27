@@ -2,6 +2,8 @@
 
 Status: design, from an architect run on 2026-11-05 (two candidates, one synthesis). The user revised it the same day for the `craft` install shape (decisions below, and "Revision on 2026-11-05"). The user confirmed D1 to D6 and D8 in a review session. D7, D9 and D10 follow from them in the docs review and are open for review. It turns [rig-v1-concept.md](rig-v1-concept.md) into the data shape, the commands and the module changes for the first seed. The build order is [docs/plan/v1-first-seed-prs.md](../plan/v1-first-seed-prs.md).
 
+Status (2026-11-27): implemented by #35 to #38, #41 and #42. The pins have moved since: pstack is at `b7b93c3` and the gstack port at `306ff23` (`rig.lock.json`).
+
 ## Decisions of 2026-11-05
 
 | # | Decision |

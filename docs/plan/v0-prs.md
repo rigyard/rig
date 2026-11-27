@@ -1,5 +1,7 @@
 # rig v0 program plan
 
+Status (2026-11-27): delivered. #14 and the later v0 PRs are merged.
+
 This plan cuts the rest of rig v0 into small PRs for the rig maintainers and the agents that build rig.
 The rule is that every PR proves itself. rig seeds its output, and a real harness that runs headless confirms the behaviour.
 PRs #1 to #13 are merged, and #14 (`render`) is open.

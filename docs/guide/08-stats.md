@@ -73,7 +73,7 @@ rig stats --suggest
 diff --git a/rig.json b/rig.json
 --- a/rig.json
 +++ b/rig.json
-@@ -29,7 +29,65 @@
+@@ -56,7 +56,66 @@
      ]
    },
    "auto": [],
@@ -83,7 +83,7 @@ diff --git a/rig.json b/rig.json
 ...
 ```
 
-The fixture transcripts load no seeded skill, so this run proposes to disable all 57 of them. Read a proposal against your real sessions before you apply it.
+The fixture transcripts load no seeded skill, so this run proposes to disable all 58 of them. Read a proposal against your real sessions before you apply it.
 
 `--suggest` prints the report, then a section headed `suggestions (a proposed diff; rig applies nothing)` with the proposals, then a patch. It saves the patch under `~/.local/state/rig/proposals/` and changes nothing else. You decide: run `git apply` on the patch in the repo, commit it, then run `rig apply`.
 

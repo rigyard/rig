@@ -1,5 +1,7 @@
 # rig v1 first seed program plan
 
+Status (2026-11-27): delivered. `mode` merged as #41 and `seed` as #42. Antigravity became the fifth harness later, in #76.
+
 This plan builds the first seeded rig for the rig maintainers and the agents that build rig.
 The first seed is the default config compiled from pstack at `2776ddd` and gstack at `b406820` into Claude Code, Codex, Cursor and omp.
 The rule is that seeding stays deterministic. A CI runner with no model gets byte-identical HOMEs from the committed config.

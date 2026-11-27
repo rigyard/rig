@@ -67,8 +67,8 @@ rig plan: E_OVERLAY_CONFLICT ~/.config/rig/rig.json: harnesses[0]: the repo alre
 With `"harnesses": ["claude", "codex"]` in the checkout, the plan shrinks to the files of those two harnesses:
 
 ```text
-info budget */harness:claude: always-on: 1,289 characters, 323 tokens
-info budget */harness:codex: always-on: 654 characters, 164 tokens
+info budget */harness:claude: always-on: 1,926 characters, 482 tokens
+info budget */harness:codex: always-on: 1,396 characters, 349 tokens
 ...
 <n> changes, 0 blocks
 ```

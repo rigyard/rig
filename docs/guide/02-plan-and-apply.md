@@ -9,7 +9,7 @@ Run `rig plan`. It composes the stack, renders it per harness, runs the gate and
 ```text
 warn budget pstack/skills/ketchup-video/SKILL.md: reference chain skills/ketchup-video/SKILL.md -> skills/ketchup/SKILL.md -> skills/bro/SKILL.md is 2 levels deep; keep references one level from SKILL.md
 ...
-info budget */harness:claude: always-on: 1,289 characters, 323 tokens
+info budget */harness:claude: always-on: 1,926 characters, 482 tokens
 ...
 info absent codex models/codex: ~/.claude/agents/deep-reasoner.md is absent, so ~/.codex/agents/deep-reasoner.toml does not render
 create  owned  claude  ~/.claude/rules/rig-frame.md                                                              core/rig-frame
@@ -138,14 +138,14 @@ info run 20261105T205051.505Z-1 was interrupted; rig apply recovers it first
 <n> changes, 0 blocks
 ```
 
-The next apply writes the 300 ops and closes the old journal with `{"type":"recovered","by":"20261105T205052.321Z-2","done":[1,2,3,4,5]}`. The apply after that prints `0 changes, 0 blocks`. `done` names the 5 ops that the crashed run finished, so an undo of the crashed run restores those 5 ops only and keeps the 300 ops of the later run. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
+The next apply writes the remaining 274 ops and closes the old journal with `{"type":"recovered","by":"20261105T205052.321Z-2","done":[1,2,3,4,5]}`. The apply after that prints `0 changes, 0 blocks`. `done` names the 5 ops that the crashed run finished, so an undo of the crashed run restores those 5 ops only and keeps the 274 ops of the later run. If a third party changed a file during the crashed run, recovery stops with `E_RECOVERY_CONFLICT` and names the path. Section 9 of the [architecture](../design/rig-architecture.md) lists every crash point.
 
 ## Let the gate stop a write
 
 The gate runs inside the plan, so it blocks before the first byte. A pack script with an exec bit and a shebang, added to a copy of the checkout, gives:
 
 ```text
-block pin product/.: tree sha256:3782a8f1ace9... differs from locked sha256:b5191d96c33f...
+block pin product/.: tree sha256:6025d1bb7358... differs from locked sha256:6daeb4748c34...
 block exec product/skills/office-hours/scripts/run.sh: exec bit, shebang, script extension; mode 755, sha256 299001868fb8
   ack: {"id":"a7e004059f9b28ae","check":"exec","pack":"product","path":"skills/office-hours/scripts/run.sh","reason":"","expires":""}
 ...
