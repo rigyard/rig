@@ -83,7 +83,8 @@ export function makeRepo(base: string, commits: Record<string, any>[], opts: {al
 export function makeRawRepo(base: string, files: Record<string, string>) {
   const bare = join(mkdtempSync(join(base, "raw-")), "upstream.git");
   git(base, "init", "-q", "--bare", bare);
-  const run = (input: string, ...args: string[]) => execFileSync("git", args, { cwd: bare, env: GIT_ENV, input, encoding: "utf8" }).trim();
+  const run = (input: string | undefined, ...args: string[]) =>
+    execFileSync("git", args, { cwd: bare, env: GIT_ENV, input, stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"], encoding: "utf8" }).trim();
   const tree = (level: Record<string, any>): string => {
     const lines = Object.entries(level).map(([name, v]) =>
       typeof v === "string" ? `100644 blob ${run(v, "hash-object", "-w", "--stdin")}\t${name}` : `040000 tree ${tree(v)}\t${name}`);
@@ -96,7 +97,7 @@ export function makeRawRepo(base: string, files: Record<string, string>) {
     for (const s of segs.slice(0, -1)) at = at[s] ??= {};
     at[segs[segs.length - 1]] = text;
   }
-  const sha = run("raw\n", "commit-tree", tree(root), "-m", "raw");
+  const sha = run(undefined, "commit-tree", tree(root), "-m", "raw");
   git(bare, "update-ref", "refs/heads/main", sha);
   return { url: pathToFileURL(bare).href, bare, sha };
 }
