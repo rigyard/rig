@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Status | Living record. Update it when a run lands in `history.jsonl` |
-| Covers | 16 runs, 2026-11-10 to 2026-11-28 |
+| Covers | 17 runs, 2026-11-10 to 2026-11-28 |
 | Source | [`history.jsonl`](./history.jsonl) and each run's `summary.json` under [`runs/`](./runs/) |
 | Last updated | 2026-11-28 |
 
@@ -48,6 +48,7 @@ The rule is one sentence in the project instruction file. Passes are pooled over
 | Grok 4.7 medium | 5/10 | 6/10 | **No effect detected**. **Ceiling** on fx3 (5/5 both) |
 | Grok 4.7 high | 5/10 | 6/10 | **No effect detected**. **Ceiling** on fx3 (5/5 both) |
 | Sonnet default, three real rig bugs | 20/24 | 19/24 | **No effect detected**. The baseline is already 83% |
+| omp with tencent/hy4-flash, default effort | 6/10 | 7/10 | **Ceiling** on fx3 (5/5 both). fx4b 1/5 against 2/5, descriptive |
 
 ## Do the third-party skills help?
 
@@ -73,15 +74,15 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 ## Gaps
 
 - Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 70 trials. Those arms measured the always-on rig context, not the hub. The arms that typed `/craft` first opened the hub in 31 of 34 trials, and with Opus they still passed 0 of 6 on fx4b.
-- The fixtures and graders are not in this repository. An outside contributor cannot rerun a cell. [CONTRIBUTING.md](./CONTRIBUTING.md) says what a contributor can do today.
-- Antigravity and omp have no recorded cells. The Antigravity trials hit server capacity errors and timeouts and were quarantined.
+- fx3 and fx4b and their graders are now in this repository, so an outside contributor can rerun those cells by hand. [CONTRIBUTING.md](./CONTRIBUTING.md) shows how. The other tasks and their graders are not in the repository, so an outside contributor cannot rerun those cells yet.
+- Antigravity has no recorded cells. Its trials hit server capacity errors and timeouts and were quarantined. omp has one run with one cheap model, and it has no preregistration.
 - Only two tasks back most claims, and both were calibrated on Sonnet.
 - The Haiku rig run has no preregistration and 5 trials per cell, so its verdict is descriptive.
 
 ## Open questions
 
 1. Does the 2026-11-15 frame fix the Opus result on fx4b? A run of rig with `/craft` against `none` on the same tasks answers it.
-2. Should the fixtures and graders be published so that contributors can rerun cells?
+2. Should the other tasks and their graders be published as well, so that contributors can rerun those cells too?
 3. Should a run with fewer than 5 trials per cell, such as the Haiku smoke run in Appendix E, stay in `history.jsonl` as descriptive data?
 
 ## Terms
@@ -107,6 +108,7 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 - D. [Sources of the body claims](#d-sources-of-the-body-claims)
 - E. [2026-11-28 Haiku smoke run](#e-2026-11-28-haiku-smoke-run)
 - F. [2026-11-28 Haiku rig run](#f-2026-11-28-haiku-rig-run)
+- G. [2026-11-28 omp run](#g-2026-11-28-omp-run)
 
 ### A. Verdict of each run
 
@@ -131,6 +133,7 @@ Source: `verdict` of each `runs/<run>/summary.json`, copied verbatim by script o
 | [`2026-11-12-rule-bug-fix-callers-matrix-cursor`](./runs/2026-11-12-rule-bug-fix-callers-matrix-cursor/) | `no-claim` | Per configuration, rule minus none, pooled over fx3 and fx4b: cursor-grok47-high no claim, cursor-grok47-medium no claim |
 | [`2026-11-28-rig-default-vs-vanilla-haiku`](./runs/2026-11-28-rig-default-vs-vanilla-haiku/) | `descriptive` | no preregistration, 5 trials per cell, no claim: without rig 1/10, with rig 10/10, with rig and /craft 10/10 |
 | [`2026-11-28-rule-bug-fix-callers-haiku`](./runs/2026-11-28-rule-bug-fix-callers-haiku/) | `descriptive` | smoke run without preregistration, 3 trials per cell, no claim: pooled rule 2/6 against none 1/6 at effort low, rule 4/6 against none 1/6 at effort medium |
+| [`2026-11-28-rule-bug-fix-callers-omp`](./runs/2026-11-28-rule-bug-fix-callers-omp/) | `descriptive` | no preregistration, 5 trials per cell, no claim: rule 7/10, none 6/10 pooled, fx3 at the ceiling (5/5 in both arms) |
 
 ### B. Cells by run
 
@@ -312,6 +315,15 @@ Source: the cell lines of `history.jsonl`, rendered by script on 2026-11-28. Cos
 | `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx4b` | `rig` | 5/5 | 0.014 | 20.2 |
 | `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx4b` | `told` | 5/5 | 0.026 | 31.6 |
 
+`2026-11-28-rule-bug-fix-callers-omp`
+
+| Unit | Model, effort | Fixture | Arm | Pass k/n | Mean cost USD | Mean turns |
+| --- | --- | --- | --- | --- | --- | --- |
+| `rule:bug-fix-callers` | omp tencent/hy4-flash, default | `fx3` | `rule` | 5/5 | 0.002 | 18.4 |
+| `rule:bug-fix-callers` | omp tencent/hy4-flash, default | `fx3` | `none` | 5/5 | 0.001 | 13.4 |
+| `rule:bug-fix-callers` | omp tencent/hy4-flash, default | `fx4b` | `rule` | 2/5 | 0.003 | 19.4 |
+| `rule:bug-fix-callers` | omp tencent/hy4-flash, default | `fx4b` | `none` | 1/5 | 0.003 | 19.8 |
+
 ### C. Judge lines
 
 Source: the judge lines of `history.jsonl`, rendered by script on 2026-11-28.
@@ -343,7 +355,7 @@ Source: the `notes` of each run's `summary.json`, the preregistrations, and git 
 
 | Body claim | Source |
 | --- | --- |
-| Run behind each table row | Rig table: `2026-11-11-rig-default-vs-vanilla` (rows 1 and 3), `2026-11-28-rig-default-vs-vanilla-haiku` (row 2), `2026-11-12-opus-frame-ablation` (row 4). Rule table: `2026-11-10-rule-bug-fix-callers` (row 1), `2026-11-11-rule-bug-fix-callers-matrix` (rows 2 to 4 and 7 to 9), `2026-11-28-rule-bug-fix-callers-haiku` (rows 5 and 6), `2026-11-12-rule-bug-fix-callers-matrix-cursor` (rows 10 and 11), `2026-11-11-rule-bug-fix-callers-rig-history` (row 12, tasks d3 and st). Skill table: `2026-11-10-hg-gstack-investigate`, `2026-11-11-gstack-investigate-full`, `2026-11-10-hp-pstack-formal-verification`, `2026-11-11-hp-formal-verification-audit`, `2026-11-11-pilot-principle-fix-root-causes` |
+| Run behind each table row | Rig table: `2026-11-11-rig-default-vs-vanilla` (rows 1 and 3), `2026-11-28-rig-default-vs-vanilla-haiku` (row 2), `2026-11-12-opus-frame-ablation` (row 4). Rule table: `2026-11-10-rule-bug-fix-callers` (row 1), `2026-11-11-rule-bug-fix-callers-matrix` (rows 2 to 4 and 7 to 9), `2026-11-28-rule-bug-fix-callers-haiku` (rows 5 and 6), `2026-11-12-rule-bug-fix-callers-matrix-cursor` (rows 10 and 11), `2026-11-11-rule-bug-fix-callers-rig-history` (row 12, tasks d3 and st), `2026-11-28-rule-bug-fix-callers-omp` (row 13). Skill table: `2026-11-10-hg-gstack-investigate`, `2026-11-11-gstack-investigate-full`, `2026-11-10-hp-pstack-formal-verification`, `2026-11-11-hp-formal-verification-audit`, `2026-11-11-pilot-principle-fix-root-causes` |
 | Every pooled pass count in the three tables | Sums of `k` and `n` over the cells of Appendix B that match the row's run, model, effort and tasks. Computed by script from `history.jsonl` on 2026-11-28. Verdict words come from the `verdict` of each run's `summary.json` (Appendix A) and the preregistered rules |
 | Rule pass rate 30 of 30, placebo 7 of 30, none 15 of 30 on Sonnet | Appendix B, run `2026-11-10-rule-bug-fix-callers`: fx4b 15/15, 1/15, 8/15 and fx3 15/15, 6/15, 7/15 |
 | The rule costs about 1.7 to 1.9 times more per trial | Appendix B, same run: mean cost rule 0.159 against none 0.095 on fx4b, and 0.128 against 0.068 on fx3 |
@@ -394,3 +406,23 @@ Caveats:
 - The tasks were calibrated on Sonnet. Haiku without rig passes 1 of 10.
 - The runner stopped once after 2 trials, because a file in `~/.claude` changed. The change was the user's model default, not a trial. The other 28 trials ran without the guard firing.
 - Two `/craft` trials have several result events. Their history turns, tokens and duration are summed over the events, and the cost is the cost of the last event. Details are in the run's `summary.json`.
+
+### G. 2026-11-28 omp run
+
+Source: [`runs/2026-11-28-rule-bug-fix-callers-omp/`](./runs/2026-11-28-rule-bug-fix-callers-omp/), run on 2026-11-28 by hand, with the steps of [evals/CONTRIBUTING.md](./CONTRIBUTING.md).
+
+omp 18.16.0 with `tencent/hy4-flash` through OpenRouter, effort default, arms `rule` and `none`, fixtures fx3 and fx4b, 5 trials per cell, 20 trials, 0.05 USD in total. The run has no preregistration, so its verdict is `descriptive`. It partly answers issue 5, which asked for omp with a free Hunyuan model. The model here is `hy4-flash`, not the `hy4-free` of that issue.
+
+| Task | Without the rule | With the rule | Mean cost per trial, in the same order (USD) |
+| --- | --- | --- | --- |
+| fx3 | 5/5 | 5/5 | 0.001, 0.002 |
+| fx4b | 1/5 | 2/5 | 0.003, 0.003 |
+
+Checks that passed: the model echo matched in 20 of 20 trials, the first turn of every rule trial carried 185 or 186 more context tokens than every none trial, which is consistent with the rule reaching the model (the file is 187 bytes, so omp's framing probably adds part of the gap), and no trial timed out, failed for infra or read a grader.
+
+Differences from the recorded runs:
+
+- omp approves every tool call in print mode, so each trial ran in a macOS sandbox that denied reads under the home root and writes outside the trial root. The Claude cells had a six-command shell allowlist and the Codex cells a workspace-write sandbox.
+- omp has no turn cap. The wall-clock limit was 300 s, as for the Claude and Codex cells.
+- Fixture files were writable. The recorded matrix cells for Claude, Codex and Cursor used read-only files.
+- 8 of 20 trials mention a grader or a benchmark in the model's own text. None read one.
