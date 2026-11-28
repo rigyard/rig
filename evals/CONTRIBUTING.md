@@ -1,6 +1,6 @@
 # Add an eval for another model
 
-This guide shows you how to run an existing eval on a new model, harness or effort setting, and how to record the result. The 2026-11-28 Haiku smoke run tested these steps on a small budget. It skipped the preregistration and the canary check, so its verdict is descriptive. [REPORT.md](./REPORT.md) summarizes the results so far. [README.md](./README.md) is the reference for the file formats.
+This guide shows you how to run an existing eval on a new model, harness or effort setting, and how to record the result. The 2026-11-28 Haiku smoke run tested these steps on a small budget. It skipped the preregistration, so its verdict is descriptive. It also skipped the canary check. [REPORT.md](./REPORT.md) summarizes the results so far. [README.md](./README.md) is the reference for the file formats.
 
 ## Know what the repository holds
 
@@ -34,7 +34,7 @@ The arms must differ by one thing only. Your own instructions, skills and MCP se
 | --- | --- | --- |
 | Claude Code | `--setting-sources project,local --strict-mcp-config --no-session-persistence`, a fixed tool allowlist, API key variables removed | `CLAUDE.md` |
 | Codex | A fresh `HOME` and `CODEX_HOME` per trial, with only a link to the login file | `AGENTS.md` |
-| Cursor | A fresh `HOME` per trial, with only a link to the login keychain, and the same six allowed shell commands | `AGENTS.md` |
+| Cursor | A fresh `HOME` per trial, with only a link to the login keychain, and the shell commands node, git, ls, cat, grep and find allowed | `AGENTS.md` |
 | Antigravity | A fresh `HOME` per trial, with only a link to the login keychain | `AGENTS.md` |
 
 Before the first trial, check isolation with a canary. Put a unique word in the project instruction file and ask the model to quote any global instructions. The model must quote the canary and report no global instructions.
