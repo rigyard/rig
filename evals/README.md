@@ -4,7 +4,7 @@ Eval and benchmark results of rig, kept in the repo so that you can see over tim
 
 [REPORT.md](./REPORT.md) summarizes the results of every run. [CONTRIBUTING.md](./CONTRIBUTING.md) shows how to run an existing eval on another model and record it.
 
-This directory holds results only. It holds no transcripts, no diffs and no fixture source. Fixtures and graders are named by id and by sha256.
+This directory holds results, plus the fixtures and graders of fx3 and fx4b under `fixtures/`. It holds no transcripts and no diffs. Every other fixture and grader is named by id and by sha256 only.
 
 ## Layout
 
@@ -14,6 +14,7 @@ evals/
   REPORT.md                     results of every run, for people
   CONTRIBUTING.md               how to run an existing eval on another model
   history.jsonl                 one line per cell, append-only
+  fixtures/                     fx3 and fx4b with their graders and prompts, and the rule text, see fixtures/README.md
   suites/
     <slug>.json                 declarative evaluation suite specification
   runs/<YYYY-MM-DD>-<slug>/
@@ -26,7 +27,7 @@ evals/
     calibration.txt             the calibration table that chose the tasks, when the run kept one and it has no history lines
 ```
 
-`scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan. `scripts/eval-runner.ts` runs automated evaluation suites.
+`scripts/evals-trend.ts` prints the trend. `scripts/evals-history.ts` holds the schema and the privacy scan. `scripts/eval-runner.ts` runs automated evaluation suites. `scripts/eval-fixture.ts` prepares and grades one trial of fx3 or fx4b by hand.
 
 ```
 node scripts/evals-trend.ts
@@ -148,19 +149,19 @@ CLI flags:
 
 ## Fixtures
 
-| Fixture id | Fixture | Tests |
-| --- | --- | --- |
-| `fx4b` | storefront: two concurrent checkouts sell the last unit twice. The grader also checks the shared root cause (concurrent point awards) | 4 |
-| `fx3` | member directory: names with accents sort after Z | 4 |
-| `ord` | order pipeline: three planted bugs in an implicit order state machine | 4 |
-| `job-hub` | job hub: five planted bugs in implicit state machines, found by audit. The outcome is a score of 0 to 5 | 5 bugs |
-| `rig-d3dc4ce` | rig at the commit before the fix of PR 45: `rig doctor` counts skills in orphaned plugin cache versions as duplicates | 51 |
-| `rig-ab8d5ec` | rig at the commit before the fix of PR 53: `rig doctor` prints a drift error and the line that managed files match | 21 |
-| `rig-069847a` | rig at the commit before the fix of PR 47: `rig plan` blocks on an owned entry that changed kind. The grader drops the unit test of a helper that the prompt cannot name | 3 |
-| `swerebench-tox-dev__tox-3683` | SWE-rebench task: a real bug fix in tox, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | hidden tests |
-| `swerebench-joke2k__django-environ-592` | SWE-rebench task: a real bug fix in django-environ, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | hidden tests |
+| Fixture id | Fixture | Source | Tests |
+| --- | --- | --- | --- |
+| `fx4b` | storefront: two concurrent checkouts sell the last unit twice. The grader also checks the shared root cause (concurrent point awards) | synthetic project that a rig maintainer wrote for these evals. In `fixtures/fx4b/` | 4 |
+| `fx3` | member directory: names with accents sort after Z | synthetic project that a rig maintainer wrote for these evals. In `fixtures/fx3/` | 4 |
+| `ord` | order pipeline: three planted bugs in an implicit order state machine | synthetic project that a rig maintainer wrote for these evals. Not in the repo | 4 |
+| `job-hub` | job hub: five planted bugs in implicit state machines, found by audit. The outcome is a score of 0 to 5 | synthetic project that a rig maintainer wrote for these evals. Not in the repo | 5 bugs |
+| `rig-d3dc4ce` | rig at the commit before the fix of PR 45: `rig doctor` counts skills in orphaned plugin cache versions as duplicates | the public rig repository at the parent commit of the fix PR, graded by hidden tests written from that PR. Not in the repo | 51 |
+| `rig-ab8d5ec` | rig at the commit before the fix of PR 53: `rig doctor` prints a drift error and the line that managed files match | same as `rig-d3dc4ce` | 21 |
+| `rig-069847a` | rig at the commit before the fix of PR 47: `rig plan` blocks on an owned entry that changed kind. The grader drops the unit test of a helper that the prompt cannot name | same as `rig-d3dc4ce` | 3 |
+| `swerebench-tox-dev__tox-3683` | SWE-rebench task: a real bug fix in tox, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | a task of the public SWE-rebench benchmark, graded by its fail-to-pass tests. Not in the repo | hidden tests |
+| `swerebench-joke2k__django-environ-592` | SWE-rebench task: a real bug fix in django-environ, graded by hidden fail-to-pass tests. Prompt plus one line that names `./run-tests` | same as `swerebench-tox-dev__tox-3683` | hidden tests |
 
-The sha256 values are in `history.jsonl`. The fixtures and graders live outside this repo.
+The sha256 values are in `history.jsonl`. fx3 and fx4b are in `fixtures/` with their primary graders. [fixtures/README.md](./fixtures/README.md) says what each one plants and what its grader checks. The other fixtures and graders are not in the repo. The `rig-<commit>` and `swerebench-<instance>` fixtures are full checkouts of public repositories, and their graders are hidden tests.
 
 ## Privacy gate and redaction
 
@@ -214,6 +215,7 @@ All tests are in `test/evals-history.test.ts` unless named otherwise.
 | Guarantee | Test |
 | --- | --- |
 | Every history line fits the schema, and no two lines share a key | "history.jsonl schema" |
+| The fixtures and graders in `fixtures/` hash to the values of every recorded fx3 and fx4b cell | `test/eval-fixture.test.ts`, "published fixtures" |
 | The validator rejects bad lines | "the validator rejects each kind of bad line" |
 | The seven metric fields come together on a cell, null is allowed, a score has its maximum | "history.jsonl schema": "a cell may carry the time and token fields inline, all or none, and null means the harness did not report them" and "a cell whose outcome is a score carries mean_score and score_max together" |
 | A metrics line names the full cell key and carries every metric field, and nothing else | "history.jsonl schema": "a metrics line names the full cell key and carries every metric field" |

@@ -71,14 +71,14 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 ## Gaps
 
 - Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 60 trials. Those arms measured the always-loaded frame, not rig. The one arm that typed `/craft` first opened the hub in 21 of 24 trials and still passed 0 of 6 on fx4b with Opus.
-- The fixtures and graders are not in this repository. An outside contributor cannot rerun a cell. [CONTRIBUTING.md](./CONTRIBUTING.md) says what a contributor can do today.
+- fx3 and fx4b and their graders are now in this repository, so an outside contributor can rerun those cells by hand. [CONTRIBUTING.md](./CONTRIBUTING.md) shows how. The other tasks and their graders are not in the repository, so an outside contributor cannot rerun those cells yet.
 - Antigravity and omp have no recorded cells. The Antigravity trials hit server capacity errors and timeouts and were quarantined.
 - Only two tasks back most claims, and both were calibrated on Sonnet.
 
 ## Open questions
 
 1. Does the 2026-11-15 frame fix the Opus result on fx4b? A run of rig with `/craft` against `none` on the same tasks answers it.
-2. Should the fixtures and graders be published so that contributors can rerun cells?
+2. Should the other tasks and their graders be published as well, so that contributors can rerun those cells too?
 3. Should a run with fewer than 5 trials per cell, such as the Haiku smoke run in Appendix E, stay in `history.jsonl` as descriptive data?
 
 ## Terms
