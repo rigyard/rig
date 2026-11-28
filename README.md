@@ -61,4 +61,5 @@ rig apply
 - [CLI and repository reference](./docs/reference.md) holds domains, hooks, commands, harness paths, shipped packs, and safety checks.
 - [What rig writes per harness](./docs/harnesses.md) lists every path rig touches and every path it refuses to write.
 - [Design, ADRs, and architecture](./docs/README.md) and [evaluations](./evals/README.md) document how rig is built and tested.
+- [The eval report](./evals/REPORT.md) summarizes what the eval runs found so far. [Add an eval for another model](./evals/CONTRIBUTING.md) shows contributors how to run and record one.
 - [Contributing](./CONTRIBUTING.md), [Security](./SECURITY.md), [MIT License](./LICENSE), and [Third-party notices](./NOTICE.md).

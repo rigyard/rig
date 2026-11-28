@@ -28,5 +28,6 @@ npm ci --ignore-scripts && npm run typecheck
 
 - `packs/core/` is sealed in `rig.lock.json`. If you change any file under `packs/core/`, update the seal with `rig pin check core` and `rig pin set core`.
 - `test/docs.test.ts` checks every relative link and every fenced `rig` command in `README.md`, `docs/README.md`, `docs/harnesses.md`, and `docs/guide/*.md` against `rig --help`.
+- To run an eval on another model, follow [evals/CONTRIBUTING.md](./evals/CONTRIBUTING.md).
 - `test/evals-history.test.ts` requires `evals/history.jsonl` to stay append-only across git history and checks `evals/` for private hosts and local paths.
 - Keep the repository generic. Do not commit personal file paths, account names, or private setup details. Put personal packs and overrides in your local overlay under `~/.config/rig`.

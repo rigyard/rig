@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "run": "2026-11-28-rule-bug-fix-callers-haiku",
+  "date": "2026-11-28",
+  "kind": "experiment",
+  "title": "Smoke run: one bug-fix rule on Haiku at effort low and medium",
+  "question": "Does the one-sentence bug-fixing rule, delivered only as the work dir CLAUDE.md, change the pass rate of Haiku at effort low and at effort medium on fx3 and fx4b?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 8,
+  "usable_trials": 24,
+  "verdict": {
+    "label": "descriptive",
+    "text": "smoke run without preregistration, 3 trials per cell, no claim: pooled rule 2/6 against none 1/6 at effort low, rule 4/6 against none 1/6 at effort medium"
+  },
+  "notes": [
+    "The run tested the steps of evals/CONTRIBUTING.md with a small budget: 2 configurations, 2 fixtures, 2 arms, 3 trials per cell, 24 trials, 0.20 USD in total.",
+    "It used the runner and the isolation of 2026-11-11-rule-bug-fix-callers-matrix, with Haiku added to the Claude model table and the configurations set to claude-haiku-5-5 at effort low and medium. The rule text, prompts, graders, tool allowlist, 20 max turns and 300 s timeout are unchanged.",
+    "No preregistration was written, so the analyzer's per-configuration decision lines are not verdicts. The analyzer prints rule helps for effort medium (rule minus none +0.50, CI [+0.17, +0.83]). That label applies the matrix rule to a run that did not preregister it, so it is exploratory.",
+    "The canary isolation check was not repeated. The runner's isolation flags are the ones that the matrix probes checked on Claude Code 2.1.322. This run used Claude Code 2.1.332.",
+    "Claude Code does not echo the effort in its init event, so effort is the flag passed. The init event echoed the model claude-haiku-5-5 in all 24 trials.",
+    "Exposure by first-turn input tokens: rule exposed 6 of 6 and none clean 6 of 6 per configuration. No trial timed out, leaked the grader or saw another trial's work dir. No infra failure, no retry.",
+    "The fixture hashes equal the recorded fx3 and fx4b values, recomputed from the fixture trees on 2026-11-28. The runner checked the grader hashes before grading.",
+    "Duration and tokens come from the result event of each trial."
+  ]
+}

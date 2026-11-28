@@ -2,6 +2,8 @@
 
 Eval and benchmark results of rig, kept in the repo so that you can see over time whether a unit, a harness, a model or an effort setting got better or broke.
 
+[REPORT.md](./REPORT.md) summarizes the results of every run. [CONTRIBUTING.md](./CONTRIBUTING.md) shows how to run an existing eval on another model and record it.
+
 This directory holds results only. It holds no transcripts, no diffs and no fixture source. Fixtures and graders are named by id and by sha256.
 
 ## Layout
@@ -9,6 +11,8 @@ This directory holds results only. It holds no transcripts, no diffs and no fixt
 ```
 evals/
   README.md
+  REPORT.md                     results of every run, for people
+  CONTRIBUTING.md               how to run an existing eval on another model
   history.jsonl                 one line per cell, append-only
   suites/
     <slug>.json                 declarative evaluation suite specification
@@ -201,6 +205,7 @@ Runs recorded with the metric fields inline:
 | `2026-11-11-rule-bug-fix-callers-matrix` | rule against none on fx3 and fx4b across Claude Code and codex, six configurations | preregistered, analyzer output verbatim, three paths redacted. Codex reports no cost, so its cells carry `null` and a `0` placeholder. agy was not run and has no cells |
 | `2026-11-12-opus-frame-ablation` | Opus, rig default install against the same install with the clause "and the smallest change that meets it" removed from the frame, on fx4b and two SWE-rebench tasks (fixture ids `swerebench-<instance>`) | preregistered, analyzer output verbatim, no redaction. The verdict is `no-claim`. The run calls its baseline arm `vanilla`, the history calls it `none`. The unit is `rig/frame-ablation@2dbce75`, not `rig/default@2dbce75`, because the fx4b cells ran at 30 max turns and the 2026-11-11 run used 40. The 16-task calibration is kept as `calibration.txt` and has no history lines |
 | `2026-11-12-rule-bug-fix-callers-matrix-cursor` | rule against none on fx3 and fx4b on Cursor with Grok 4.7 at medium and high effort, the cursor cells of the 2026-11-11 matrix | same preregistration as that run, which does not name Cursor (deviation 8), analyzer output verbatim, three paths redacted in the preregistration. The verdict is `no-claim`. Cursor reports no cost, so its cells carry `null`. The trial timeout was 900 s against 300 s for claude and codex, so durations are not comparable. agy cells of the matrix are not recorded: 27 of 40 trials ended in status ERROR and were quarantined |
+| `2026-11-28-rule-bug-fix-callers-haiku` | smoke run of the steps in `CONTRIBUTING.md`: rule against none on fx3 and fx4b, Claude Code with Haiku at effort low and medium, 3 trials per cell | no preregistration, analyzer output verbatim, no redaction. The verdict is `descriptive`. It reuses the runner and isolation of the 2026-11-11 matrix on Claude Code 2.1.332 |
 
 ## What pins each guarantee
 

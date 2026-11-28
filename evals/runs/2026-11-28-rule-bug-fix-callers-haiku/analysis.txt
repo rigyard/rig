@@ -1,0 +1,24 @@
+
+=== claude-haiku-low
+usable 12, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 0/3 | none 0/3
+  fx3: rule 2/3 | none 1/3
+  pooled: rule 2/6 | none 1/6
+  rule minus none: +0.17  95% CI [-0.17, +0.50] (stratified bootstrap, B=10000, seed=20261111)
+  decision: no claim
+  exposure (tokens): rule exposed 6/6, none clean 6/6
+  duration median 27s, max 41s; tool calls median 10
+
+=== claude-haiku-medium
+usable 12, missing 0; timedOut 0; leaked grader 0; siblings seen 0
+  fx4b: rule 1/3 | none 0/3
+  fx3: rule 3/3 | none 1/3
+  pooled: rule 4/6 | none 1/6
+  rule minus none: +0.50  95% CI [+0.17, +0.83] (stratified bootstrap, B=10000, seed=20261111)
+  decision: rule helps
+  exposure (tokens): rule exposed 6/6, none clean 6/6
+  duration median 31s, max 52s; tool calls median 13
+
+=== cross-config table (descriptive; no between-config test is preregistered)
+claude-haiku-low         none 1/6    rule 2/6    diff +0.17 CI [-0.17,+0.50]  no claim
+claude-haiku-medium      none 1/6    rule 4/6    diff +0.50 CI [+0.17,+0.83]  rule helps
