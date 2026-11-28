@@ -12,7 +12,7 @@
 Short answers. The tables below hold the numbers.
 
 - **The bug-fix rule helps** on the two tasks that were calibrated on Sonnet. It shows no effect on real rig bugs, where the baseline already passes 83%.
-- **The rig default install helps Sonnet and Haiku.** Sonnet gains on one task. Haiku gains on both (exploratory). On Opus one task is at the ceiling and the other has fewer passes with rig (descriptive).
+- **The rig default install helps Sonnet on one task.** Haiku passed more with rig on both tasks, and Opus has one task at the ceiling and fewer passes with rig on the other. Both are descriptive.
 - **Neither third-party skill helps.** pstack formal verification hurt on one task.
 
 Verdict words: **Helps**, **Hurts**, **No effect detected**, **Ceiling**, **Floor**, **Smoke** and **Not tested**. Terms defines each. Read every "No effect detected" as "not detected at this sample size". Most cells have 5 to 8 trials, so only large effects reach a claim.
@@ -24,11 +24,11 @@ The table compares the rig default install with no rig. "With rig" loads the alw
 | Model, effort, tasks | Without rig | With rig | With rig and `/craft` | Verdict |
 | --- | --- | --- | --- | --- |
 | Sonnet medium, fx3 and fx4b | 0/12 | 6/12 | 8/12 | **Helps** on fx3 only (0/6, 6/6, 6/6). fx4b is a **Floor** (0/6, 0/6, 2/6) |
-| Haiku medium, fx3 and fx4b | 1/10 | 10/10 | 10/10 | **Helps**, exploratory. The frame alone does it: the hub was opened in 0 of 10 rig trials |
+| Haiku medium, fx3 and fx4b | 1/10 | 10/10 | 10/10 | More passes on both tasks (0/5, 5/5, 5/5 and 1/5, 5/5, 5/5), descriptive. The always-on rig context did it without the hub: the hub was opened in 0 of 10 rig trials |
 | Opus default, fx3 and fx4b | 11/12 | 7/12 | 6/12 | **Ceiling** on fx3 (6/6 in every arm). Fewer passes on fx4b (5/6, 1/6, 0/6), descriptive |
 | Opus default, fx4b and two SWE-rebench tasks | 13/18 | 9/18 | not run | **No effect detected**. Rig without the "smallest change" clause passed 11/18 |
 
-The Sonnet "without rig" arm ran at effort medium with a restricted tool list, so it does not compare with the 15 of 30 in the rule table. Without `/craft` the model never opened the hub, so the "With rig" column measures the frame alone. Appendix D lists the runs. Appendix F covers the Haiku row.
+The Sonnet "without rig" arm ran at effort medium with a restricted tool list, so it does not compare with the 15 of 30 in the rule table. Without `/craft` the model never opened the hub, so the "With rig" column measures the always-on rig context without the hub. Appendix D lists the runs. Appendix F covers the Haiku row.
 
 ## Does the bug-fix rule help?
 
@@ -66,17 +66,17 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 ## What the results mean for rig
 
 - Keep the bug-fix rule. Its effect is large on the two tasks that were calibrated on Sonnet, and it costs about 1.7 to 1.9 times more per trial there.
-- Keep the rig frame. It lifted Haiku from 1/10 to 10/10 without the hub. `/craft` added no passes there and raised the mean cost per trial from 0.010 to 0.019 USD.
+- Haiku passed 1/10 without rig and 10/10 with it (descriptive). In that run `/craft` added no passes and raised the mean cost per trial from 0.010 to 0.019 USD. The rig arm was already at 10/10, so the comparison sits at the ceiling. The harness also did not inject `/craft` in `-p` mode, and the agent read the hub itself.
 - Do not ship gstack investigate or pstack formal verification as defaults on the strength of these runs.
 - Treat the Opus result on fx4b as an open question, not a confirmed regression. With rig, Opus changed one or two files in 6 of 6 trials and passed 0 of 6. Without rig it changed four files in 6 of 6 trials and passed 6 of 6. The arm without the "smallest change" clause passed 3 of 6. These numbers are descriptive and not promotable. On two real SWE-rebench tasks rig was not worse (5/6 against 4/6, 4/6 against 3/6). On 2026-11-15 the frame gained a sentence that asks for every site of the same fault. No recorded eval run has measured that version.
 
 ## Gaps
 
-- Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 60 trials. Those arms measured the always-loaded frame, not rig. The one arm that typed `/craft` first opened the hub in 21 of 24 trials and still passed 0 of 6 on fx4b with Opus.
+- Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 70 trials. Those arms measured the always-on rig context, not the hub. The arms that typed `/craft` first opened the hub in 31 of 34 trials, and with Opus they still passed 0 of 6 on fx4b.
 - The fixtures and graders are not in this repository. An outside contributor cannot rerun a cell. [CONTRIBUTING.md](./CONTRIBUTING.md) says what a contributor can do today.
 - Antigravity and omp have no recorded cells. The Antigravity trials hit server capacity errors and timeouts and were quarantined.
 - Only two tasks back most claims, and both were calibrated on Sonnet.
-- The Haiku rig run has no preregistration and 5 trials per cell, so its verdict is exploratory.
+- The Haiku rig run has no preregistration and 5 trials per cell, so its verdict is descriptive.
 
 ## Open questions
 
@@ -354,8 +354,8 @@ Source: the `notes` of each run's `summary.json`, the preregistrations, and git 
 | Opus with rig changed one or two files | `2026-11-12-opus-frame-ablation` notes: "rig changed 1 or 2 files in 6 of 6 trials, none changed 4 files in 6 of 6, and rig-ablated changed 4 or 5 files in 3 of 6 and 2 files in 3 of 6." |
 | The arm without the "smallest change" clause passed 3 of 6 on fx4b | Same run notes: "On fx4b the arms are none 6/6, rig 0/6 and rig-ablated 3/6." |
 | The frame gained a sentence on 2026-11-15 | Commit `1b2872e`, "fix(frame): fix every site of the same fault, not only the reported one", on `packs/core/frame.md` |
-| 0 of 60 rig-arm trials without `/craft` opened the hub | 24 trials: `2026-11-12-opus-frame-ablation/prereg.md`, "The hub was opened in 0 of 24 rig-arm trials without `/craft`". 36 trials: the same run's notes, "opened in 0 of 54 trials (0 of 18 per arm)", for the arms `rig` and `rig-ablated` |
-| The `/craft` arm opened the hub in 21 of 24 trials | `2026-11-11-rig-default-vs-vanilla` notes: "The agent opened the hub itself in 21 of 24 told trials." |
+| 0 of 70 rig-arm trials without `/craft` opened the hub | 24 trials: `2026-11-12-opus-frame-ablation/prereg.md`, "The hub was opened in 0 of 24 rig-arm trials without `/craft`". 36 trials: the same run's notes, "opened in 0 of 54 trials (0 of 18 per arm)", for the arms `rig` and `rig-ablated`. 10 trials: `2026-11-28-rig-default-vs-vanilla-haiku/analysis.txt`, "rig: hub opened 0/10" |
+| The `/craft` arms opened the hub in 31 of 34 trials | `2026-11-11-rig-default-vs-vanilla` notes: "The agent opened the hub itself in 21 of 24 told trials." And `2026-11-28-rig-default-vs-vanilla-haiku/analysis.txt`: "rig-told: hub opened 10/10" |
 | Antigravity trials were quarantined | `2026-11-12-rule-bug-fix-callers-matrix-cursor` notes: "27 of 40 agy trials ended in status ERROR: 16 with a server 503 \"no capacity\" and 11 at the 890 s print timeout." |
 | Both tasks were calibrated on Sonnet | `2026-11-11-rule-bug-fix-callers-matrix/prereg.md`: "The fixtures were calibrated on Sonnet: none arm 15/30, rule arm 30/30." |
 
@@ -385,12 +385,12 @@ Claude Code 2.1.332, `claude-haiku-5-5` at effort medium, 5 trials per cell, 30 
 | fx3 | 0/5 | 5/5 | 5/5 | 0.003, 0.007, 0.012 |
 | fx4b | 1/5 | 5/5 | 5/5 | 0.008, 0.014, 0.026 |
 
-Checks that passed: the model echo matched in 30 of 30 trials, the frame reached the first turn in 20 of 20 rig trials and in 0 of 10 without-rig trials, and no trial timed out, leaked the grader or failed for infra.
+Checks that passed: the model echo matched in 30 of 30 trials, the frame reached the first turn in 20 of 20 rig and `/craft` trials and in 0 of 10 without-rig trials, and no trial timed out, leaked the grader or failed for infra.
 
 Caveats:
 
-- The hub was opened in 0 of 10 rig trials and in 10 of 10 `/craft` trials. The rig arm passes 10 of 10, so the frame alone accounts for the gain.
+- The hub was opened in 0 of 10 rig trials and in 10 of 10 `/craft` trials. The rig arm differs from the none arm by the whole default install (the frame, the skill listings and the agent descriptions), so the data rule out the hub and the playbooks as the cause, not the other parts. The rig arm is at 10/10, so `/craft` has no room to add passes. The harness did not inject the `/craft` skill in `-p` mode, and the agent read the hub itself. The playbooks were opened in 3 of 10 `/craft` trials.
 - The analyzer's "rig helps" line (+0.90, CI +0.70 to +1.00) applies a decision rule that the run did not preregister.
 - The tasks were calibrated on Sonnet. Haiku without rig passes 1 of 10.
 - The runner stopped once after 2 trials, because a file in `~/.claude` changed. The change was the user's model default, not a trial. The other 28 trials ran without the guard firing.
-- Two `/craft` trials have several result events. Their history metrics are summed over the events. Details are in the run's `summary.json`.
+- Two `/craft` trials have several result events. Their history turns, tokens and duration are summed over the events, and the cost is the cost of the last event. Details are in the run's `summary.json`.
