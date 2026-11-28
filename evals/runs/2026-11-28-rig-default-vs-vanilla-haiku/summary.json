@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "run": "2026-11-28-rig-default-vs-vanilla-haiku",
+  "date": "2026-11-28",
+  "kind": "experiment",
+  "title": "Does rig's default install help Haiku on bug-fix tasks?",
+  "question": "On Haiku at effort medium, does Claude Code configured by rig (default config at rig main 5064f66) pass hidden-test graders more often than Claude Code with no project config, and does typing /craft first add anything?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "analyzer"
+  },
+  "lines": 6,
+  "usable_trials": 30,
+  "verdict": {
+    "label": "descriptive",
+    "text": "no preregistration, 5 trials per cell, no claim: without rig 1/10, with rig 10/10, with rig and /craft 10/10"
+  },
+  "notes": [
+    "Design: fixtures fx3 and fx4b, arms none (vanilla), rig and told (rig plus /craft typed first), n = 5 per cell, 30 trials, claude-haiku-5-5 at effort medium, 40 max turns. Total cost 0.35 USD. The history calls the vanilla arm none, as the 2026-11-11 rig run does.",
+    "The runner and analyzer are those of 2026-11-11-rig-default-vs-vanilla with the model table set to Haiku. The rig arm is rig main 5064f66 rendered into a scratch home and copied into the work dir as project units, with the frame path rewritten from ~/.claude/ to .claude/, which differs from a real user install. This frame contains the 2026-11-15 sentence that asks for every site of the same fault. The unit is rig/default@5064f66, so these cells never share a trend group with the 2dbce75 cells.",
+    "No preregistration was written. The analyzer prints rig helps (rig minus none +0.90, CI [+0.70, +1.00]). That label applies a decision rule that the run did not preregister, so the result is descriptive and not promotable.",
+    "Result: fx3 none 0/5, rig 5/5, told 5/5. fx4b none 1/5, rig 5/5, told 5/5. Mean cost per trial: none 0.006 USD, rig 0.010 USD, told 0.019 USD. Cost per pass: none 0.060 USD, rig 0.010 USD, told 0.019 USD.",
+    "The hub was opened in 0 of 10 rig trials and in 10 of 10 told trials. The harness did not inject the /craft skill in -p mode (craftInjected 0 of 30), so the agent opened the hub itself. The rig arm already passes 10 of 10 without the hub, so /craft has no room to add passes. The rig arm differs from the none arm by the whole default install (the frame, the skill listings and the agent descriptions), so the data rule out the hub and the playbooks as the cause, not the other parts. The playbooks were opened in 3 of 10 told trials.",
+    "Exposure by first-turn input tokens: the frame was loaded in 10 of 10 rig and 10 of 10 told trials, and the none arm was clean in 10 of 10. No grader leak, no timeout, no infra retry, no missing trial.",
+    "Fixtures were calibrated on Sonnet. Haiku without rig passes 1 of 10, so the none arm is near the floor. A real effect is plausible, and the size of it is unmeasured at n = 5.",
+    "The runner stopped after 2 trials because a file in ~/.claude changed (its settings.json). The change was a model default saved by the user's /model command: the file changed 6 s before the guard fired and its model key is sonnet. The runner was resumed with a fresh marker. The guard did not fire again in the other 28 trials. The 2 trials before the stop stay in the cells.",
+    "Two told trials (4b-1 and 4b-4) have more than one result event, because the agent resumed work after a background task. For them the history sums turns, tokens and duration over the events and takes the cost of the last event, which is cumulative. The trial record of the runner keeps the last event only, so it shows 2 turns for these trials.",
+    "Claude Code does not echo the effort, so effort is the flag passed. The init event echoed claude-haiku-5-5 in all 30 trials."
+  ]
+}

@@ -1,0 +1,37 @@
+fixture set: 4b,3
+trials: 30 usable, 0 missing
+
+=== model haiku ===
+k/n pass (primary grader)
+  fx3: vanilla 0/5 | rig 5/5 | rig-told 5/5
+  fx4b: vanilla 1/5 | rig 5/5 | rig-told 5/5
+  pooled: vanilla 1/10 | rig 10/10 | rig-told 10/10
+PRIMARY rig minus vanilla: pooled +0.900 CI [+0.700, +1.000]
+  fx3: +1.000 Fisher p=0.0079
+  fx4b: +0.800 Fisher p=0.0476
+secondary rig-told minus rig: pooled +0.000 CI [+0.000, +0.000]
+  fx3: +0.000 Fisher p=1.0000
+  fx4b: +0.000 Fisher p=1.0000
+secondary rig-told minus vanilla: pooled +0.900 CI [+0.700, +1.000]
+  fx3: +1.000 Fisher p=0.0079
+  fx4b: +0.800 Fisher p=0.0476
+leak trials: 0 of 30
+sensitivity (leak trials dropped) rig minus vanilla: pooled +0.900 CI [+0.700, +1.000]
+  fx3: +1.000 Fisher p=0.0079
+  fx4b: +0.800 Fisher p=0.0476
+DECISION haiku: rig helps
+cost per pass ($ total / passes), usable trials
+  vanilla: $0.060 (mean cost $0.006, median turns 7.5, median wall 18s)
+  rig: $0.010 (mean cost $0.010, median turns 16.5, median wall 35s)
+  rig-told: $0.019 (mean cost $0.019, median turns 18, median wall 51s)
+  ratio rig/vanilla 0.17, rig-told/vanilla 0.32
+exposure (first-turn input tokens vs vanilla median of the same fixture)
+  fx3: vanilla dirty 0/5; rig loaded 5/5; rig-told loaded 5/5
+  fx4b: vanilla dirty 0/5; rig loaded 5/5; rig-told loaded 5/5
+  rig: hub opened 0/10, playbook 0/10, spawned a subagent 0/10, poteto-agent 0/10
+  rig-told: hub opened 10/10, playbook 3/10, spawned a subagent 2/10, poteto-agent 0/10
+  vanilla: init skills 20, agents with poteto-agent 0, craft opened 0
+  hygiene: infra-retried 0, error results 0, non-success 0, timed out 0, grader leak 0, other dirs 0
+
+SUMMARY
+  haiku: rig helps
