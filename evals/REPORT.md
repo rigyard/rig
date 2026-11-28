@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Status | Living record. Update it when a run lands in `history.jsonl` |
-| Covers | 15 runs, 2026-11-10 to 2026-11-28 |
+| Covers | 16 runs, 2026-11-10 to 2026-11-28 |
 | Source | [`history.jsonl`](./history.jsonl) and each run's `summary.json` under [`runs/`](./runs/) |
 | Last updated | 2026-11-28 |
 
@@ -12,7 +12,7 @@
 Short answers. The tables below hold the numbers.
 
 - **The bug-fix rule helps** on the two tasks that were calibrated on Sonnet. It shows no effect on real rig bugs, where the baseline already passes 83%.
-- **The rig default install helps Sonnet on one task.** On Opus one task is at the ceiling and the other has fewer passes with rig (descriptive).
+- **The rig default install helps Sonnet and Haiku.** Sonnet gains on one task. Haiku gains on both (exploratory). On Opus one task is at the ceiling and the other has fewer passes with rig (descriptive).
 - **Neither third-party skill helps.** pstack formal verification hurt on one task.
 
 Verdict words: **Helps**, **Hurts**, **No effect detected**, **Ceiling**, **Floor**, **Smoke** and **Not tested**. Terms defines each. Read every "No effect detected" as "not detected at this sample size". Most cells have 5 to 8 trials, so only large effects reach a claim.
@@ -24,10 +24,11 @@ The table compares the rig default install with no rig. "With rig" loads the alw
 | Model, effort, tasks | Without rig | With rig | With rig and `/craft` | Verdict |
 | --- | --- | --- | --- | --- |
 | Sonnet medium, fx3 and fx4b | 0/12 | 6/12 | 8/12 | **Helps** on fx3 only (0/6, 6/6, 6/6). fx4b is a **Floor** (0/6, 0/6, 2/6) |
+| Haiku medium, fx3 and fx4b | 1/10 | 10/10 | 10/10 | **Helps**, exploratory. The frame alone does it: the hub was opened in 0 of 10 rig trials |
 | Opus default, fx3 and fx4b | 11/12 | 7/12 | 6/12 | **Ceiling** on fx3 (6/6 in every arm). Fewer passes on fx4b (5/6, 1/6, 0/6), descriptive |
 | Opus default, fx4b and two SWE-rebench tasks | 13/18 | 9/18 | not run | **No effect detected**. Rig without the "smallest change" clause passed 11/18 |
 
-The Sonnet "without rig" arm ran at effort medium with a restricted tool list, so it does not compare with the 15 of 30 in the rule table. Without `/craft` the model never opened the hub, so the "With rig" column measures the frame alone. Appendix D lists the runs.
+The Sonnet "without rig" arm ran at effort medium with a restricted tool list, so it does not compare with the 15 of 30 in the rule table. Without `/craft` the model never opened the hub, so the "With rig" column measures the frame alone. Appendix D lists the runs. Appendix F covers the Haiku row.
 
 ## Does the bug-fix rule help?
 
@@ -65,6 +66,7 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 ## What the results mean for rig
 
 - Keep the bug-fix rule. Its effect is large on the two tasks that were calibrated on Sonnet, and it costs about 1.7 to 1.9 times more per trial there.
+- Keep the rig frame. It lifted Haiku from 1/10 to 10/10 without the hub. `/craft` added no passes there and raised the mean cost per trial from 0.010 to 0.019 USD.
 - Do not ship gstack investigate or pstack formal verification as defaults on the strength of these runs.
 - Treat the Opus result on fx4b as an open question, not a confirmed regression. With rig, Opus changed one or two files in 6 of 6 trials and passed 0 of 6. Without rig it changed four files in 6 of 6 trials and passed 6 of 6. The arm without the "smallest change" clause passed 3 of 6. These numbers are descriptive and not promotable. On two real SWE-rebench tasks rig was not worse (5/6 against 4/6, 4/6 against 3/6). On 2026-11-15 the frame gained a sentence that asks for every site of the same fault. No recorded eval run has measured that version.
 
@@ -74,6 +76,7 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 - The fixtures and graders are not in this repository. An outside contributor cannot rerun a cell. [CONTRIBUTING.md](./CONTRIBUTING.md) says what a contributor can do today.
 - Antigravity and omp have no recorded cells. The Antigravity trials hit server capacity errors and timeouts and were quarantined.
 - Only two tasks back most claims, and both were calibrated on Sonnet.
+- The Haiku rig run has no preregistration and 5 trials per cell, so its verdict is exploratory.
 
 ## Open questions
 
@@ -103,6 +106,7 @@ In the job hub row, a pass means that a trial found all five planted bugs.
 - C. [Judge lines](#c-judge-lines)
 - D. [Sources of the body claims](#d-sources-of-the-body-claims)
 - E. [2026-11-28 Haiku smoke run](#e-2026-11-28-haiku-smoke-run)
+- F. [2026-11-28 Haiku rig run](#f-2026-11-28-haiku-rig-run)
 
 ### A. Verdict of each run
 
@@ -125,6 +129,7 @@ Source: `verdict` of each `runs/<run>/summary.json`, copied verbatim by script o
 | [`2026-11-11-rule-bug-fix-callers-rig-history`](./runs/2026-11-11-rule-bug-fix-callers-rig-history/) | `no-claim` | DECISION (primary pool, rule minus placebo): CI includes 0: no claim that the rule generalizes |
 | [`2026-11-12-opus-frame-ablation`](./runs/2026-11-12-opus-frame-ablation/) | `no-claim` | no claim: the CI of rig-ablated minus rig spans 0 (a null is not evidence that the sentence is harmless) |
 | [`2026-11-12-rule-bug-fix-callers-matrix-cursor`](./runs/2026-11-12-rule-bug-fix-callers-matrix-cursor/) | `no-claim` | Per configuration, rule minus none, pooled over fx3 and fx4b: cursor-grok47-high no claim, cursor-grok47-medium no claim |
+| [`2026-11-28-rig-default-vs-vanilla-haiku`](./runs/2026-11-28-rig-default-vs-vanilla-haiku/) | `descriptive` | no preregistration, 5 trials per cell, no claim: without rig 1/10, with rig 10/10, with rig and /craft 10/10 |
 | [`2026-11-28-rule-bug-fix-callers-haiku`](./runs/2026-11-28-rule-bug-fix-callers-haiku/) | `descriptive` | smoke run without preregistration, 3 trials per cell, no claim: pooled rule 2/6 against none 1/6 at effort low, rule 4/6 against none 1/6 at effort medium |
 
 ### B. Cells by run
@@ -296,6 +301,17 @@ Source: the cell lines of `history.jsonl`, rendered by script on 2026-11-28. Cos
 | `rule:bug-fix-callers` | claude-code claude-haiku-5-5, medium | `fx3` | `rule` | 3/3 | 0.010 | 16.7 |
 | `rule:bug-fix-callers` | claude-code claude-haiku-5-5, medium | `fx3` | `none` | 1/3 | 0.005 | 7.7 |
 
+`2026-11-28-rig-default-vs-vanilla-haiku`
+
+| Unit | Model, effort | Fixture | Arm | Pass k/n | Mean cost USD | Mean turns |
+| --- | --- | --- | --- | --- | --- | --- |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx3` | `none` | 0/5 | 0.003 | 5.4 |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx3` | `rig` | 5/5 | 0.007 | 11.2 |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx3` | `told` | 5/5 | 0.012 | 17.2 |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx4b` | `none` | 1/5 | 0.008 | 13.0 |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx4b` | `rig` | 5/5 | 0.014 | 20.2 |
+| `rig/default@5064f66` | claude-code claude-haiku-5-5, medium | `fx4b` | `told` | 5/5 | 0.026 | 31.6 |
+
 ### C. Judge lines
 
 Source: the judge lines of `history.jsonl`, rendered by script on 2026-11-28.
@@ -327,7 +343,7 @@ Source: the `notes` of each run's `summary.json`, the preregistrations, and git 
 
 | Body claim | Source |
 | --- | --- |
-| Run behind each table row | Rig table: `2026-11-11-rig-default-vs-vanilla` (rows 1 and 2), `2026-11-12-opus-frame-ablation` (row 3). Rule table: `2026-11-10-rule-bug-fix-callers` (row 1), `2026-11-11-rule-bug-fix-callers-matrix` (rows 2 to 4 and 7 to 9), `2026-11-28-rule-bug-fix-callers-haiku` (rows 5 and 6), `2026-11-12-rule-bug-fix-callers-matrix-cursor` (rows 10 and 11), `2026-11-11-rule-bug-fix-callers-rig-history` (row 12, tasks d3 and st). Skill table: `2026-11-10-hg-gstack-investigate`, `2026-11-11-gstack-investigate-full`, `2026-11-10-hp-pstack-formal-verification`, `2026-11-11-hp-formal-verification-audit`, `2026-11-11-pilot-principle-fix-root-causes` |
+| Run behind each table row | Rig table: `2026-11-11-rig-default-vs-vanilla` (rows 1 and 3), `2026-11-28-rig-default-vs-vanilla-haiku` (row 2), `2026-11-12-opus-frame-ablation` (row 4). Rule table: `2026-11-10-rule-bug-fix-callers` (row 1), `2026-11-11-rule-bug-fix-callers-matrix` (rows 2 to 4 and 7 to 9), `2026-11-28-rule-bug-fix-callers-haiku` (rows 5 and 6), `2026-11-12-rule-bug-fix-callers-matrix-cursor` (rows 10 and 11), `2026-11-11-rule-bug-fix-callers-rig-history` (row 12, tasks d3 and st). Skill table: `2026-11-10-hg-gstack-investigate`, `2026-11-11-gstack-investigate-full`, `2026-11-10-hp-pstack-formal-verification`, `2026-11-11-hp-formal-verification-audit`, `2026-11-11-pilot-principle-fix-root-causes` |
 | Every pooled pass count in the three tables | Sums of `k` and `n` over the cells of Appendix B that match the row's run, model, effort and tasks. Computed by script from `history.jsonl` on 2026-11-28. Verdict words come from the `verdict` of each run's `summary.json` (Appendix A) and the preregistered rules |
 | Rule pass rate 30 of 30, placebo 7 of 30, none 15 of 30 on Sonnet | Appendix B, run `2026-11-10-rule-bug-fix-callers`: fx4b 15/15, 1/15, 8/15 and fx3 15/15, 6/15, 7/15 |
 | The rule costs about 1.7 to 1.9 times more per trial | Appendix B, same run: mean cost rule 0.159 against none 0.095 on fx4b, and 0.128 against 0.068 on fx3 |
@@ -357,3 +373,24 @@ The run tested the steps of [CONTRIBUTING.md](./CONTRIBUTING.md) on a small budg
 Setup checks that passed: the model echo matched in 24 of 24 trials, the rule reached the first turn in 12 of 12 rule trials and in 0 of 12 none trials, and no trial timed out, failed for infra or saw the grader. The fixture hashes equal the recorded fx3 and fx4b values.
 
 Caveats: Claude Code does not echo the effort, so the effort is the flag that the runner passed. The analyzer's "rule helps" line for effort medium applies the matrix decision rule to a run that did not preregister it. A preregistered run with 5 or more trials per cell can turn it into a claim.
+
+### F. 2026-11-28 Haiku rig run
+
+Source: [`runs/2026-11-28-rig-default-vs-vanilla-haiku/`](./runs/2026-11-28-rig-default-vs-vanilla-haiku/), run on 2026-11-28.
+
+Claude Code 2.1.332, `claude-haiku-5-5` at effort medium, 5 trials per cell, 30 trials, 0.35 USD in total. The rig arm is rig main `5064f66` with the frame that has the 2026-11-15 sentence. The run has no preregistration, so its verdict is `descriptive`.
+
+| Task | Without rig | With rig | With rig and `/craft` | Mean cost per trial, in the same order (USD) |
+| --- | --- | --- | --- | --- |
+| fx3 | 0/5 | 5/5 | 5/5 | 0.003, 0.007, 0.012 |
+| fx4b | 1/5 | 5/5 | 5/5 | 0.008, 0.014, 0.026 |
+
+Checks that passed: the model echo matched in 30 of 30 trials, the frame reached the first turn in 20 of 20 rig trials and in 0 of 10 without-rig trials, and no trial timed out, leaked the grader or failed for infra.
+
+Caveats:
+
+- The hub was opened in 0 of 10 rig trials and in 10 of 10 `/craft` trials. The rig arm passes 10 of 10, so the frame alone accounts for the gain.
+- The analyzer's "rig helps" line (+0.90, CI +0.70 to +1.00) applies a decision rule that the run did not preregister.
+- The tasks were calibrated on Sonnet. Haiku without rig passes 1 of 10.
+- The runner stopped once after 2 trials, because a file in `~/.claude` changed. The change was the user's model default, not a trial. The other 28 trials ran without the guard firing.
+- Two `/craft` trials have several result events. Their history metrics are summed over the events. Details are in the run's `summary.json`.
