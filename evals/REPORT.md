@@ -9,9 +9,9 @@
 
 ## Summary
 
-The one-sentence bug-fix rule is the only unit with a preregistered positive result. It raised Sonnet's pass rate on both synthetic bug-fix tasks against a placebo, and it helped two of four Codex configurations and Sonnet at effort medium. It did not generalize to three real bugs from rig's own history, where every arm already passed most trials.
+The one-sentence bug-fix rule has the strongest result. It raised Sonnet's pass rate on both synthetic bug-fix tasks against a placebo, and it helped two of four Codex configurations and Sonnet at effort medium. On three real bugs from rig's own history the rule and the baseline passed within one trial of each other, so the run allows no claim. The arms already passed most trials there.
 
-No other unit has a positive result. Two third-party skills passed fewer trials than no skill on at least one task. The rig default install helped Sonnet on one task and hurt Opus on another. A later frame change that targets that Opus failure has not been measured yet.
+The only other positive result is the rig default install on Sonnet, and it comes from one task. Two third-party skills passed fewer trials than no skill on at least one task. With Opus, the rig default install passed fewer trials on fx4b, a descriptive result. A later frame change targets that failure. Its commit message reports a 4-trial smoke run, and no recorded eval run has measured it.
 
 Read every "no claim" in this report as "not detected at this sample size". Most cells have 5 to 8 trials, so only large effects reach a claim.
 
@@ -20,28 +20,28 @@ Read every "no claim" in this report as "not detected at this sample size". Most
 | Question | Result | Verdict |
 | --- | --- | --- |
 | Does the bug-fix rule help Sonnet? | Pass rate 30 of 30 with the rule, 7 of 30 with a placebo, 15 of 30 with nothing | Claim allowed. Appendix A |
-| Does the rule help on real rig bugs? | Same pass rate with and without the rule on the two primary tasks | No claim. Appendix A |
+| Does the rule help on real rig bugs? | The rule and the baseline were within one trial of each other on both primary tasks (9/12 against 10/12, 10/12 against 10/12) | No claim. Appendix A |
 | Does the rule help other models? | Helps Sonnet medium, GPT-6.1 sol and GPT-6 luna high. No claim for the others. A Haiku smoke run points the same way at effort medium | Exploratory. Appendices B and E |
-| Do third-party skills help? | gstack investigate: no benefit, worse on one task. pstack formal verification: worse, 0 of 8 against 8 of 8 | Appendix A |
-| Does the rig default install help? | Sonnet: yes on one task. Opus: at ceiling on one task, worse on the other | Claim for Sonnet only. Appendix A |
-| Do the judge models rank good above bad? | The pico judge separates cases better than mini. pico is at chance on the short-sentence prose rule | Descriptive. Appendix C |
+| Do third-party skills help? | gstack investigate: no benefit detected, and fewer passes on fx4b (2/8 against 6/8 for the full skill). pstack formal verification: fewer passes, 0 of 8 against 8 of 8 | gstack: not contradicted at n = 8. pstack: contradicted. Appendix A |
+| Does the rig default install help? | Sonnet: helps on fx3 only. Opus: ceiling on fx3, fewer passes on fx4b (descriptive) | Claim for Sonnet only, from one task. Appendix A |
+| Do the judge models rank good above bad? | The pico judge has the higher pooled AUC, and the confidence intervals overlap. pico is at chance on the short-sentence prose subset | Descriptive. Appendix C |
 
 ## What the results mean for rig
 
-- Keep the bug-fix rule. Its effect is large on the tasks that it was tuned on and it costs about 1.7 to 2 times more per trial on those tasks.
+- Keep the bug-fix rule. Its effect is large on the two tasks that were calibrated on Sonnet, and it costs about 1.7 to 1.9 times more per trial there.
 - Do not ship gstack investigate or pstack formal verification as defaults on the strength of these runs.
-- Treat the Opus result as an open regression. Opus with rig changed one or two files, and every passing vanilla trial changed four. Removing one "smallest change" clause from the frame recovered half of those passes. On 2026-11-15 the frame gained a sentence that asks for every site of the same fault. No run has measured that version.
+- Treat the Opus result on fx4b as an open question, not a confirmed regression. With rig, Opus changed one or two files in 6 of 6 trials and passed 0 of 6. Without rig it changed four files in 6 of 6 trials and passed 6 of 6. The arm without the "smallest change" clause passed 3 of 6. These numbers are descriptive and not promotable. On two real SWE-rebench tasks rig was not worse (5/6 against 4/6, 4/6 against 3/6). On 2026-11-15 the frame gained a sentence that asks for every site of the same fault. No recorded eval run has measured that version.
 
 ## Gaps
 
-- Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 60 trials. Those arms measured the always-loaded frame, not rig. The one arm that typed `/craft` first opened the hub in 21 of 24 trials and still failed the Opus storefront task.
+- Every rig-arm trial that did not start with `/craft` left the craft hub unread: 0 of 60 trials. Those arms measured the always-loaded frame, not rig. The one arm that typed `/craft` first opened the hub in 21 of 24 trials and still passed 0 of 6 on fx4b with Opus.
 - The fixtures and graders are not in this repository. An outside contributor cannot rerun a cell. [CONTRIBUTING.md](./CONTRIBUTING.md) says what a contributor can do today.
 - Antigravity and omp have no recorded cells. The Antigravity trials hit server capacity errors and timeouts and were quarantined.
 - Only two tasks back most claims, and both were calibrated on Sonnet.
 
 ## Open questions
 
-1. Does the 2026-11-15 frame fix the Opus storefront regression? A run of rig with `/craft` against vanilla on the same tasks answers it.
+1. Does the 2026-11-15 frame fix the Opus result on fx4b? A run of rig with `/craft` against `none` on the same tasks answers it.
 2. Should the fixtures and graders be published so that contributors can rerun cells?
 3. Should a run with fewer than 5 trials per cell, such as the Haiku smoke run in Appendix E, stay in `history.jsonl` as descriptive data?
 
@@ -303,7 +303,7 @@ Source: the `notes` of each run's `summary.json`, the preregistrations, and git 
 
 Source: [`runs/2026-11-28-rule-bug-fix-callers-haiku/`](./runs/2026-11-28-rule-bug-fix-callers-haiku/), run on 2026-11-28.
 
-The run tested the steps of [CONTRIBUTING.md](./CONTRIBUTING.md) on a small budget: Claude Code 2.1.332, `claude-haiku-5-5` at effort low and medium, arms `rule` and `none`, fixtures fx3 and fx4b, 3 trials per cell, 24 trials, 0.20 USD in total. It had no preregistration and did not repeat the canary isolation check, so its verdict is `descriptive`.
+The run tested the steps of [CONTRIBUTING.md](./CONTRIBUTING.md) on a small budget: Claude Code 2.1.332, `claude-haiku-5-5` at effort low and medium, arms `rule` and `none`, fixtures fx3 and fx4b, 3 trials per cell, 24 trials, 0.20 USD in total. It had no preregistration, so its verdict is `descriptive`. It also did not repeat the canary isolation check.
 
 | Configuration | fx4b rule | fx4b none | fx3 rule | fx3 none | Pooled rule minus none, 95% CI |
 | --- | --- | --- | --- | --- | --- |
