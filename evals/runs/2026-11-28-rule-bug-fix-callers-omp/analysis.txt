@@ -1,0 +1,12 @@
+omp, tencent/hy4-flash via openrouter, effort default, fixtures fx3 and fx4b
+usable 20, infra 0; timed out 0
+  fx3: rule 5/5 | none 5/5
+  fx4b: rule 2/5 | none 1/5
+  pooled: rule 7/10 | none 6/10
+  rule minus none: +0.10  95% CI [-0.20, +0.40] (stratified bootstrap, B=10000, seed=20261111)
+  decision under the 2026-11-11 matrix rule (this run did not preregister it): no claim
+  first-turn context tokens fx3: rule [9013], none [8828]; every rule trial above every none trial: True (minimum gap 185)
+  first-turn context tokens fx4b: rule [9001], none [8815]; every rule trial above every none trial: True (minimum gap 186)
+  hygiene: grader or other-trial path in a tool call 0; trials with a sandbox write denial 0 (rule 0, none 0); model echo ['tencent/hy4-flash']
+  none: mean cost 0.0021 USD, median wall 100 s, mean assistant messages 16.6, mean tool calls 24.8
+  rule: mean cost 0.0028 USD, median wall 125 s, mean assistant messages 18.9, mean tool calls 33.8

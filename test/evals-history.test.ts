@@ -109,12 +109,23 @@ describe("history.jsonl schema", () => {
       [{ ...sampleCell, schema: 2 }, /bad value for schema/],
       [{ ...sampleJudge, auc_ci95: [0.9, 0.7] }, /bad value for auc_ci95/],
       [{ ...sampleJudge, pairs: 5 }, /pairs must be n \/ 2/],
+      [{ ...sampleCell, model: "tencent/" }, /bad value for model/],
+      [{ ...sampleCell, model: "/hy4" }, /bad value for model/],
+      [{ ...sampleCell, model: "a//b" }, /bad value for model/],
+      [{ ...sampleCell, model: "a b" }, /bad value for model/],
       [{ kind: "other" }, /kind must be cell, judge or metrics/],
       ["text", /kind must be cell, judge or metrics/],
     ];
     for (const [value, expected] of bad) assert.match(validateLine(value).join("; "), expected);
     const { harness, ...withoutHarness } = sampleCell;
     assert.match(validateLine(withoutHarness).join("; "), /missing field harness/);
+  });
+
+  test("a cell and a metrics line accept a model id with a vendor prefix, a judge line does not", () => {
+    assert.deepEqual(validateLine({ ...sampleCell, model: "tencent/hy4-flash" }), []);
+    assert.deepEqual(validateLine({ ...sampleCell, model: "openrouter/tencent/hy4-flash" }), []);
+    assert.deepEqual(validateLine({ ...sampleMetrics, model: "tencent/hy4-flash" }), []);
+    assert.match(validateLine({ ...sampleJudge, model: "tencent/hy4-flash" }).join("; "), /bad value for model/);
   });
 
   test("a cell may carry the time and token fields inline, all or none, and null means the harness did not report them", () => {

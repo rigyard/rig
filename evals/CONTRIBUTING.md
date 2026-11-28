@@ -30,7 +30,7 @@ Do not run `scripts/eval-runner.ts --record`. Without `--dry-run` it writes no t
 
 ## Isolate the harness
 
-The arms must differ by one thing only. Your own instructions, skills and MCP servers must not reach the model. The table gives the command and the isolation per harness. The rows for Claude Code, Codex, Cursor and Antigravity are what the 2026-11-11 matrix runner used. The omp row comes from rig's omp probes and from checks on 2026-11-28 with omp 18.16.0. No recorded trial used omp. Replace `<provider>`, `<id>`, `<level>`, `<dir>` and `<prompt>` with your values. `<trial>` is a scratch folder of the trial, outside `<dir>`.
+The arms must differ by one thing only. Your own instructions, skills and MCP servers must not reach the model. The table gives the command and the isolation per harness. The rows for Claude Code, Codex, Cursor and Antigravity are what the 2026-11-11 matrix runner used. The omp row comes from rig's omp probes and from checks on 2026-11-28 with omp 18.16.0. The 2026-11-28 omp run, with `tencent/hy4-flash` through OpenRouter, used this row. Its summary lists the differences from the other recorded runs. Replace `<provider>`, `<id>`, `<level>`, `<dir>` and `<prompt>` with your values. `<trial>` is a scratch folder of the trial, outside `<dir>`.
 
 | Harness | Headless command, run in `<dir>` with stdin closed | Isolation | Instruction file for the `rule` arm | Effort |
 | --- | --- | --- | --- | --- |

@@ -50,7 +50,7 @@ Cell lines:
 | `unit` | what is under test: `rule:<slug>`, `<pack>/<unit>@<commit>`, or `<pack>/<unit>` |
 | `arm` | the condition: `rule`, `placebo`, `told`, `none` and so on. `none` is the baseline |
 | `harness`, `harness_version` | for example `claude-code` and the version from the init event |
-| `model` | model id as the harness reported it |
+| `model` | model id as the harness reported it. It may carry a vendor prefix, for example `tencent/hy4-flash`, and the provider goes in the `note` |
 | `effort` | effort setting, `default` when the run set none |
 | `fixture` | fixture id, see below |
 | `fixture_sha256` | sha256 of the fixture file tree without `.git` |
@@ -208,6 +208,7 @@ Runs recorded with the metric fields inline:
 | `2026-11-12-rule-bug-fix-callers-matrix-cursor` | rule against none on fx3 and fx4b on Cursor with Grok 4.7 at medium and high effort, the cursor cells of the 2026-11-11 matrix | same preregistration as that run, which does not name Cursor (deviation 8), analyzer output verbatim, three paths redacted in the preregistration. The verdict is `no-claim`. Cursor reports no cost, so its cells carry `null`. The trial timeout was 900 s against 300 s for claude and codex, so durations are not comparable. agy cells of the matrix are not recorded: 27 of 40 trials ended in status ERROR and were quarantined |
 | `2026-11-28-rule-bug-fix-callers-haiku` | smoke run of the steps in `CONTRIBUTING.md`: rule against none on fx3 and fx4b, Claude Code with Haiku at effort low and medium, 3 trials per cell | no preregistration, analyzer output verbatim, no redaction. The verdict is `descriptive`. It reuses the runner and isolation of the 2026-11-11 matrix on Claude Code 2.1.332 |
 | `2026-11-28-rig-default-vs-vanilla-haiku` | rig default install at rig main 5064f66 against vanilla on fx3 and fx4b, Claude Code with Haiku at effort medium, arms none, rig and told (rig plus `/craft`), 5 trials per cell | no preregistration, analyzer output verbatim, no redaction. The verdict is `descriptive`. The unit is `rig/default@5064f66`, a new trend group. Two told trials have several result events and carry summed turns, tokens and duration, see the summary notes |
+| `2026-11-28-rule-bug-fix-callers-omp` | rule against none on fx3 and fx4b, omp 18.16.0 with tencent/hy4-flash through OpenRouter, 5 trials per cell, run by hand from `evals/CONTRIBUTING.md` | no preregistration, analysis rendered from the trial records, no redaction. The verdict is `descriptive`. Each trial ran in a macOS sandbox, see the summary notes for the differences from the recorded runs. The history stores the model id that omp echoed, and the provider is openrouter |
 
 ## What pins each guarantee
 

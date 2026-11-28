@@ -97,6 +97,8 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const RUN = /^\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*$/;
 const UNIT = /^(rule:[a-z0-9][a-z0-9-]*|[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9-]*(@[0-9a-f]{7,40})?)$/;
 const WORD = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+// A model id as a harness reports it, with an optional vendor prefix such as tencent/hy4-flash.
+const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._+-]*(\/[A-Za-z0-9][A-Za-z0-9._+-]*)*$/;
 
 const text: Check = (v) => typeof v === "string" && v.trim() !== "" && v === v.trim();
 const match = (re: RegExp): Check => (v) => typeof v === "string" && re.test(v);
@@ -122,7 +124,7 @@ const CELL: Record<keyof Cell, Check> = {
   arm: match(WORD),
   harness: match(WORD),
   harness_version: match(WORD),
-  model: match(WORD),
+  model: match(MODEL_ID),
   effort: match(WORD),
   fixture: match(WORD),
   fixture_sha256: match(SHA),
@@ -143,7 +145,7 @@ const METRICS: Record<keyof Metrics, Check> = {
   unit: match(UNIT),
   arm: match(WORD),
   harness: match(WORD),
-  model: match(WORD),
+  model: match(MODEL_ID),
   effort: match(WORD),
   fixture: match(WORD),
   ...METRIC_CHECKS,

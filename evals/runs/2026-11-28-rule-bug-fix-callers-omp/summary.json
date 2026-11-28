@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "run": "2026-11-28-rule-bug-fix-callers-omp",
+  "date": "2026-11-28",
+  "kind": "experiment",
+  "title": "One bug-fix rule on omp with tencent/hy4-flash, run by hand from the contributor guide",
+  "question": "Does the one-sentence bug-fixing rule, delivered only as the work dir AGENTS.md, change the pass rate of omp with tencent/hy4-flash through OpenRouter on fx3 and fx4b?",
+  "prereg": null,
+  "analysis": {
+    "file": "analysis.txt",
+    "origin": "backfill"
+  },
+  "lines": 4,
+  "usable_trials": 20,
+  "verdict": {
+    "label": "descriptive",
+    "text": "no preregistration, 5 trials per cell, no claim: rule 7/10, none 6/10 pooled, fx3 at the ceiling (5/5 in both arms)"
+  },
+  "notes": [
+    "The run followed the by-hand steps of evals/CONTRIBUTING.md with the prepare, prompt and grade commands of scripts/eval-fixture.ts, and partly answers issue 5, which asked for omp with a free Hunyuan model. The model here is tencent/hy4-flash, not the hy4-free of that issue.",
+    "Design: arms rule and none, fixtures fx3 and fx4b, 5 trials per cell, 20 trials, interleaved with the arm order flipped on even trials, effort default (no --thinking flag), 300 s timeout, no turn cap (omp has no such flag). Total cost 0.05 USD, as reported by OpenRouter.",
+    "Harness: omp 18.16.0, from omp --version. The version field of the JSON session event is the session format version, 3, and is not the omp version. The command was omp -p --mode json --no-session --model openrouter/tencent/hy4-flash with stdin closed. The JSON assistant message echoed model tencent/hy4-flash and provider openrouter in 20 of 20 trials. The history stores the echoed model id.",
+    "No preregistration was written. The analysis applies the decision rule of the 2026-11-11 matrix run to this run and prints no claim (rule minus none +0.10, CI [-0.20, +0.40]). That label is not a preregistered verdict. fx3 is at the ceiling in both arms, and fx4b has 2 passes with the rule and 1 without, which is too few to separate a small effect from none.",
+    "Exposure: the first assistant message carries 9013 context tokens (input plus cache read plus cache write) in all 5 fx3 rule trials and 8828 in all 5 fx3 none trials, and 9001 against 8815 in fx4b. The rule arm is 185 and 186 tokens above the none arm in every trial. That is consistent with the instruction file reaching the model. The file is 187 bytes, so omp's own framing of context files probably accounts for part of the gap. AGENTS.md was listed in .git/info/exclude and omp still loaded it.",
+    "Hygiene: no tool call named a grader, a fixture path of the repository or another trial's directory. 8 of 20 trials mention a grader or a benchmark in the model's own text, and none read one. No trial timed out, no infra failure, no retry, no missing trial.",
+    "Sandbox, a difference from the recorded runs: omp print mode approves every tool call by default, so each trial ran under a macOS sandbox profile that denied reads under the user home root and writes outside the trial root. The environment held only PATH, HOME, the agent dir, TMPDIR, LANG and the OpenRouter variables. A discarded smoke trial that tried to write a scratch file in the system temp directory got a permission error. None of the 20 recorded trials hit a denied write. The Claude cells had a six-command shell allowlist and the Codex cells a workspace-write sandbox.",
+    "Fixture files were writable. The recorded matrix cells for Claude, Codex and Cursor ran with read-only fixture files, and the rigstack runs used writable files.",
+    "A driver outside the repository called the script commands, started omp under the sandbox, parsed the JSON events and graded. It is not committed. The script file was hardened while the batch ran (a symlink check and input checks for --instruction-file). The diff adds checks only, so prepare and grade behave the same for the inputs used here. Two trials of a first attempt that used an earlier copy of the script were discarded before this batch.",
+    "mean_turns counts assistant messages, not model calls. Duration is the wall time of the omp process under the sandbox. Cost, input tokens, output tokens and cache tokens come from the usage of the assistant messages."
+  ]
+}
