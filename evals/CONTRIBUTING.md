@@ -1,6 +1,6 @@
 # Add an eval for another model
 
-This guide shows you how to run an existing eval on a new model, harness or effort setting, and how to record the result. The 2026-11-28 Haiku smoke run tested these steps on a small budget. It skipped the preregistration, so its verdict is descriptive. It also skipped the canary check. [REPORT.md](./REPORT.md) summarizes the results so far. [README.md](./README.md) is the reference for the file formats.
+This guide shows you how to run an existing eval on a new model, harness or effort setting, and how to record the result. The 2026-11-28 Haiku smoke run tested the planning and recording steps on a small budget, with the maintainer's runner. No recorded trial has used the by-hand flow yet. The smoke run skipped the preregistration, so its verdict is descriptive. It also skipped the canary check. [REPORT.md](./REPORT.md) summarizes the results so far. [README.md](./README.md) is the reference for the file formats.
 
 ## Know what the repository holds
 
@@ -38,7 +38,7 @@ The arms must differ by one thing only. Your own instructions, skills and MCP se
 | Codex | `codex exec -m <id> -c model_reasoning_effort="<level>" -c approval_policy="never" -s workspace-write --json -C <dir> "<prompt>"` | A fresh `HOME` and a fresh `CODEX_HOME` per trial. `CODEX_HOME` holds only `auth.json`, a link to your login file | `AGENTS.md` | `-c model_reasoning_effort`. The rollout file echoes it in `turn_context` |
 | Cursor | `cursor-agent -p --output-format stream-json --model <id>-<level> --trust "<prompt>"` | A fresh `HOME` per trial that holds only `Library/Keychains`, a link to your login keychain, and `.cursor/cli-config.json` with `approvalMode` `allowlist` and the shell commands node, git, ls, cat, grep and find. `CURSOR_*` variables removed | `AGENTS.md` | The suffix of the model id. The init event echoes it in the model name |
 | Antigravity | `agy -p "<prompt>" --output-format stream-json --model <id>-<level> --dangerously-skip-permissions --sandbox --print-timeout <seconds>s` | A fresh `HOME` per trial that holds only `Library/Keychains`, a link to your login keychain | `AGENTS.md`. agy also loads `GEMINI.md` and `.agents/rules/*.md` | The suffix of the model id. `init.model` echoes it |
-| omp | `omp -p --mode json --no-session --model <id> --thinking <level> "<prompt>"`. An open stdin pipe hangs it with no output | A fresh `PI_CODING_AGENT_DIR` and a fresh `HOME` per trial, both under `<trial>`. Remove `OMP_PROFILE`, `PI_PROFILE`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `COPILOT_HOME` from the environment. Model credentials come from the environment, not from the agent dir | UNVERIFIED. `AGENTS.md` is the likely file, because omp has a `--no-context-files` flag, but no probe confirmed which project file omp loads. Do not pass `--no-context-files` | `--thinking <level>`. The accepted levels are not recorded: read them from `omp --help`. Leave the flag out for `default`. How omp echoes the model id is UNVERIFIED |
+| omp | `omp -p --mode json --no-session --model <id> --thinking <level> "<prompt>"`. An open stdin pipe hangs it with no output | A fresh `PI_CODING_AGENT_DIR` and a fresh `HOME` per trial, both under `<trial>`. Remove `OMP_PROFILE`, `PI_PROFILE`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `COPILOT_HOME` from the environment. Pass the model credentials through the environment. The probes kept no credentials in the agent dir. A login stored in your real agent dir was not tested | UNVERIFIED. `AGENTS.md` is the likely file, because omp has a `--no-context-files` flag, but no probe confirmed which project file omp loads. Do not pass `--no-context-files` | `--thinking <level>`. The accepted levels are not recorded: read them from `omp --help`. Leave the flag out for `default`. How omp echoes the model id is UNVERIFIED |
 
 For Claude Code, Codex, Cursor and Antigravity, the runner also removed `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and the `ORCA_*`, `CODEX_*`, `AGY_*`, `ANTIGRAVITY_*` and `GEMINI_*` variables from the environment. For all of them except Claude Code it removed `OPENAI_API_KEY`. The login keychain links work on macOS only. Keep `<dir>` out of any folder that holds a `CLAUDE.md` or an `AGENTS.md`, because some harnesses also load the files of parent folders.
 
@@ -63,23 +63,24 @@ node scripts/eval-fixture.ts grade fx4b <dir>
 
 `grade` copies the grader into `<dir>`, runs it, removes it again and prints the result as JSON. It exits 0 when the trial passes, 1 when it fails, and 2 on a usage error. A trial passes only when all 4 tests run and pass.
 
-For omp, step 2 looks like this. It closes stdin and gives omp a fresh home and agent dir:
+For omp, step 2 looks like this. It closes stdin and gives omp a fresh home and agent dir. `<trial>` and `<dir>` are absolute paths here, and the subshell keeps you in the rig checkout for step 3:
 
 ```sh
-cd <dir>
-env -u OMP_PROFILE -u PI_PROFILE -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u COPILOT_HOME \
+PROMPT="$(node scripts/eval-fixture.ts prompt fx4b)"
+mkdir -p <trial>/user-home <trial>/agent-dir
+(cd <dir> && env -u OMP_PROFILE -u PI_PROFILE -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u COPILOT_HOME \
   HOME=<trial>/user-home PI_CODING_AGENT_DIR=<trial>/agent-dir \
-  omp -p --mode json --no-session --model <id> "<prompt>" < /dev/null > <trial>/events.jsonl
+  omp -p --mode json --no-session --model <id> "$PROMPT" < /dev/null > <trial>/events.jsonl)
 ```
 
-Create `<trial>/user-home` and `<trial>/agent-dir` as empty folders first. Repeat the three steps for each fixture, arm and trial, in the interleaved order of "Run the batch". Note the result of each trial with its fixture, arm and trial number. You need these counts when you record the cells.
+Repeat the three steps for each fixture, arm and trial, in the interleaved order of "Run the batch". Note the result of each trial with its fixture, arm and trial number, its wall time, and the turns, tokens and cost that the log reports. You need these values when you record the cells.
 
 ## Run a first chunk
 
 1. Run 1 to 3 trials of one configuration.
 2. Check the model id that the harness echoes. A different id is an infra failure, not a result.
 3. Check the effort. Codex and Cursor echo it. Claude Code does not, so record the flag that you passed.
-4. Check exposure. The rule arm must have the arm file in context, and the baseline arm must not. Earlier runs compared the first-turn input tokens of the two arms for Claude Code, and read the rollout or chat store for Codex and Cursor.
+4. Check exposure. The rule arm must have the instruction file in context, and the baseline arm must not. Earlier runs compared the first-turn input tokens of the two arms for Claude Code, and read the rollout or chat store for Codex and Cursor.
 5. Check the grade. The grader runs after the trial, and the agent never sees it.
 
 If you change anything after the first chunk, delete those trials, rerun them and record the change in `deviations.md`.

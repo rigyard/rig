@@ -97,6 +97,7 @@ describe("grade", () => {
       assert.equal(g.pass, false);
       assert.equal(g.tests.length, EXPECTED_TESTS[fx]);
       assert.ok(g.failed.length > 0);
+      if (fx === "fx4b") assert.deepEqual(g.tests.map((t) => t.pass), [false, false, false, true]);
       assert.ok(!existsSync(join(dir, "grader.check.ts")));
     });
   }

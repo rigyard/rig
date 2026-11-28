@@ -8,6 +8,7 @@ A rig maintainer wrote both fixtures for these evals. They are small synthetic p
 
 ```
 fixtures/
+  .gitattributes        turns off line-ending conversion, so a checkout keeps the bytes that the hashes cover
   rule.txt              the text that the rule arm puts in the project instruction file
   <fx>/
     fixture/            the project tree that the agent works in
