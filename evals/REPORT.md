@@ -9,22 +9,58 @@
 
 ## Summary
 
-The one-sentence bug-fix rule has the strongest result. It raised Sonnet's pass rate on both synthetic bug-fix tasks against a placebo, and it helped two of four Codex configurations and Sonnet at effort medium. On three real bugs from rig's own history the rule and the baseline passed within one trial of each other, so the run allows no claim. The arms already passed most trials there.
+Short answers. The tables below hold the numbers.
 
-The only other positive result is the rig default install on Sonnet, and it comes from one task. Two third-party skills passed fewer trials than no skill on at least one task. With Opus, the rig default install passed fewer trials on fx4b, a descriptive result. A later frame change targets that failure. Its commit message reports a 4-trial smoke run, and no recorded eval run has measured it.
+- **The bug-fix rule helps** on the two tasks that were calibrated on Sonnet. It shows no effect on real rig bugs, where the baseline already passes 83%.
+- **The rig default install helps Sonnet on one task.** On Opus one task is at the ceiling and the other has fewer passes with rig (descriptive).
+- **Neither third-party skill helps.** pstack formal verification hurt on one task.
 
-Read every "no claim" in this report as "not detected at this sample size". Most cells have 5 to 8 trials, so only large effects reach a claim.
+Verdict words: **Helps**, **Hurts**, **No effect detected**, **Ceiling**, **Floor**, **Smoke** and **Not tested**. Terms defines each. Read every "No effect detected" as "not detected at this sample size". Most cells have 5 to 8 trials, so only large effects reach a claim.
 
-## Results by question
+## Does rig help?
 
-| Question | Result | Verdict |
-| --- | --- | --- |
-| Does the bug-fix rule help Sonnet? | Pass rate 30 of 30 with the rule, 7 of 30 with a placebo, 15 of 30 with nothing | Claim allowed. Appendix A |
-| Does the rule help on real rig bugs? | The rule and the baseline were within one trial of each other on both primary tasks (9/12 against 10/12, 10/12 against 10/12) | No claim. Appendix A |
-| Does the rule help other models? | Helps Sonnet medium, GPT-6.1 sol and GPT-6 luna high. No claim for the others. A Haiku smoke run points the same way at effort medium | Exploratory. Appendices B and E |
-| Do third-party skills help? | gstack investigate: no benefit detected, and fewer passes on fx4b (2/8 against 6/8 for the full skill). pstack formal verification: fewer passes, 0 of 8 against 8 of 8 | gstack: not contradicted at n = 8. pstack: contradicted. Appendix A |
-| Does the rig default install help? | Sonnet: helps on fx3 only. Opus: ceiling on fx3, fewer passes on fx4b (descriptive) | Claim for Sonnet only, from one task. Appendix A |
-| Do the judge models rank good above bad? | The pico judge has the higher pooled AUC, and the confidence intervals overlap. pico is at chance on the short-sentence prose subset | Descriptive. Appendix C |
+The table compares the rig default install with no rig. "With rig" loads the always-on frame. "With rig and `/craft`" starts the prompt with `/craft`, which loads the hub and the playbooks. Passes are pooled over the tasks in the first column.
+
+| Model, effort, tasks | Without rig | With rig | With rig and `/craft` | Verdict |
+| --- | --- | --- | --- | --- |
+| Sonnet medium, fx3 and fx4b | 0/12 | 6/12 | 8/12 | **Helps** on fx3 only (0/6, 6/6, 6/6). fx4b is a **Floor** (0/6, 0/6, 2/6) |
+| Opus default, fx3 and fx4b | 11/12 | 7/12 | 6/12 | **Ceiling** on fx3 (6/6 in every arm). Fewer passes on fx4b (5/6, 1/6, 0/6), descriptive |
+| Opus default, fx4b and two SWE-rebench tasks | 13/18 | 9/18 | not run | **No effect detected**. Rig without the "smallest change" clause passed 11/18 |
+
+The Sonnet "without rig" arm ran at effort medium with a restricted tool list, so it does not compare with the 15 of 30 in the rule table. Without `/craft` the model never opened the hub, so the "With rig" column measures the frame alone. Appendix D lists the runs.
+
+## Does the bug-fix rule help?
+
+The rule is one sentence in the project instruction file. Passes are pooled over fx3 and fx4b unless the row says otherwise.
+
+| Model, effort | Without the rule | With the rule | Verdict |
+| --- | --- | --- | --- |
+| Sonnet default | 15/30 | 30/30 | **Helps**, preregistered. A placebo sentence passed 7/30 |
+| Sonnet medium | 2/10 | 9/10 | **Helps**, exploratory |
+| GPT-6.1 sol medium | 5/10 | 10/10 | **Helps**, exploratory |
+| GPT-6 luna high | 0/10 | 4/10 | **Helps**, exploratory |
+| Haiku medium | 1/6 | 4/6 | **Smoke**, leans toward helps |
+| Haiku low | 1/6 | 2/6 | **Smoke**, no difference seen |
+| Opus default | 8/10 | 10/10 | **No effect detected**. The baseline is already 80% |
+| GPT-6.1 terra medium | 5/10 | 5/10 | **No effect detected**. **Ceiling** on fx3 (5/5 both), **Floor** on fx4b (0/5 both) |
+| GPT-6 luna medium | 0/10 | 2/10 | **Floor**, no claim |
+| Grok 4.7 medium | 5/10 | 6/10 | **No effect detected**. **Ceiling** on fx3 (5/5 both) |
+| Grok 4.7 high | 5/10 | 6/10 | **No effect detected**. **Ceiling** on fx3 (5/5 both) |
+| Sonnet default, three real rig bugs | 20/24 | 19/24 | **No effect detected**. The baseline is already 83% |
+
+## Do the third-party skills help?
+
+"With" starts the prompt with the skill's slash command. Passes are pooled over the tasks of the run.
+
+| Skill, model | Without | With | Verdict |
+| --- | --- | --- | --- |
+| gstack investigate, Opus, stripped copy | 13/16 | 8/16 | **No effect detected**. **Ceiling** on fx3 (8/8 both). Fewer passes on fx4b (5/8, 0/8) |
+| gstack investigate, Opus, full skill | 14/16 | 9/15 | **No effect detected**. **Ceiling** on fx3 (8/8, 7/7). Fewer passes on fx4b (6/8, 2/8) |
+| pstack formal verification, Sonnet, order pipeline | 8/8 | 0/8 | **Hurts** (preregistered). The baseline is at the **Ceiling** |
+| pstack formal verification, Sonnet, job hub audit | 1/8 | 1/8 | **No effect detected**. Bugs found per trial: 4.00 without, 3.75 with |
+| pstack fix-root-causes principle, Sonnet | 11/20 | 11/20 | **Not tested**. The skill was read in 1 of 20 trials |
+
+In the job hub row, a pass means that a trial found all five planted bugs.
 
 ## What the results mean for rig
 
@@ -50,9 +86,15 @@ Read every "no claim" in this report as "not detected at this sample size". Most
 - **Arm**: one condition of a run, for example `rule`, `placebo` or `none`. `none` is the baseline.
 - **Cell**: one arm of one run on one task, with its passes `k` out of `n` trials.
 - **Preregistration**: the question, design and decision rule, written before the first trial.
+- **Helps**: the preregistered rule allows the claim, because the confidence interval of with minus without lies above 0. **Exploratory** means one of a family of configurations, so replicate it before you rely on it.
+- **Hurts**: the same interval lies below 0.
+- **No effect detected**: the interval includes 0. This is not evidence of zero effect.
 - **Ceiling**: the baseline already passes 90% or more, so a helping unit cannot show.
+- **Floor**: both arms pass almost nothing, so the task cannot tell them apart.
+- **Smoke**: fewer than 5 trials per cell and no preregistration. Descriptive only.
+- **Not tested**: the unit was not in the model's context, so the run did not measure it.
+- **told**: in Appendix B, the arm whose prompt starts with a slash command. It is a skill's command, or `/craft` for rig.
 - **fx3** and **fx4b**: the two synthetic bug-fix tasks. fx3 sorts accented names. fx4b sells the last item twice under concurrent checkout.
-- **told**: the arm whose prompt starts with the skill's slash command.
 
 ## Appendices
 
@@ -285,14 +327,16 @@ Source: the `notes` of each run's `summary.json`, the preregistrations, and git 
 
 | Body claim | Source |
 | --- | --- |
+| Run behind each table row | Rig table: `2026-11-11-rig-default-vs-vanilla` (rows 1 and 2), `2026-11-12-opus-frame-ablation` (row 3). Rule table: `2026-11-10-rule-bug-fix-callers` (row 1), `2026-11-11-rule-bug-fix-callers-matrix` (rows 2 to 4 and 7 to 9), `2026-11-28-rule-bug-fix-callers-haiku` (rows 5 and 6), `2026-11-12-rule-bug-fix-callers-matrix-cursor` (rows 10 and 11), `2026-11-11-rule-bug-fix-callers-rig-history` (row 12, tasks d3 and st). Skill table: `2026-11-10-hg-gstack-investigate`, `2026-11-11-gstack-investigate-full`, `2026-11-10-hp-pstack-formal-verification`, `2026-11-11-hp-formal-verification-audit`, `2026-11-11-pilot-principle-fix-root-causes` |
+| Every pooled pass count in the three tables | Sums of `k` and `n` over the cells of Appendix B that match the row's run, model, effort and tasks. Computed by script from `history.jsonl` on 2026-11-28. Verdict words come from the `verdict` of each run's `summary.json` (Appendix A) and the preregistered rules |
 | Rule pass rate 30 of 30, placebo 7 of 30, none 15 of 30 on Sonnet | Appendix B, run `2026-11-10-rule-bug-fix-callers`: fx4b 15/15, 1/15, 8/15 and fx3 15/15, 6/15, 7/15 |
-| The rule costs about 1.7 to 2 times more per trial | Appendix B, same run: mean cost rule 0.159 against none 0.095 on fx4b, and 0.128 against 0.068 on fx3 |
+| The rule costs about 1.7 to 1.9 times more per trial | Appendix B, same run: mean cost rule 0.159 against none 0.095 on fx4b, and 0.128 against 0.068 on fx3 |
 | No rule effect on real rig bugs | `2026-11-11-rule-bug-fix-callers-rig-history` notes: "On the new fixtures there is no rule effect (d3 9/12 against 10/12 for none, st 10/12 against 10/12)." |
 | Matrix labels are exploratory | `2026-11-11-rule-bug-fix-callers-matrix` notes: "The preregistration calls them exploratory, because the configurations are a family and no between-config test is preregistered." |
 | gstack investigate worse on one task | `2026-11-10-hg-gstack-investigate` notes: "the told arm passed less on fx4b (0/8 vs 5/8)." The full skill: fx4b 2/8 against 6/8 (Appendix B) |
 | pstack formal verification 0 of 8 against 8 of 8 | Appendix B, run `2026-11-10-hp-pstack-formal-verification`, fixture `ord` |
 | Opus with rig changed one or two files | `2026-11-12-opus-frame-ablation` notes: "rig changed 1 or 2 files in 6 of 6 trials, none changed 4 files in 6 of 6, and rig-ablated changed 4 or 5 files in 3 of 6 and 2 files in 3 of 6." |
-| Removing one clause recovered half of the passes | Same run notes: "On fx4b the arms are none 6/6, rig 0/6 and rig-ablated 3/6." |
+| The arm without the "smallest change" clause passed 3 of 6 on fx4b | Same run notes: "On fx4b the arms are none 6/6, rig 0/6 and rig-ablated 3/6." |
 | The frame gained a sentence on 2026-11-15 | Commit `1b2872e`, "fix(frame): fix every site of the same fault, not only the reported one", on `packs/core/frame.md` |
 | 0 of 60 rig-arm trials without `/craft` opened the hub | 24 trials: `2026-11-12-opus-frame-ablation/prereg.md`, "The hub was opened in 0 of 24 rig-arm trials without `/craft`". 36 trials: the same run's notes, "opened in 0 of 54 trials (0 of 18 per arm)", for the arms `rig` and `rig-ablated` |
 | The `/craft` arm opened the hub in 21 of 24 trials | `2026-11-11-rig-default-vs-vanilla` notes: "The agent opened the hub itself in 21 of 24 told trials." |
