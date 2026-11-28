@@ -30,7 +30,7 @@ Do not run `scripts/eval-runner.ts --record`. Without `--dry-run` it writes no t
 
 ## Isolate the harness
 
-The arms must differ by one thing only. Your own instructions, skills and MCP servers must not reach the model. The table gives the command and the isolation per harness. The rows for Claude Code, Codex, Cursor and Antigravity are what the 2026-11-11 matrix runner used. The omp row comes from rig's omp probes, and no recorded trial used it. Replace `<id>`, `<level>`, `<dir>` and `<prompt>` with your values. `<trial>` is a scratch folder of the trial, outside `<dir>`.
+The arms must differ by one thing only. Your own instructions, skills and MCP servers must not reach the model. The table gives the command and the isolation per harness. The rows for Claude Code, Codex, Cursor and Antigravity are what the 2026-11-11 matrix runner used. The omp row comes from rig's omp probes and from checks on 2026-11-28 with omp 18.16.0. No recorded trial used omp. Replace `<provider>`, `<id>`, `<level>`, `<dir>` and `<prompt>` with your values. `<trial>` is a scratch folder of the trial, outside `<dir>`.
 
 | Harness | Headless command, run in `<dir>` with stdin closed | Isolation | Instruction file for the `rule` arm | Effort |
 | --- | --- | --- | --- | --- |
@@ -38,11 +38,36 @@ The arms must differ by one thing only. Your own instructions, skills and MCP se
 | Codex | `codex exec -m <id> -c model_reasoning_effort="<level>" -c approval_policy="never" -s workspace-write --json -C <dir> "<prompt>"` | A fresh `HOME` and a fresh `CODEX_HOME` per trial. `CODEX_HOME` holds only `auth.json`, a link to your login file | `AGENTS.md` | `-c model_reasoning_effort`. The rollout file echoes it in `turn_context` |
 | Cursor | `cursor-agent -p --output-format stream-json --model <id>-<level> --trust "<prompt>"` | A fresh `HOME` per trial that holds only `Library/Keychains`, a link to your login keychain, and `.cursor/cli-config.json` with `approvalMode` `allowlist` and the shell commands node, git, ls, cat, grep and find. `CURSOR_*` variables removed | `AGENTS.md` | The suffix of the model id. The init event echoes it in the model name |
 | Antigravity | `agy -p "<prompt>" --output-format stream-json --model <id>-<level> --dangerously-skip-permissions --sandbox --print-timeout <seconds>s` | A fresh `HOME` per trial that holds only `Library/Keychains`, a link to your login keychain | `AGENTS.md`. agy also loads `GEMINI.md` and `.agents/rules/*.md` | The suffix of the model id. `init.model` echoes it |
-| omp | `omp -p --mode json --no-session --model <id> --thinking <level> "<prompt>"`. An open stdin pipe hangs it with no output | A fresh `PI_CODING_AGENT_DIR` and a fresh `HOME` per trial, both under `<trial>`. Remove `OMP_PROFILE`, `PI_PROFILE`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `COPILOT_HOME` from the environment. Pass the model credentials through the environment. The probes kept no credentials in the agent dir. A login stored in your real agent dir was not tested | UNVERIFIED. `AGENTS.md` is the likely file, because omp has a `--no-context-files` flag, but no probe confirmed which project file omp loads. Do not pass `--no-context-files` | `--thinking <level>`. The accepted levels are not recorded: read them from `omp --help`. Leave the flag out for `default`. How omp echoes the model id is UNVERIFIED |
+| omp | `omp -p --mode json --no-session --model <provider>/<id> --thinking=<level> --max-time 5m "<prompt>"`. An open stdin pipe hangs it with no output. `--max-time` sets the wall-clock limit. omp has no turn cap flag | A fresh `PI_CODING_AGENT_DIR` and a fresh `HOME` per trial, both under `<trial>`. Remove `OMP_PROFILE`, `PI_PROFILE`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `COPILOT_HOME` from the environment. omp took its login from the environment in every run, and the isolated agent dir holds none, so pass only the key variable of your provider. omp asks for no tool approval and has no sandbox flag: see "Sandbox omp" | `AGENTS.md`. Verified: omp loads a project-root `AGENTS.md`, also when `.git/info/exclude` lists it, and it wins over a `CLAUDE.md` at the same depth. omp does not load a project-root `GEMINI.md`. It reads that file only from `.gemini/`. Source: the built-in docs page `context-files.md`, which `omp read` prints with no model call, and one canary run | `--thinking=<level>`, one of off, minimal, low, medium, high, xhigh, max and auto, as `omp --help` lists them. Record `default` when you pass no flag. Verified echo: the assistant `message_end` event carries `message.provider` and `message.model`. For `--model openrouter/tencent/hy4-flash` they are `openrouter` and `tencent/hy4-flash` |
 
 For Claude Code, Codex, Cursor and Antigravity, the runner also removed `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and the `ORCA_*`, `CODEX_*`, `AGY_*`, `ANTIGRAVITY_*` and `GEMINI_*` variables from the environment. For all of them except Claude Code it removed `OPENAI_API_KEY`. The login keychain links work on macOS only. Keep `<dir>` out of any folder that holds a `CLAUDE.md` or an `AGENTS.md`, because some harnesses also load the files of parent folders.
 
-Before the first trial, check isolation with a canary. Put a unique word in the project instruction file and ask the model to quote its project instructions and any global instructions. The model must quote the canary and report no global instructions. For omp, the canary also settles the two UNVERIFIED cells. Run it once with the canary in `AGENTS.md`. If the model does not quote it, try `CLAUDE.md`. Then find the field of the JSON events that names the model, and check that it matches `<id>`. Record both results in `deviations.md` before any trial.
+Before the first trial, check isolation with a canary. Put a unique word in the project instruction file and ask the model to quote its project instructions and any global instructions. The model must quote the canary and report no global instructions. Record the result in `deviations.md` before any trial.
+
+### Sandbox omp
+
+In print mode omp runs with the approval mode `yolo` (built-in docs page `approval-mode.md`, printed by `omp read`). The agent can run any shell command and edit any file without asking. omp has no sandbox flag. Run it inside an OS sandbox or a throwaway container, pass it only the key variable of your provider, and deny reads of your home folder. On macOS, a `sandbox-exec` profile like this one does that:
+
+```
+(version 1)
+(allow default)
+(deny file-read* (subpath "<home-root>"))
+(deny file-write*)
+(allow file-write* (subpath "<trial-root>") (subpath "<var-folders>") (subpath "/dev"))
+```
+
+Replace `<home-root>` with the root of the user home folders, `<trial-root>` with the folder that holds `<dir>` and `<trial>`, and `<var-folders>` with the `var/folders` folder under the macOS `private` root, where the per-user temp folders live. Put `<trial-root>` outside your home folder, or omp cannot read the fixture. The profile also blocks an omp or node binary installed under your home folder. In a check run with this profile, an agent that tried to write a scratch file in the system tmp folder got an error. Expect that, and use the same sandbox in both arms.
+
+### Differences from the recorded runs
+
+An omp cell differs from the recorded cells of the other harnesses in four ways. Name them in the note of each omp cell:
+
+- omp approves every tool call by itself, where the recorded runs used an allowlist or a harness sandbox.
+- The OS sandbox is yours, not the harness's.
+- Writes outside the trial folder, the system tmp folder included, fail under the profile above.
+- omp has no turn cap. Only `--max-time` limits a trial.
+
+Record the harness version from `omp --version`, which prints `omp/18.16.0`. The `version` field of the JSON `session` event is the version of the session format, for example 3. It is not the omp version.
 
 ## Run a trial by hand
 
@@ -63,14 +88,14 @@ node scripts/eval-fixture.ts grade fx4b <dir>
 
 `grade` copies the grader into `<dir>`, runs it, removes it again and prints the result as JSON. It exits 0 when the trial passes, 1 when it fails, and 2 on a usage error. A trial passes only when all 4 tests run and pass.
 
-For omp, step 2 looks like this. It closes stdin and gives omp a fresh home and agent dir. `<trial>` and `<dir>` are absolute paths here, and the subshell keeps you in the rig checkout for step 3:
+For omp, step 2 looks like this. It closes stdin, gives omp a fresh home and agent dir, passes only `PATH` and your provider key variable `<KEY_VAR>`, and runs omp in the sandbox of "Sandbox omp" with the profile saved as `<trial-root>/omp.sb`. `env -i` starts from an empty environment, so the variables that the table removes are gone too. `<trial-root>`, `<trial>` and `<dir>` are absolute paths here, and the subshell keeps you in the rig checkout for step 3:
 
 ```sh
 PROMPT="$(node scripts/eval-fixture.ts prompt fx4b)"
 mkdir -p <trial>/user-home <trial>/agent-dir
-(cd <dir> && env -u OMP_PROFILE -u PI_PROFILE -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u COPILOT_HOME \
-  HOME=<trial>/user-home PI_CODING_AGENT_DIR=<trial>/agent-dir \
-  omp -p --mode json --no-session --model <id> "$PROMPT" < /dev/null > <trial>/events.jsonl)
+(cd <dir> && env -i PATH="$PATH" HOME=<trial>/user-home PI_CODING_AGENT_DIR=<trial>/agent-dir <KEY_VAR>="$<KEY_VAR>" \
+  sandbox-exec -f <trial-root>/omp.sb \
+  omp -p --mode json --no-session --model <provider>/<id> --max-time 5m "$PROMPT" < /dev/null > <trial>/events.jsonl)
 ```
 
 Repeat the three steps for each fixture, arm and trial, in the interleaved order of "Run the batch". Note the result of each trial with its fixture, arm and trial number, its wall time, and the turns, tokens and cost that the log reports. You need these values when you record the cells.
@@ -78,7 +103,7 @@ Repeat the three steps for each fixture, arm and trial, in the interleaved order
 ## Run a first chunk
 
 1. Run 1 to 3 trials of one configuration.
-2. Check the model id that the harness echoes. A different id is an infra failure, not a result.
+2. Check the model id that the harness echoes. A different id is an infra failure, not a result. omp splits the id that you passed into two fields: compare `message.provider` and `message.model` with the `<provider>` and the `<id>` of `--model <provider>/<id>`.
 3. Check the effort. Codex and Cursor echo it. Claude Code does not, so record the flag that you passed.
 4. Check exposure. The rule arm must have the instruction file in context, and the baseline arm must not. Earlier runs compared the first-turn input tokens of the two arms for Claude Code, and read the rollout or chat store for Codex and Cursor.
 5. Check the grade. The grader runs after the trial, and the agent never sees it.

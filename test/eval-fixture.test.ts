@@ -4,9 +4,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, describe, test } from "node:test";
 import { EXPECTED_TESTS, parseTap } from "../scripts/eval-fixture.ts";
@@ -76,6 +76,53 @@ describe("prepare", () => {
     }
   });
 
+  test("refuses a directory inside the checkout through a symlinked parent, and writes nothing", () => {
+    const link = join(tmp, "link-to-evals");
+    symlinkSync(join(ROOT, "evals"), link);
+    const r = run("prepare", "fx3", "none", join(link, "trial-via-link"));
+    assert.equal(r.status, 2, r.stderr);
+    assert.match(r.stderr, /inside the rig checkout/);
+    assert.ok(!existsSync(join(ROOT, "evals", "trial-via-link")));
+  });
+
+  for (const name of ["", ".git", "a/AGENTS.md", "a\\AGENTS.md", "..", "README.md", "readme.md", "package.json", "src"]) {
+    test(`refuses --instruction-file ${JSON.stringify(name)} before any write`, () => {
+      const dir = freshDir();
+      const r = run("prepare", "fx3", "rule", dir, "--instruction-file", name);
+      assert.equal(r.status, 2, r.stderr);
+      assert.match(r.stderr, /instruction-file/);
+      assert.ok(!existsSync(dir), `${dir} was created`);
+    });
+  }
+
+  test("the none and rule work dirs differ only by the instruction file", () => {
+    const snapshot = (dir: string) => {
+      const files = Object.fromEntries(readdirSync(dir, { recursive: true, withFileTypes: true })
+        .filter((e) => e.isFile())
+        .map((e) => relative(dir, join(e.parentPath, e.name)))
+        .filter((f) => f.split("/")[0] !== ".git")
+        .sort()
+        .map((f) => [f, readFileSync(join(dir, f), "utf8")]));
+      const index = spawnSync("git", ["ls-files", "-s"], { cwd: dir, encoding: "utf8" });
+      assert.equal(index.status, 0, index.stderr);
+      return { files, index: index.stdout, exclude: readFileSync(join(dir, ".git", "info", "exclude"), "utf8") };
+    };
+    for (const name of ["AGENTS.md", "CLAUDE.md"]) {
+      const none = freshDir();
+      const rule = freshDir();
+      assert.equal(run("prepare", "fx4b", "none", none, "--instruction-file", name).status, 0);
+      assert.equal(run("prepare", "fx4b", "rule", rule, "--instruction-file", name).status, 0);
+      const a = snapshot(none);
+      const b = snapshot(rule);
+      assert.equal(a.index, b.index);
+      assert.equal(a.exclude, b.exclude);
+      assert.ok(a.exclude.split("\n").includes(name));
+      const { [name]: ruleText, ...rest } = b.files;
+      assert.equal(ruleText, RULE);
+      assert.deepEqual(rest, a.files);
+    }
+  });
+
   test("refuses a non-empty directory", () => {
     const dir = freshDir();
     assert.equal(run("prepare", "fx3", "none", dir).status, 0);
@@ -124,8 +171,7 @@ describe("usage errors exit 2", () => {
     ["unknown command", ["run", "fx3"], /unknown command run/],
     ["bad arm", ["prepare", "fx3", "placebo", join(tmp, "bad-arm")], /unknown arm placebo/],
     ["missing directory", ["grade", "fx3", join(tmp, "missing")], /is not a directory/],
-    ["instruction file path", ["prepare", "fx3", "rule", join(tmp, "bad-name"), "--instruction-file", "a/AGENTS.md"], /file name, not a path/],
-    ["directory inside the checkout", ["prepare", "fx3", "none", join(ROOT, "evals", "trial")], /inside the rig checkout/],
+        ["directory inside the checkout", ["prepare", "fx3", "none", join(ROOT, "evals", "trial")], /inside the rig checkout/],
   ];
   for (const [name, args, message] of cases) {
     test(name, () => {

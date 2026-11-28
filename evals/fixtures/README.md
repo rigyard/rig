@@ -37,18 +37,22 @@ The fx4b runs also used a secondary grader with 5 tests. Its result was descript
 `node scripts/eval-fixture.ts hash <fx>` prints both hashes.
 
 - `grader_sha256` is the sha256 of `grader/check.ts`.
-- `fixture_sha256` is the sha256 of a text with one line per file of `fixture/`, `.git` excluded. Each line is `<sha256 of the file bytes>  ./<relative path>`, with two spaces. Each line ends in a newline. The lines are sorted by the lower-cased relative path in byte order, and ties are broken by the path in byte order. So `package.json` comes before `README.md`.
+- `fixture_sha256` is the sha256 of a text with one line per file of `fixture/`, `.git` excluded. Each line is `<sha256 of the file bytes>  ./<relative path>`, with two spaces. Each line ends in a newline. To sort the lines, lowercase each relative path with the JavaScript `String.prototype.toLowerCase`, then compare the results by UTF-16 code units. When two lowercased paths are equal, compare the original paths the same way. So `package.json` comes before `README.md`.
 
 | Fixture | `fixture_sha256` | `grader_sha256` |
 | --- | --- | --- |
 | fx3 | `1dc4cff312ea7ccf47c95c2acd721cbfb959d78e90ff88dbae780ae72debfd5b` | `2a63cd895b5f963abbb56ec7120083b124a8383c6c84afa0f0239daf9859d695` |
 | fx4b | `e7b90d2411894ded157629570babf3c3df5c503f30d230be465cf8f595073565` | `f8a946000b8d25b51ab6825eafee1bad017dbac975973a6b6a3fdfe0b5aa02e3` |
 
-For these two trees this shell line gives the same value. The script is the reference.
+For these two trees this shell line gives the same value. It gives the same order only here: `sort -f` folds to upper case, so the order differs for paths that contain `_`, `[`, `\`, `]`, `^` or a backtick. The script is the reference.
 
 ```sh
 cd evals/fixtures/fx3/fixture
 find . -type f | LC_ALL=C sort -f | while read -r f; do printf '%s  %s\n' "$(shasum -a 256 "$f" | cut -d' ' -f1)" "$f"; done | shasum -a 256
 ```
+
+## File modes
+
+`prepare` makes the copied files writable. The recorded matrix cells for Claude Code, Codex and Cursor ran with read-only files (mode 444), and Cursor retried its edits because of that (deviation 8 of the run `2026-11-12-rule-bug-fix-callers-matrix-cursor`). The recorded rigstack runs used writable files. The mode is not part of the hash. To repeat the read-only condition, run `chmod -R a-w <dir>` after `prepare`.
 
 A changed fixture or grader starts a new trend group. Do not edit these files. A new version goes into a new fixture id.

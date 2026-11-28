@@ -9,8 +9,8 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, chmodSync, cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve, sep } from "node:path";
+import { appendFileSync, chmodSync, cpSync, existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -56,12 +56,30 @@ function git(dir: string, args: string[]): void {
   if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed in ${dir}: ${r.error?.message ?? r.stderr}`);
 }
 
+function checkInstructionFile(name: string, src: string): void {
+  if (!name || name === "." || name === ".." || name === ".git" || /[\\/]/.test(name) || basename(name) !== name) throw new UsageError(`--instruction-file takes a plain file name: ${JSON.stringify(name)}`);
+  if (readdirSync(src).some((f) => f.toLowerCase() === name.toLowerCase())) throw new UsageError(`--instruction-file ${name} would overwrite a file of the fixture`);
+}
+
+/** The real path of target: the real path of its nearest existing ancestor, joined with the part that does not exist yet. */
+function realTarget(target: string): string {
+  let head = target;
+  const tail: string[] = [];
+  while (!existsSync(head)) {
+    tail.unshift(basename(head));
+    head = dirname(head);
+  }
+  return join(realpathSync.native(head), ...tail);
+}
+
 export function prepare(fx: string, arm: string, dir: string, instructionFile: string): { dir: string; fixture: string; arm: string; instruction_file: string | null } {
   const src = join(fixtureDir(fx), "fixture");
   if (!ARMS.includes(arm)) throw new UsageError(`unknown arm ${arm}: use none or rule`);
-  if (basename(instructionFile) !== instructionFile || instructionFile === "." || instructionFile === "..") throw new UsageError(`--instruction-file takes a file name, not a path: ${instructionFile}`);
+  checkInstructionFile(instructionFile, src);
   const target = resolve(dir);
-  if (target === ROOT || target.startsWith(ROOT + sep)) throw new UsageError(`${target} is inside the rig checkout, where the agent could read the graders: use a directory outside it`);
+  const real = realTarget(target);
+  const root = realpathSync.native(ROOT);
+  if (real === root || real.startsWith(root + sep)) throw new UsageError(`${target} is inside the rig checkout, where the agent could read the graders: use a directory outside it`);
   if (existsSync(target) && (!statSync(target).isDirectory() || readdirSync(target).length > 0)) throw new UsageError(`${target} exists and is not an empty directory`);
   let rule: string | null = null;
   if (arm === "rule") {
